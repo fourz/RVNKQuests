@@ -5,25 +5,15 @@ import org.bukkit.block.Lectern;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.bukkit.event.Listener;
-import org.fourz.RVNKQuests.objective.ListenerFirstCityChoice;
 import org.fourz.RVNKQuests.trigger.ListenerProphecyDiscovery;
 import org.fourz.RVNKQuests.trigger.ListenerProphecyVisions;
 import org.fourz.RVNKQuests.trigger.ListenerEventPopulated;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.regions.CylinderRegion;
-import com.sk89q.worldedit.world.block.BlockTypes;
-import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.math.Vector2;
-//import com.sk89q.worldedit.world.World;
+import java.util.Random;
 
 
 public class QuestFirstCityProphecy implements Quest {
@@ -90,28 +80,31 @@ public class QuestFirstCityProphecy implements Quest {
             plugin.getDebugger().debug("Event world not found, using default world");
             world = Bukkit.getWorlds().get(0);
         }
-        Location spawn = world.getSpawnLocation().clone();
-        spawn.add(12, 0, -12);
-
-        // Ensure we're placing on the highest block
-        spawn.setY(world.getHighestBlockYAt(spawn));
+        Location top = world.getSpawnLocation().clone();
+        Random random = new Random();
+        int x = (random.nextInt(10) - 5) * 8;
+        int z = (random.nextInt(10) - 5) * 8;
+        top.add(x, 0, z);
+        top.setY(world.getHighestBlockYAt(top));
+        top.add(0, 2, 0);
         
-        createStonePedestal(spawn);
-
-        // Place lectern at the top center (adjusted for new cylinder height)
-        Location lecternLoc = spawn.clone().add(0, 11, 0);
+        // Create outer grass pedestal first
+        createStonePedestal(top.clone(), 100, 5, Material.GRASS_BLOCK, false);
         
-        plugin.getDebugger().debug("Lectern placed at: " + lecternLocation);
+        // Create inner stone pedestal with slightly smaller radius
+        createStonePedestal(top.clone(), 100, 4, Material.STONE, true);
+        
+        // Place lectern separately after pedestals are created
+        top.getBlock().setType(Material.LECTERN);
+        this.lecternLocation = top;
 
-        plugin.getDebugger().debug("Creating prophecy book item");
+        // Create the book
         ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
         
-        plugin.getDebugger().debug("Setting book metadata");
         meta.setTitle("The First City Prophecy");
         meta.setAuthor("The Ancient Ones");
         
-        plugin.getDebugger().debug("Adding book pages");
         String page1 = "§5The First City Prophecy§0\n\n" +
                       "In ages past, before the shattering of worlds, there stood a city of untold wonder.\n\n" +
                       "Now, the spirits call once more...";
@@ -122,34 +115,19 @@ public class QuestFirstCityProphecy implements Quest {
         
         meta.addPage(page1);
         meta.addPage(page2);
-        plugin.getDebugger().debug("Book pages added - Page count: " + meta.getPageCount());
-        
         book.setItemMeta(meta);
-        plugin.getDebugger().debug("Book metadata applied successfully");
 
-        try {
-            Lectern lectern = (Lectern) lecternLoc.getBlock().getState();
-            plugin.getDebugger().debug("Lectern state retrieved at: " + lecternLoc);
-            
-            lectern.getInventory().setItem(0, book);
-            plugin.getDebugger().debug("Book placed in lectern inventory - Slot 0");
-            
-            boolean updated = lectern.update();
-            plugin.getDebugger().debug("Lectern state update: " + (updated ? "successful" : "failed"));
-            
-            // Verify book placement
-            ItemStack placedBook = lectern.getInventory().getItem(0);
-            if (placedBook != null && placedBook.getType() == Material.WRITTEN_BOOK) {
-                BookMeta placedMeta = (BookMeta) placedBook.getItemMeta();
-                plugin.getDebugger().debug("Book verification - Title: " + placedMeta.getTitle() +
-                                         ", Author: " + placedMeta.getAuthor() +
-                                         ", Pages: " + placedMeta.getPageCount());
+        // Place the book in the lectern after a short delay
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (top.getBlock().getType() == Material.LECTERN) {
+                Lectern lectern = (Lectern) top.getBlock().getState();
+                lectern.getInventory().setItem(0, book);
+                lectern.update();
+                plugin.getDebugger().debug("Book placed successfully in lectern at: " + top);
             } else {
-                plugin.getDebugger().debug("WARNING: Book placement verification failed!");
+                plugin.getDebugger().debug("ERROR: Block at location is not a lectern: " + top.getBlock().getType());
             }
-        } catch (Exception e) {
-            plugin.getDebugger().debug("ERROR placing book: " + e.getMessage());
-        }
+        }, 5L); // Increased delay to 5 ticks for more reliability
     }
 
     public boolean isValidSettlementLocation(Location loc) {
@@ -191,65 +169,40 @@ public class QuestFirstCityProphecy implements Quest {
         return listeners;
     }
 
-    public void createStonePedestal(Location location) {
-        plugin.getDebugger().debug("=== Starting Stone Pedestal Creation ===");
-        plugin.getDebugger().debug("Initial location: " + String.format("x:%.2f, y:%.2f, z:%.2f", 
-            location.getX(), location.getY(), location.getZ()));
+    public void createStonePedestal(Location topCenter, int height, int radius, Material block, boolean hollow) {
+        plugin.getDebugger().debug("=== Starting Pedestal Creation ===");
+        plugin.getDebugger().debug("Parameters - Height: " + height + ", Radius: " + radius + ", Material: " + block + ", Hollow: " + hollow);
 
-        // Ensure the location is on block boundaries
-        location.setX(location.getBlockX());
-        location.setY(location.getBlockY());
-        location.setZ(location.getBlockZ());
-        
-        plugin.getDebugger().debug("Aligned location: " + String.format("x:%d, y:%d, z:%d", 
-            location.getBlockX(), location.getBlockY(), location.getBlockZ()));
-    
-        try {
-            // Convert Bukkit world and location to WorldEdit's format
-            plugin.getDebugger().debug("Converting Bukkit world to WorldEdit format");
-            com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(location.getWorld());
-            
-            plugin.getDebugger().debug("Creating center vector at: " + String.format("x:%d, y:%d, z:%d", 
-                location.getBlockX(), location.getBlockY(), location.getBlockZ()));
-            BlockVector3 center = BlockVector3.at(location.getBlockX(), location.getBlockY(), location.getBlockZ());
-        
-            // Define the radius and height of the cylinder
-            Vector2 radius = new Vector2(5, 5);
-            int height = 10;
-            plugin.getDebugger().debug("Cylinder parameters - Radius: 5 blocks, Height: 10 blocks");
+        // Center point (topCenter is the top-middle of the cylinder)
+        int centerX = topCenter.getBlockX();
+        int endY = topCenter.getBlockY();
+        int startY = endY - height; // Work downward from the top
+        int centerZ = topCenter.getBlockZ();
 
-            plugin.getDebugger().debug("Creating cylinder region");
-            plugin.getDebugger().debug("Y-Range: " + location.getBlockY() + " to " + (location.getBlockY() + height));
-            CylinderRegion cylinder = new CylinderRegion(weWorld, center, radius, location.getBlockY() + height, location.getBlockY());
-            
-            plugin.getDebugger().debug("Cylinder bounds: " + 
-                String.format("min(%d,%d,%d) max(%d,%d,%d)",
-                    cylinder.getMinimumPoint().getX(),
-                    cylinder.getMinimumPoint().getY(),
-                    cylinder.getMinimumPoint().getZ(),
-                    cylinder.getMaximumPoint().getX(),
-                    cylinder.getMaximumPoint().getY(),
-                    cylinder.getMaximumPoint().getZ()));
-        
-            // Use an EditSession to make changes
-            plugin.getDebugger().debug("Opening WorldEdit EditSession");
-            try (EditSession editSession = WorldEdit.getInstance().newEditSession(weWorld)) {
-                plugin.getDebugger().debug("Setting blocks to stone");
-                int blocksAffected = editSession.setBlocks(cylinder, BlockTypes.STONE.getDefaultState());
-                plugin.getDebugger().debug("Blocks affected: " + blocksAffected);
-                
-                plugin.getDebugger().debug("Flushing EditSession");
-                editSession.flushSession();
+        // Create the cylinder layer by layer, starting from the bottom
+        for (int y = startY; y < endY; y++) {
+            for (int x = centerX - radius; x <= centerX + radius; x++) {
+                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                    // Calculate distance from center
+                    double distance = Math.sqrt(Math.pow(centerX - x, 2) + Math.pow(centerZ - z, 2));
+                    
+                    // If point is within radius
+                    if (distance <= radius) {
+                        // For hollow cylinders, only place blocks on the outer edge
+                        if (!hollow || distance >= radius - 1) {
+                            topCenter.getWorld().getBlockAt(x, y, z).setType(block);
+                        }
+                    }
+                }
             }
-            plugin.getDebugger().debug("EditSession closed successfully");
-            
-        } catch (Exception e) {
-            plugin.getDebugger().debug("ERROR creating pedestal: " + e.getMessage());
-            plugin.getDebugger().debug("Stack trace:");
-            e.printStackTrace();
         }
         
-        plugin.getDebugger().debug("=== Stone Pedestal Creation Complete ===");
+        // Place lectern at the top center (which is the input location)
+        topCenter.getBlock().setType(Material.LECTERN);
+        this.lecternLocation = topCenter;
+        
+        plugin.getDebugger().debug("=== Pedestal Creation Complete ===");
+        plugin.getDebugger().debug("Lectern placed at: " + topCenter);
     }
     
 }
