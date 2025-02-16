@@ -98,4 +98,8 @@ public abstract class Debug {
     public Level getLogLevel() {
         return logLevel;
     }
+
+    public static Debug createDebugger(JavaPlugin plugin, String className, Level level) {
+        return new Debug(plugin, className, level) {};
+    }
 }

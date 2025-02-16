@@ -1,6 +1,7 @@
 package org.fourz.RVNKQuests.quest;
 
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.util.Debug;
 import java.util.HashMap;
 import java.util.Map;
 import org.bukkit.event.HandlerList;
@@ -9,77 +10,80 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class QuestManager {
+    private static final String CLASS_NAME = "QuestManager";
     private final RVNKQuests plugin;
+    private final Debug debugger;
     private final Map<String, Quest> quests = new HashMap<>();
     private final Map<Quest, List<Listener>> activeListeners = new HashMap<>();
 
     public QuestManager(RVNKQuests plugin) {
         this.plugin = plugin;
+        this.debugger = new Debug(plugin, CLASS_NAME, plugin.getDebugger().getLogLevel()) {};
     }
 
     public void registerQuest(Quest quest) {
-        plugin.getDebugger().debug("Registering quest: " + quest.getId());
+        debugger.debug("Registering quest: " + quest.getId());
         quests.put(quest.getId(), quest);
         quest.initialize();
         updateQuestListeners(quest);
-        plugin.getDebugger().debug("Quest registered and initialized: " + quest.getId());
+        debugger.debug("Quest registered and initialized: " + quest.getId());
     }
 
     public Quest getQuest(String id) {
         Quest quest = quests.get(id);
-        plugin.getDebugger().debug("Quest lookup for ID '" + id + "': " + (quest != null ? "found" : "not found"));
+        debugger.debug("Quest lookup for ID '" + id + "': " + (quest != null ? "found" : "not found"));
         return quest;
     }
 
     public void initializeQuests() {
-        plugin.getDebugger().debug("Beginning quest initialization");
+        debugger.debug("Beginning quest initialization");
         registerQuest(new QuestFirstCityProphecy(plugin));
-        plugin.getDebugger().debug("Quest initialization complete. Total quests: " + quests.size());
+        debugger.debug("Quest initialization complete. Total quests: " + quests.size());
     }
 
     public void cleanupQuests() {
-        plugin.getDebugger().debug("Starting quest cleanup process");
+        debugger.debug("Starting quest cleanup process");
         
         // Unregister all listeners first
         activeListeners.forEach((quest, listeners) -> {
-            plugin.getDebugger().debug("Unregistering " + listeners.size() + " listeners for quest: " + quest.getId());
+            debugger.debug("Unregistering " + listeners.size() + " listeners for quest: " + quest.getId());
             listeners.forEach(HandlerList::unregisterAll);
         });
         activeListeners.clear();
         
         // Clean up quests
-        plugin.getDebugger().debug("Cleaning up " + quests.size() + " quests");
+        debugger.debug("Cleaning up " + quests.size() + " quests");
         quests.values().forEach(quest -> {
-            plugin.getDebugger().debug("Cleaning up quest: " + quest.getId());
+            debugger.debug("Cleaning up quest: " + quest.getId());
             quest.cleanup();
         });
         quests.clear();
-        plugin.getDebugger().debug("Quest cleanup complete");
+        debugger.debug("Quest cleanup complete");
     }
 
     public void registerQuestListeners(Quest quest, Listener... listeners) {
-        plugin.getDebugger().debug("Registering " + listeners.length + " listeners for quest: " + quest.getId());
+        debugger.debug("Registering " + listeners.length + " listeners for quest: " + quest.getId());
         for (Listener listener : listeners) {
-            plugin.getDebugger().debug("Registering listener: " + listener.getClass().getSimpleName());
+            debugger.debug("Registering listener: " + listener.getClass().getSimpleName());
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         }
     }
 
     public void unregisterQuestListeners(Listener... listeners) {
-        plugin.getDebugger().debug("Unregistering " + listeners.length + " listeners");
+        debugger.debug("Unregistering " + listeners.length + " listeners");
         for (Listener listener : listeners) {
-            plugin.getDebugger().debug("Unregistering listener: " + listener.getClass().getSimpleName());
+            debugger.debug("Unregistering listener: " + listener.getClass().getSimpleName());
             HandlerList.unregisterAll(listener);
         }
     }
 
     public void updateQuestListeners(Quest quest) {
-        plugin.getDebugger().debug("Updating listeners for quest: " + quest.getId() + " (State: " + quest.getCurrentState() + ")");
+        debugger.debug("Updating listeners for quest: " + quest.getId() + " (State: " + quest.getCurrentState() + ")");
         
         // Clean up existing listeners for this quest
         if (activeListeners.containsKey(quest)) {
             List<Listener> oldListeners = activeListeners.get(quest);
-            plugin.getDebugger().debug("Removing " + oldListeners.size() + " existing listeners");
+            debugger.debug("Removing " + oldListeners.size() + " existing listeners");
             unregisterQuestListeners(oldListeners.toArray(new Listener[0]));
             oldListeners.clear();
         }
@@ -88,17 +92,17 @@ public class QuestManager {
         
         if (quest instanceof QuestFirstCityProphecy questFCP) {
             List<Listener> stateListeners = questFCP.createListenersForState(quest.getCurrentState());
-            plugin.getDebugger().debug("Created " + stateListeners.size() + " new listeners for current state");
+            debugger.debug("Created " + stateListeners.size() + " new listeners for current state");
             newListeners.addAll(stateListeners);
         }
 
         // Register all new listeners
-        plugin.getDebugger().debug("Registering " + newListeners.size() + " new listeners");
+        debugger.debug("Registering " + newListeners.size() + " new listeners");
         for (Listener listener : newListeners) {
-            plugin.getDebugger().debug("Registering new listener: " + listener.getClass().getSimpleName());
+            debugger.debug("Registering new listener: " + listener.getClass().getSimpleName());
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         }
         activeListeners.put(quest, newListeners);
-        plugin.getDebugger().debug("Listener update complete for quest: " + quest.getId());
+        debugger.debug("Listener update complete for quest: " + quest.getId());
     }
 }

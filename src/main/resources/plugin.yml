@@ -3,7 +3,7 @@ version: 1.0
 description: This is a simple Bukkit Plugin
 author: Derek Schrishuhn
 main: org.fourz.RVNKQuests.RVNKQuests
-api-version: '1.21'
+api-version: '1.20'
 
 commands:
   quest:

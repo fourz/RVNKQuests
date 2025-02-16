@@ -45,7 +45,7 @@ public class ListenerEventPopulated implements Listener {
 
         if (allPlayersInEventWorld) {
             triggered = true;
-            quest.placeSpawnLectern();
+            quest.buildQuestBeacon();
             quest.advanceState(QuestState.TRIGGER_FOUND);
         }
     }
