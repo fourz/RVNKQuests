@@ -1,0 +1,20 @@
+name: RVNKQuests
+version: 1.0
+description: This is a simple Bukkit Plugin
+author: Derek Schrishuhn
+main: org.fourz.RVNKQuests.RVNKQuests
+api-version: '1.21'
+
+commands:
+  quest:
+    description: Main command for RVNKQuests.
+    usage: /<command> [subcommand]
+    aliases:
+
+permissions:
+  quest.use:
+    description: Permission to use the main command for RVNKQuests.
+    default: true
+  quest.admin:
+    description: Permission to use the admin command for RVNKQuests.
+    default: op
