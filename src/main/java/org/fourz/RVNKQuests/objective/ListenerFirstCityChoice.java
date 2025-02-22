@@ -12,6 +12,8 @@ import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.QuestFirstCityProphecy;
 import org.fourz.RVNKQuests.quest.QuestState;
 
+// Listener for the first city choice objective of the First City Prophecy quest
+
 public class ListenerFirstCityChoice implements Listener {
     private final RVNKQuests plugin;
     private final QuestFirstCityProphecy quest;

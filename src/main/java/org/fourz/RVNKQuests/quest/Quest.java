@@ -1,7 +1,8 @@
 package org.fourz.RVNKQuests.quest;
 
-import org.bukkit.entity.Player;
+import org.bukkit.entity.Player;    
 import org.bukkit.Location;
+import org.fourz.RVNKQuests.RVNKQuests;
 
 public interface Quest {
     String getId();
@@ -12,4 +13,5 @@ public interface Quest {
     QuestState getCurrentState();
     void advanceState(QuestState newState);
     Location getLecternLocation();
+    RVNKQuests getPlugin();
 }

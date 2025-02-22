@@ -12,12 +12,14 @@ import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 
-public class ListenerFindQuestPillar implements Listener {
+// Listener for when a player interacts with the quest book in the prophecy lectern
+
+public class ListenerSpawnQuestBook implements Listener {
     private final RVNKQuests plugin;
     private final Quest quest;
     private final String requiredBookTitle;
 
-    public ListenerFindQuestPillar(RVNKQuests plugin, Quest quest, String requiredBookTitle) {
+    public ListenerSpawnQuestBook(RVNKQuests plugin, Quest quest, String requiredBookTitle) {
         this.plugin = plugin;
         this.quest = quest;
         this.requiredBookTitle = requiredBookTitle;
