@@ -38,6 +38,7 @@ public class QuestManager {
     public void initializeQuests() {
         debugger.debug("Beginning quest initialization");
         registerQuest(new QuestFirstCityProphecy(plugin));
+        registerQuest(new QuestPiglinFarFromHome(plugin)); // Add this line
         debugger.debug("Quest initialization complete. Total quests: " + quests.size());
     }
 
