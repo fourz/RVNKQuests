@@ -17,7 +17,7 @@ public class QuestItem {
 
     private static void initializeQuestItems() {
         // Add Grotsnout's journal
-        questItems.put("grotsnout_journal", createGrotsnoutJournal());
+        questItems.put("grotsnouts_journal", createGrotsnoutJournal());
         questItems.put("grotsnouts_last_stand", createGrotSnoutsLastStandBook());
         
         // Add more quest items here following the pattern:

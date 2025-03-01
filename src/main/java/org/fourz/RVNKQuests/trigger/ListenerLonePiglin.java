@@ -20,6 +20,7 @@ public class ListenerLonePiglin implements Listener {
     private final Debug debug;
     private Piglin lonePiglin;
     private String triggerWorld = "event";
+    private static final String PIGLIN_NAME = "Lost Piglin";
     private static final int REQUIRED_DISTANCE = 50;
 
     public ListenerLonePiglin(Quest quest, JavaPlugin plugin) {
@@ -46,19 +47,30 @@ public class ListenerLonePiglin implements Listener {
 
     private boolean shouldSpawnPiglin(World world) {
         Location spawnLoc = world.getSpawnLocation();
-        boolean shouldSpawn = lonePiglin == null && world.getPlayers().stream()
+        
+        // Check if there's already a piglin with this name nearby
+        boolean piglinExists = world.getEntities().stream()
+            .filter(e -> e instanceof Piglin)
+            .anyMatch(e -> PIGLIN_NAME.equals(e.getCustomName()));
+
+        if (piglinExists) {
+            debug.debug("Found existing Lost Piglin in the world");
+            return false;
+        }
+
+        boolean allPlayersInRange = world.getPlayers().stream()
                 .allMatch(p -> p.getLocation().distance(spawnLoc) <= REQUIRED_DISTANCE);
         
         debug.debug(String.format("Checking spawn conditions: piglinExists=%s, allPlayersInRange=%s", 
-            lonePiglin != null,
-            shouldSpawn));
+            piglinExists,
+            allPlayersInRange));
         
-        return shouldSpawn;
+        return allPlayersInRange;
     }
 
     private void spawnLonePiglin(World world) {
         lonePiglin = (Piglin) world.spawnEntity(world.getSpawnLocation(), EntityType.PIGLIN);
-        lonePiglin.setCustomName("Lost Piglin");
+        lonePiglin.setCustomName(PIGLIN_NAME);
         lonePiglin.setCustomNameVisible(true);
         quest.advanceState(QuestState.TRIGGER_FOUND);
     }

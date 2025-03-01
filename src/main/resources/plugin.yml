@@ -1,20 +1,20 @@
 name: RVNKQuests
-version: 1.0
-description: This is a simple Bukkit Plugin
-author: Derek Schrishuhn
+version: 1.0.0
+description: A quest system for Minecraft
+authors: [YourName]
 main: org.fourz.RVNKQuests.RVNKQuests
-api-version: '1.20'
+api-version: 1.17
 
 commands:
   quest:
-    description: Main command for RVNKQuests.
-    usage: /<command> [subcommand]
-    aliases:
+    description: Main command for the RVNKQuests plugin
+    usage: /quest <subcommand> [arguments]
+    aliases: [quests, q]
 
 permissions:
-  quest.use:
-    description: Permission to use the main command for RVNKQuests.
-    default: true
-  quest.admin:
-    description: Permission to use the admin command for RVNKQuests.
+  rvnkquests.command.item:
+    description: Allows players to get quest items
+    default: op
+  rvnkquests.command.state:
+    description: Allows players to change quest states
     default: op

@@ -27,12 +27,6 @@ public class ListenerLonePiglinDeath implements Listener {
 
     @EventHandler
     public void onPiglinDeath(EntityDeathEvent event) {
-        if (!(event.getEntity() instanceof Piglin)) {
-            debug.debug("Entity death event: not a Piglin");
-            return;
-        }
-
-        debug.debug("Piglin death detected, checking if it's our quest Piglin");
         
         if (event.getEntity() != lonePiglinListener.getLonePiglin()) {
             debug.debug("Piglin death: not the quest Piglin");
@@ -40,7 +34,7 @@ public class ListenerLonePiglinDeath implements Listener {
         }
 
         debug.debug("Quest Piglin died, preparing to drop journal");
-        ItemStack book = QuestItem.getQuestItem("grotsnouts_last_stand");
+        ItemStack book = QuestItem.getQuestItem("grotsnouts_journal");
         
         if (book == null) {
             debug.warning("Failed to retrieve quest item!");

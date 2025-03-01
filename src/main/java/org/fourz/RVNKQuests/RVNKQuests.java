@@ -4,12 +4,14 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.quest.QuestManager;
 import org.fourz.RVNKQuests.util.Debug;
 import org.fourz.RVNKQuests.config.ConfigManager;
+import org.fourz.RVNKQuests.command.CommandManager;
 import java.util.logging.Level;
 
 public class RVNKQuests extends JavaPlugin {
     private QuestManager questManager;
     private Debug debugger;
     private ConfigManager configManager;
+    private CommandManager commandManager;
     
     @Override
     public void onEnable() {
@@ -19,8 +21,12 @@ public class RVNKQuests extends JavaPlugin {
                 
         debugger.setLogLevel(Debug.getLevel(configManager.getLogLevel()));        
         debugger.info("Initializing RVNKQuests...");
+        
         questManager = new QuestManager(this);
         questManager.initializeQuests();
+        
+        commandManager = new CommandManager(this);
+        
         debugger.info("RVNKQuests has been enabled!");
     }
 
@@ -42,5 +48,9 @@ public class RVNKQuests extends JavaPlugin {
 
     public ConfigManager getConfigManager() {
         return configManager;
+    }
+    
+    public CommandManager getCommandManager() {
+        return commandManager;
     }
 }

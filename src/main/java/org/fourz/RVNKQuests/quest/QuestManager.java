@@ -102,4 +102,22 @@ public class QuestManager {
         activeListeners.put(quest, newListeners);
         debugger.debug("Listener update complete for quest: " + quest.getId());
     }
+
+    /**
+     * Gets the IDs of all registered quests
+     * 
+     * @return A list of quest IDs
+     */
+    public List<String> getQuestIds() {
+        return new ArrayList<>(quests.keySet());
+    }
+
+    /**
+     * Gets all registered quests
+     * 
+     * @return A list of quests
+     */
+    public List<Quest> getAllQuests() {
+        return new ArrayList<>(quests.values());
+    }
 }
