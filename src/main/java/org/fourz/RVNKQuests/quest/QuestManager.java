@@ -16,6 +16,7 @@ public class QuestManager {
     private final Debug debugger;
     private final Map<String, Quest> quests = new HashMap<>();
     private final Map<Quest, List<Listener>> activeListeners = new HashMap<>();
+    private final Map<String, Integer> scheduledTasks = new HashMap<>();
 
     public QuestManager(RVNKQuests plugin) {
         this.plugin = plugin;
@@ -46,6 +47,13 @@ public class QuestManager {
 
     public void cleanupQuests() {
         debugger.debug("Starting quest cleanup process");
+        
+        // Cancel all scheduled tasks
+        debugger.debug("Cancelling " + scheduledTasks.size() + " scheduled tasks");
+        for (String taskId : new ArrayList<>(scheduledTasks.keySet())) {
+            cancelTask(taskId);
+        }
+        scheduledTasks.clear();
         
         // Unregister all listeners first
         activeListeners.forEach((quest, listeners) -> {
@@ -101,6 +109,42 @@ public class QuestManager {
         }
         activeListeners.put(quest, newListeners);
         debugger.debug("Listener update complete for quest: " + quest.getId());
+    }
+
+    /**
+     * Schedules a repeating task with the Bukkit scheduler
+     *
+     * @param taskId Unique identifier for the task
+     * @param task The runnable task to execute
+     * @param interval The interval in ticks between executions
+     * @return The task ID from Bukkit scheduler
+     */
+    public int scheduleRepeatingTask(String taskId, Runnable task, long interval) {
+        debugger.debug("Scheduling repeating task: " + taskId + " (interval: " + interval + " ticks)");
+        int taskNumber = plugin.getServer().getScheduler()
+            .scheduleSyncRepeatingTask(plugin, task, 0L, interval);
+        
+        if (taskNumber != -1) {
+            scheduledTasks.put(taskId, taskNumber);
+            debugger.debug("Task scheduled successfully: " + taskId + " (task#: " + taskNumber + ")");
+        } else {
+            debugger.warning("Failed to schedule task: " + taskId);
+        }
+        
+        return taskNumber;
+    }
+
+    /**
+     * Cancels a scheduled task by its ID
+     *
+     * @param taskId The ID of the task to cancel
+     */
+    public void cancelTask(String taskId) {
+        Integer taskNumber = scheduledTasks.remove(taskId);
+        if (taskNumber != null) {
+            debugger.debug("Cancelling task: " + taskId + " (task#: " + taskNumber + ")");
+            plugin.getServer().getScheduler().cancelTask(taskNumber);
+        }
     }
 
     /**

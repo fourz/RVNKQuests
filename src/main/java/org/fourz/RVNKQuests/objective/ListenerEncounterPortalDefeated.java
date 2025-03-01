@@ -1,5 +1,6 @@
 package org.fourz.RVNKQuests.objective;
 
+import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -24,12 +25,17 @@ public class ListenerEncounterPortalDefeated implements Listener {
 
     @EventHandler
     public void onMobDeath(EntityDeathEvent event) {
-        if (portalListener.getSpawnedMobs().contains(event.getEntity())) {
-            debug.debug("Quest mob died: " + event.getEntity().getCustomName());
-            portalListener.getSpawnedMobs().remove(event.getEntity());
-            debug.debug("Remaining mobs: " + portalListener.getSpawnedMobs().size());
+        Entity entity = event.getEntity();
+        String mobName = entity.getCustomName();
+        
+        if (mobName != null && portalListener.getSpawnedMobNames().contains(mobName)) {
+            debug.debug(String.format("Quest mob died: %s (Type: %s)", 
+                mobName,
+                event.getEntityType()));
+                
+            portalListener.removeMob(mobName);
             
-            if (portalListener.getSpawnedMobs().isEmpty()) {
+            if (portalListener.getSpawnedMobNames().isEmpty()) {
                 debug.debug("All quest mobs defeated, generating loot and completing quest");
                 event.getDrops().addAll(questLoot.generateLoot());
                 quest.advanceState(QuestState.COMPLETED);

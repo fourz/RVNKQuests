@@ -8,6 +8,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.trigger.*;
+import org.stringtemplate.v4.compiler.CodeGenerator.qualifiedId_return;
 import org.fourz.RVNKQuests.objective.*;
 import org.fourz.RVNKQuests.reward.QuestLoot;
 
@@ -25,7 +26,8 @@ public class QuestPiglinFarFromHome implements Quest {
 
     public QuestPiglinFarFromHome(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.lonePiglinListener = new ListenerLonePiglin(this, plugin);        
+        this.lonePiglinListener = new ListenerLonePiglin(this, plugin);  
+
         Map<EntityType, Integer> portalMobs = new HashMap<>();
         portalMobs.put(EntityType.WITHER_SKELETON, 1);
         portalMobs.put(EntityType.SKELETON, 2);
@@ -65,7 +67,23 @@ public class QuestPiglinFarFromHome implements Quest {
 
     @Override
     public void advanceState(QuestState newState) {
+        QuestState previousState = this.currentState;
         this.currentState = newState;
+        
+        // Handle state-specific logic
+        switch (newState) {
+            case NOT_STARTED:
+                // If we're resetting to NOT_STARTED, schedule piglin checks
+                if (previousState != QuestState.NOT_STARTED) {
+                    lonePiglinListener.scheduleChecks();
+                }
+                break;
+            case QUEST_ACTIVE:
+                // When progressing to QUEST_ACTIVE, stop the piglin check schedule
+                lonePiglinListener.cleanup();
+                break;
+        }
+        
         plugin.getQuestManager().updateQuestListeners(this);
     }
 
@@ -82,7 +100,9 @@ public class QuestPiglinFarFromHome implements Quest {
     private QuestLoot createPortalLoot() {
         return () -> Arrays.asList(
             new ItemStack(Material.GOLDEN_APPLE, 3),
-            new ItemStack(Material.NETHERITE_SCRAP, 1)
+            new ItemStack(Material.NETHERITE_SCRAP, 1),
+            new ItemStack(Material.DIAMOND, 5),
+            new ItemStack(Material.EMERALD, 10)            
         );
     }
 

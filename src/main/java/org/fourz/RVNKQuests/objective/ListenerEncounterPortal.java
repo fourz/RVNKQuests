@@ -12,6 +12,7 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.util.Debug;
 import org.fourz.RVNKQuests.util.NameGenerator;
+import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,9 +24,12 @@ import java.util.Set;
 import java.util.logging.Level;
 
 public class ListenerEncounterPortal implements Listener {
+    public static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
+    
     private final Quest quest;
     private final Debug debug;
     private final List<Entity> spawnedMobs = new ArrayList<>();
+    private final Set<String> spawnedMobNames = new HashSet<>();
     private static final int PORTAL_HEIGHT = 85;
     private static final int TRIGGER_DISTANCE = 30;
     private Location portalLocation;
@@ -105,15 +109,42 @@ public class ListenerEncounterPortal implements Listener {
                     Math.random() * 10 - 5
                 );
                 Entity entity = near.getWorld().spawnEntity(spawnLoc, entityType);
-                entity.setCustomName(NameGenerator.generateMobName(entityType));
+                String mobName = NameGenerator.generateMobName(entityType);
+                entity.setCustomName(mobName);
                 entity.setCustomNameVisible(true);
+                
+                // Track both the entity and its name
+                spawnedMobNames.add(mobName);
                 spawnedMobs.add(entity);
+                
+                // Add metadata to identify this as a quest mob
+                entity.setMetadata(QUEST_MOB_METADATA, 
+                    new FixedMetadataValue(quest.getPlugin(), quest.getId()));
+                
                 debug.debug(String.format("Spawned %s at %s", 
-                    entity.getCustomName(),
+                    mobName,
                     spawnLoc.toString()));
             }
         });
+
+        // Register the portal prevention listener
+        quest.getPlugin().getServer().getPluginManager().registerEvents(
+            new ListenerPreventQuestMobPortal(quest.getPlugin()),
+            quest.getPlugin()
+        );
+
         debug.debug("Mob group spawn complete. Total mobs: " + spawnedMobs.size());
+    }
+
+    public Set<String> getSpawnedMobNames() {
+        return spawnedMobNames;
+    }
+
+    public void removeMob(String mobName) {
+        spawnedMobNames.remove(mobName);
+        spawnedMobs.removeIf(entity -> entity.getCustomName() != null && 
+                                      entity.getCustomName().equals(mobName));
+        debug.debug("Removed mob: " + mobName + ", Remaining mobs: " + spawnedMobNames.size());
     }
 
     public List<Entity> getSpawnedMobs() {

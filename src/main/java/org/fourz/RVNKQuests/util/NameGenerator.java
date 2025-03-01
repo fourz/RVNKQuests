@@ -145,7 +145,7 @@ public class NameGenerator {
         
         List<String> suffixes = Arrays.asList(
             "of the Deep", "of the Nether", "of Jelly", "of the Plant Lands",
-            "of Fun", "of The Fish Men", "(no really though)", "of the End", "of the Overworld", "of the Nether"
+            "of Fun", "of The Fish Men", "(no really though)", "of the End", "of the Overworld"
         );
         
         String prefix = prefixes.get(random.nextInt(prefixes.size()));
