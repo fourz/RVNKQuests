@@ -26,9 +26,8 @@ public class ListenerLonePiglinDeath implements Listener {
     }
 
     @EventHandler
-    public void onPiglinDeath(EntityDeathEvent event) {
-        
-        if (event.getEntity() != lonePiglinListener.getLonePiglin()) {
+    public void onPiglinDeath(EntityDeathEvent event) {     
+        if (!event.getEntity().getName().equals("Lost Piglin")) {
             debug.debug("Piglin death: not the quest Piglin");
             return;
         }

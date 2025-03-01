@@ -29,9 +29,8 @@ public class QuestPiglinFarFromHome implements Quest {
         Map<EntityType, Integer> portalMobs = new HashMap<>();
         portalMobs.put(EntityType.WITHER_SKELETON, 1);
         portalMobs.put(EntityType.SKELETON, 2);
-        portalMobs.put(EntityType.HOGLIN, 2);
-        
-        this.portalListener = new ListenerEncounterPortal(this, portalMobs, "Portal Guard");
+        portalMobs.put(EntityType.HOGLIN, 2);        
+        this.portalListener = new ListenerEncounterPortal(this, portalMobs);
     }
 
     @Override
@@ -101,7 +100,7 @@ public class QuestPiglinFarFromHome implements Quest {
                 listeners.add(portalListener);
                 break;
             case OBJECTIVE_COMPLETE:
-                listeners.add(new ListenerEncounterPortalDefeated(null, portalListener,  createPortalLoot()));
+                listeners.add(new ListenerEncounterPortalDefeated(this, portalListener,  createPortalLoot()));
                 break;
         }
         

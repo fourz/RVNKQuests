@@ -4,16 +4,22 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.NameGenerator;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.logging.Level;
 
 public class ListenerEncounterPortal implements Listener {
@@ -22,16 +28,17 @@ public class ListenerEncounterPortal implements Listener {
     private final List<Entity> spawnedMobs = new ArrayList<>();
     private static final int PORTAL_HEIGHT = 85;
     private static final int TRIGGER_DISTANCE = 30;
+    private Location portalLocation;
     private boolean spawned = false;
     private final Map<EntityType, Integer> mobsToSpawn;
-    private final String mobNamePrefix;
-    private Location lastCheckedLocation = null;
-    private static final int CHECK_INTERVAL = 8; // blocks
+    private final Set<Player> playersInRange = new HashSet<>();
+    private final Random random = new Random();
+    private Map<Player, Location> lastCheckLocations = new HashMap<>();
+    private static final double CHECK_DISTANCE = 5.0; // Check every 5 blocks of movement
 
-    public ListenerEncounterPortal(Quest quest, Map<EntityType, Integer> mobsToSpawn, String mobNamePrefix) {
+    public ListenerEncounterPortal(Quest quest, Map<EntityType, Integer> mobsToSpawn) {
         this.quest = quest;
         this.mobsToSpawn = mobsToSpawn;
-        this.mobNamePrefix = mobNamePrefix;
         this.debug = Debug.createDebugger(quest.getPlugin(), "EncounterPortal", Level.FINE);
         
         debug.debug("Initialized with mob config: " + mobsToSpawn.toString());
@@ -40,34 +47,33 @@ public class ListenerEncounterPortal implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (spawned) return;
-        
-        Location playerLoc = event.getTo();
 
-        // Skip if below portal height
-        if (playerLoc.getY() < PORTAL_HEIGHT) {
-            lastCheckedLocation = null; // Reset when below threshold
+        Location to = event.getTo();
+        Player player = event.getPlayer();
+
+        // Height check
+        if (to.getY() < PORTAL_HEIGHT) {
+            playersInRange.remove(player);
+            lastCheckLocations.remove(player);
             return;
         }
 
-        // Only check if moved significant distance from last check
-        if (lastCheckedLocation != null && 
-            lastCheckedLocation.distance(playerLoc) < CHECK_INTERVAL) {
+        // Distance check
+        Location lastCheck = lastCheckLocations.get(player);
+        if (lastCheck != null && lastCheck.distance(to) < CHECK_DISTANCE) {
             return;
         }
 
-        debug.debug(String.format("Player %s moved to Y=%d (Portal height: %d)", 
-            event.getPlayer().getName(), 
-            (int)playerLoc.getY(), 
-            PORTAL_HEIGHT));
-
-        if (isNearLitPortal(playerLoc, TRIGGER_DISTANCE)) {
-            debug.debug("Player found portal - spawning mob group");
-            spawnMobGroup(playerLoc);
+        // Perform portal check
+        if (isNearLitPortal(to, TRIGGER_DISTANCE)) {
+            spawnMobGroup(portalLocation);
             spawned = true;
             quest.advanceState(QuestState.OBJECTIVE_COMPLETE);
+            cleanup();
+            return;
         }
 
-        lastCheckedLocation = playerLoc.clone();
+        lastCheckLocations.put(player, to.clone());
     }
 
     private boolean isNearLitPortal(Location loc, int distance) {
@@ -78,6 +84,7 @@ public class ListenerEncounterPortal implements Listener {
                     Location checkLoc = loc.clone().add(x, y, z);
                     if (checkLoc.getBlock().getType() == Material.NETHER_PORTAL) {
                         debug.debug("Found portal at: " + checkLoc.toString());
+                        portalLocation = checkLoc;
                         return true;
                     }
                 }
@@ -98,7 +105,7 @@ public class ListenerEncounterPortal implements Listener {
                     Math.random() * 10 - 5
                 );
                 Entity entity = near.getWorld().spawnEntity(spawnLoc, entityType);
-                entity.setCustomName(mobNamePrefix);
+                entity.setCustomName(NameGenerator.generateMobName(entityType));
                 entity.setCustomNameVisible(true);
                 spawnedMobs.add(entity);
                 debug.debug(String.format("Spawned %s at %s", 
@@ -111,5 +118,10 @@ public class ListenerEncounterPortal implements Listener {
 
     public List<Entity> getSpawnedMobs() {
         return spawnedMobs;
+    }
+
+    private void cleanup() {
+        lastCheckLocations.clear();
+        playersInRange.clear();
     }
 }
