@@ -2,8 +2,8 @@ package org.fourz.RVNKQuests.objective;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Piglin;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -12,16 +12,21 @@ import org.fourz.RVNKQuests.quest.QuestState;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-public class ListenerPiglinPortal implements Listener {
+public class ListenerEncounterPortal implements Listener {
     private final Quest quest;
-    private final List<Piglin> spawnedPiglins = new ArrayList<>();
+    private final List<Entity> spawnedMobs = new ArrayList<>();
     private static final int PORTAL_HEIGHT = 85;
     private static final int TRIGGER_DISTANCE = 30;
     private boolean spawned = false;
+    private final Map<EntityType, Integer> mobsToSpawn;
+    private final String mobNamePrefix;
 
-    public ListenerPiglinPortal(Quest quest) {
+    public ListenerEncounterPortal(Quest quest, Map<EntityType, Integer> mobsToSpawn, String mobNamePrefix) {
         this.quest = quest;
+        this.mobsToSpawn = mobsToSpawn;
+        this.mobNamePrefix = mobNamePrefix;
     }
 
     @EventHandler
@@ -39,7 +44,7 @@ public class ListenerPiglinPortal implements Listener {
         if (playerLoc.getY() < PORTAL_HEIGHT) return;
 
         if (isNearLitPortal(playerLoc, TRIGGER_DISTANCE)) {
-            spawnPiglinGroup(playerLoc);
+            spawnMobGroup(playerLoc);
             spawned = true;
             quest.advanceState(QuestState.OBJECTIVE_COMPLETE);
         }
@@ -59,21 +64,23 @@ public class ListenerPiglinPortal implements Listener {
         return false;
     }
 
-    private void spawnPiglinGroup(Location near) {
-        for (int i = 0; i < 5; i++) {
-            Location spawnLoc = near.clone().add(
-                Math.random() * 10 - 5,
-                0,
-                Math.random() * 10 - 5
-            );
-            Piglin piglin = (Piglin) near.getWorld().spawnEntity(spawnLoc, EntityType.PIGLIN);
-            piglin.setCustomName("Portal Guard");
-            piglin.setCustomNameVisible(true);
-            spawnedPiglins.add(piglin);
-        }
+    private void spawnMobGroup(Location near) {
+        mobsToSpawn.forEach((entityType, count) -> {
+            for (int i = 0; i < count; i++) {
+                Location spawnLoc = near.clone().add(
+                    Math.random() * 10 - 5,
+                    0,
+                    Math.random() * 10 - 5
+                );
+                Entity entity = near.getWorld().spawnEntity(spawnLoc, entityType);
+                entity.setCustomName(mobNamePrefix);
+                entity.setCustomNameVisible(true);
+                spawnedMobs.add(entity);
+            }
+        });
     }
 
-    public List<Piglin> getSpawnedPiglins() {
-        return spawnedPiglins;
+    public List<Entity> getSpawnedMobs() {
+        return spawnedMobs;
     }
 }

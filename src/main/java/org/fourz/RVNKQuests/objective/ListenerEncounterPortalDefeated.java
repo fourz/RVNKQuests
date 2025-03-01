@@ -1,20 +1,21 @@
 package org.fourz.RVNKQuests.objective;
 
-import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.RVNKQuests.reward.QuestLoot;
 
-public class ListenerPiglinPortalDefeated implements Listener {
+public class ListenerEncounterPortalDefeated implements Listener {
     private final Quest quest;
     private final ListenerEncounterPortal portalListener;
+    private final QuestLoot questLoot;
 
-    public ListenerPiglinPortalDefeated(Quest quest, ListenerEncounterPortal portalListener) {
+    public ListenerEncounterPortalDefeated(Quest quest, ListenerEncounterPortal portalListener, QuestLoot questLoot) {
         this.quest = quest;
         this.portalListener = portalListener;
+        this.questLoot = questLoot;
     }
 
     @EventHandler
@@ -23,14 +24,9 @@ public class ListenerPiglinPortalDefeated implements Listener {
             portalListener.getSpawnedMobs().remove(event.getEntity());
             
             if (portalListener.getSpawnedMobs().isEmpty()) {
-                dropLoot(event);
+                event.getDrops().addAll(questLoot.generateLoot());
                 quest.advanceState(QuestState.COMPLETED);
             }
         }
-    }
-
-    private void dropLoot(EntityDeathEvent event) {
-        event.getDrops().add(new ItemStack(Material.GOLDEN_APPLE, 3));
-        event.getDrops().add(new ItemStack(Material.NETHERITE_SCRAP, 1));
     }
 }

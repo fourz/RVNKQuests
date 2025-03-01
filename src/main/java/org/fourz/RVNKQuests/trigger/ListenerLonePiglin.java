@@ -8,36 +8,66 @@ import org.bukkit.entity.Piglin;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.RVNKQuests.util.Debug;
+
+import java.util.logging.Level;
 
 public class ListenerLonePiglin implements Listener {
     private final Quest quest;
+    private final Debug debug;
     private Piglin lonePiglin;
-    private static final String EVENT_WORLD = "event";
+    private String triggerWorld = "event";
     private static final int REQUIRED_DISTANCE = 50;
 
-    public ListenerLonePiglin(Quest quest) {
+    public ListenerLonePiglin(Quest quest, JavaPlugin plugin) {
         this.quest = quest;
+        this.debug = Debug.createDebugger(plugin, "LonePiglin", Level.FINE);
     }
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        World world = event.getPlayer().getWorld();
-        if (!world.getName().equals(EVENT_WORLD)) return;
+        if (!isInEventWorld(event.getPlayer().getWorld())) return;
         
-        Location spawnLoc = world.getSpawnLocation();
-        if (world.getPlayers().stream()
-                .allMatch(p -> p.getLocation().distance(spawnLoc) <= REQUIRED_DISTANCE) 
-                && lonePiglin == null) {
-            lonePiglin = (Piglin) world.spawnEntity(spawnLoc, EntityType.PIGLIN);
-            lonePiglin.setCustomName("Lost Piglin");
-            lonePiglin.setCustomNameVisible(true);
-            quest.advanceState(QuestState.TRIGGER_FOUND);
+        debug.debug(String.format("Player %s moved in event world at %s", 
+            event.getPlayer().getName(),
+            event.getTo().toString()));
+        
+        if (shouldSpawnPiglin(event.getPlayer().getWorld())) {
+            spawnLonePiglin(event.getPlayer().getWorld());
         }
+    }
+
+    private boolean isInEventWorld(World world) {
+        return world.getName().equals(triggerWorld);
+    }
+
+    private boolean shouldSpawnPiglin(World world) {
+        Location spawnLoc = world.getSpawnLocation();
+        boolean shouldSpawn = lonePiglin == null && world.getPlayers().stream()
+                .allMatch(p -> p.getLocation().distance(spawnLoc) <= REQUIRED_DISTANCE);
+        
+        debug.debug(String.format("Checking spawn conditions: piglinExists=%s, allPlayersInRange=%s", 
+            lonePiglin != null,
+            shouldSpawn));
+        
+        return shouldSpawn;
+    }
+
+    private void spawnLonePiglin(World world) {
+        lonePiglin = (Piglin) world.spawnEntity(world.getSpawnLocation(), EntityType.PIGLIN);
+        lonePiglin.setCustomName("Lost Piglin");
+        lonePiglin.setCustomNameVisible(true);
+        quest.advanceState(QuestState.TRIGGER_FOUND);
     }
 
     public Piglin getLonePiglin() {
         return lonePiglin;
+    }
+
+    public void setTriggerWorld(String worldName) {
+        this.triggerWorld = worldName;
     }
 }

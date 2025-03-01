@@ -1,25 +1,37 @@
 package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
+import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.trigger.*;
 import org.fourz.RVNKQuests.objective.*;
+import org.fourz.RVNKQuests.reward.QuestLoot;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class QuestPiglinFarFromHome implements Quest {
     private final RVNKQuests plugin;
     private QuestState currentState = QuestState.NOT_STARTED;
     private final ListenerLonePiglin lonePiglinListener;
-    private final ListenerPiglinPortal piglinPortalListener;
+    private final ListenerEncounterPortal portalListener;
 
     public QuestPiglinFarFromHome(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.lonePiglinListener = new ListenerLonePiglin(this);
-        this.piglinPortalListener = new ListenerPiglinPortal(this);
+        this.lonePiglinListener = new ListenerLonePiglin(this, plugin);        
+        Map<EntityType, Integer> portalMobs = new HashMap<>();
+        portalMobs.put(EntityType.WITHER_SKELETON, 1);
+        portalMobs.put(EntityType.SKELETON, 2);
+        portalMobs.put(EntityType.HOGLIN, 2);
+        
+        this.portalListener = new ListenerEncounterPortal(this, portalMobs, "Portal Guard");
     }
 
     @Override
@@ -68,6 +80,13 @@ public class QuestPiglinFarFromHome implements Quest {
         return plugin;
     }
 
+    private QuestLoot createPortalLoot() {
+        return () -> Arrays.asList(
+            new ItemStack(Material.GOLDEN_APPLE, 3),
+            new ItemStack(Material.NETHERITE_SCRAP, 1)
+        );
+    }
+
     public List<Listener> createListenersForState(QuestState state) {
         List<Listener> listeners = new ArrayList<>();
         
@@ -79,10 +98,10 @@ public class QuestPiglinFarFromHome implements Quest {
                 listeners.add(new ListenerLonePiglinDeath(this, lonePiglinListener));
                 break;
             case QUEST_ACTIVE:
-                listeners.add(piglinPortalListener);
+                listeners.add(portalListener);
                 break;
             case OBJECTIVE_COMPLETE:
-                listeners.add(new ListenerPiglinPortalDefeated(this, piglinPortalListener));
+                listeners.add(new ListenerEncounterPortalDefeated(null, portalListener,  createPortalLoot()));
                 break;
         }
         

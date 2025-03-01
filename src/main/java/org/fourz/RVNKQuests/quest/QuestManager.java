@@ -8,6 +8,7 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import java.util.ArrayList;
 import java.util.List;
+import org.fourz.RVNKQuests.quest.*;
 
 public class QuestManager {
     private static final String CLASS_NAME = "QuestManager";
@@ -37,8 +38,9 @@ public class QuestManager {
 
     public void initializeQuests() {
         debugger.debug("Beginning quest initialization");
-        registerQuest(new QuestFirstCityProphecy(plugin));
-        registerQuest(new QuestPiglinFarFromHome(plugin)); // Add this line
+        //registerQuest(new QuestFirstCityProphecy(plugin));
+        registerQuest(new QuestPiglinFarFromHome(plugin));
+        //registerQuest(new QuestAncientGuardian(plugin)); // Add this line
         debugger.debug("Quest initialization complete. Total quests: " + quests.size());
     }
 
@@ -89,14 +91,8 @@ public class QuestManager {
             oldListeners.clear();
         }
 
-        List<Listener> newListeners = new ArrayList<>();
+        List<Listener> newListeners = quest.createListenersForState(quest.getCurrentState());
         
-        if (quest instanceof QuestFirstCityProphecy questFCP) {
-            List<Listener> stateListeners = questFCP.createListenersForState(quest.getCurrentState());
-            debugger.debug("Created " + stateListeners.size() + " new listeners for current state");
-            newListeners.addAll(stateListeners);
-        }
-
         // Register all new listeners
         debugger.debug("Registering " + newListeners.size() + " new listeners");
         for (Listener listener : newListeners) {
