@@ -4,9 +4,9 @@ import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.objective.ListenerQuestPillarStart;
 import org.fourz.RVNKQuests.trigger.ListenerProphecyDiscovery;
 import org.fourz.RVNKQuests.trigger.ListenerProphecyVisions;
+import org.fourz.RVNKQuests.trigger.ListenerQuestPillarStart;
 import org.fourz.RVNKQuests.trigger.ListenerEventPopulated;
 import org.fourz.RVNKQuests.objective.ListenerFirstCityChoice;
 import org.fourz.RVNKQuests.objective.ListenerQuestBookPlacer;
@@ -126,7 +126,7 @@ public class QuestFirstCityProphecy implements Quest {
             case QUEST_ACTIVE:
                 listeners.add(new ListenerProphecyVisions(plugin, this));
                 break;
-            case OBJECTIVE_COMPLETE:
+            case OBJECTIVE_FOUND:
                 listeners.add(new ListenerFirstCityChoice(plugin, this));
                 break;
         }

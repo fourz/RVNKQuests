@@ -46,6 +46,6 @@ public class ListenerFirstCityChoice implements Listener {
         player.sendMessage("§bThe spirits approve... The settlement is chosen!");
         
         world.spawnEntity(loc.clone().add(0, 10, 0), EntityType.PHANTOM);
-        quest.advanceState(QuestState.OBJECTIVE_COMPLETE);
+        quest.advanceState(QuestState.OBJECTIVE_FOUND);
     }
 }

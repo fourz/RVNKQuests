@@ -119,7 +119,7 @@ public class QuestAncientGuardian implements Quest {
             case QUEST_ACTIVE:
                 listeners.add(forgottenSiteListener);
                 break;
-            case OBJECTIVE_COMPLETE:
+            case OBJECTIVE_FOUND:
                 listeners.add(new ListenerForgottenSiteDefeated(this, forgottenSiteListener));
                 break;
         }

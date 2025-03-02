@@ -1,4 +1,4 @@
-package org.fourz.RVNKQuests.objective;
+package org.fourz.RVNKQuests.trigger;
 
 import org.bukkit.*;
 import org.bukkit.block.Block;

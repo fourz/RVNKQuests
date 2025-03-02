@@ -16,6 +16,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.IntervalChecker;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,108 +25,113 @@ import java.util.logging.Level;
 
 public class ListenerLonePiglin implements Listener {
     private static final double DETECTION_RADIUS = 30.0;
-    private static final long CHECK_INTERVAL = 20L; // Check every second (20 ticks)
-    private static final double MIN_MOVEMENT_CHECK = 5.0; // Minimum movement before recheck
+    private static final double MIN_MOVEMENT_CHECK = 5.0;
+    private static final int CHECK_FREQUENCY = 20;
     
     private final Quest quest;
     private final JavaPlugin plugin;
     private final Debug debug;
-    private final String taskId;
     private final Random random = new Random();
     private Entity spawnedPiglin = null;
-    private Map<Player, Location> lastCheckLocations = new HashMap<>();
-    private boolean isScheduled = false;
+    private final IntervalChecker intervalChecker;
+    
+    private final String targetWorld;
+    private final Location targetLocation;
+    private final double spawnRadius;
 
     public ListenerLonePiglin(Quest quest, JavaPlugin plugin) {
+        this(quest, plugin, "event", null, DETECTION_RADIUS);
+    }
+    
+    public ListenerLonePiglin(Quest quest, JavaPlugin plugin, String worldName, Location location, double radius) {
         this.quest = quest;
         this.plugin = plugin;
         this.debug = Debug.createDebugger(plugin, "LonePiglin", Level.FINE);
-        this.taskId = "lone_piglin_check_" + quest.getId();
+        this.spawnRadius = radius;
+        this.targetWorld = worldName;
+        this.intervalChecker = new IntervalChecker(CHECK_FREQUENCY, MIN_MOVEMENT_CHECK);
         
-        // Schedule the initial check when the listener is created
-        scheduleChecks();
-    }
-
-    /**
-     * Schedules the periodic piglin check task
-     */
-    public void scheduleChecks() {
-        if (isScheduled) {
-            debug.debug("Check task already scheduled, skipping");
-            return;
+        // If a specific location is provided, use it; otherwise use the world's spawn point
+        if (location != null) {
+            this.targetLocation = location.clone();
+        } else {
+            World world = plugin.getServer().getWorld(worldName);
+            if (world != null) {
+                this.targetLocation = world.getSpawnLocation().clone();
+            } else {
+                this.targetLocation = null;
+                debug.warning("Target world '" + worldName + "' not found. Piglin may not spawn correctly.");
+            }
         }
         
-        debug.debug("Setting up scheduled piglin check every " + CHECK_INTERVAL + " ticks");
-        quest.getPlugin().getQuestManager().scheduleRepeatingTask(
-            taskId,
-            this::checkPlayersForPiglinSpawn,
-            CHECK_INTERVAL
-        );
-        
-        isScheduled = true;
+        debug.debug("Initialized with target world: " + targetWorld + 
+                    ", location: " + (targetLocation != null ? targetLocation.toString() : "N/A") +
+                    ", radius: " + spawnRadius);
     }
 
-    /**
-     * Stops the scheduled checks
-     */
-    public void stopChecks() {
-        if (!isScheduled) {
-            return;
-        }
-        
-        debug.debug("Stopping scheduled piglin checks");
-        quest.getPlugin().getQuestManager().cancelTask(taskId);
-        isScheduled = false;
-    }
-
-    private void checkPlayersForPiglinSpawn() {
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent event) {
         if (spawnedPiglin != null && !spawnedPiglin.isDead()) {
             return;
         }
 
-        debug.debug("Running scheduled piglin check for " + plugin.getServer().getOnlinePlayers().size() + " players");
+        Player player = event.getPlayer();
         
-        for (Player player : plugin.getServer().getOnlinePlayers()) {
-            Location currentLoc = player.getLocation();
-            Location lastCheck = lastCheckLocations.get(player);
+        // Check world first
+        if (!player.getWorld().getName().equalsIgnoreCase(targetWorld)) {
+            return;
+        }
 
-            // Only check if player has moved significantly
-            if (lastCheck != null && lastCheck.distance(currentLoc) < MIN_MOVEMENT_CHECK) {
-                continue;
-            }
+        Location currentLoc = player.getLocation();
 
-            debug.debug("Checking for piglin spawn conditions near player: " + player.getName());
-            if (shouldSpawnPiglin(currentLoc)) {
-                spawnLonePiglin(currentLoc);
-                break;
-            }
+        // Use the interval checker to determine if we should process this movement
+        if (!intervalChecker.shouldCheck(player.getUniqueId(), currentLoc)) {
+            return;
+        }
 
-            lastCheckLocations.put(player, currentLoc.clone());
+        debug.debug("Checking for piglin spawn conditions near player: " + player.getName());
+        if (shouldSpawnPiglin(currentLoc)) {
+            spawnLonePiglin(currentLoc);
         }
     }
 
     private boolean shouldSpawnPiglin(Location location) {
-                
-        // Add more conditions as needed
-        debug.debug("Piglin spawn conditions met at location: " + location);
+        
+        // Check if we have a valid target location
+        if (targetLocation == null) {
+            debug.debug("No valid target location for spawning");
+            return false;
+        }
+        
+        // Check if player is within the required distance of world spawn
+        double distance = location.distance(targetLocation);
+        if (distance > spawnRadius) {
+            debug.debug("Player too far from spawn: " + distance + " blocks (max: " + spawnRadius + ")");
+            return false;
+        }
+        
+        debug.debug("All spawn conditions met at location: " + location);
         return true;
     }
 
-    private void spawnLonePiglin(Location near) {
-        debug.debug("Spawning a lone piglin near: " + near);
+    private void spawnLonePiglin(Location playerLocation) {
+        debug.debug("Spawning a lone piglin at world spawn");
         
-        // Find a suitable spawn location nearby
-        Location spawnLoc = near.clone().add(
-            random.nextInt(10) - 5,
-            0,
-            random.nextInt(10) - 5
+        // Use the target location (world spawn) as the base spawn point
+        Location spawnLoc = targetLocation.clone();
+        
+        // Add small random offset from spawn point
+        spawnLoc.add(
+            random.nextInt(6) - 3,  // ±3 blocks X
+            0,                      // No Y offset initially
+            random.nextInt(6) - 3   // ±3 blocks Z
         );
         
-        // Ensure the spawn location is safe
-        spawnLoc.setY(near.getWorld().getHighestBlockYAt(spawnLoc));
+        // Find safe Y position at the spawn location
+        spawnLoc.setY(spawnLoc.getWorld().getHighestBlockYAt(spawnLoc));
         
         // Spawn the piglin
-        spawnedPiglin = near.getWorld().spawnEntity(spawnLoc, EntityType.PIGLIN);
+        spawnedPiglin = spawnLoc.getWorld().spawnEntity(spawnLoc, EntityType.PIGLIN);
         spawnedPiglin.setCustomName("Lost Piglin");
         spawnedPiglin.setCustomNameVisible(true);
         
@@ -145,7 +151,6 @@ public class ListenerLonePiglin implements Listener {
         if (spawnedPiglin != null && !spawnedPiglin.isDead()) {
             spawnedPiglin.remove();
         }
-        stopChecks();
-        lastCheckLocations.clear();
+        intervalChecker.reset();
     }
 }

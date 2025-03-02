@@ -72,7 +72,7 @@ public class ListenerEncounterPortal implements Listener {
         if (isNearLitPortal(to, TRIGGER_DISTANCE)) {
             spawnMobGroup(portalLocation);
             spawned = true;
-            quest.advanceState(QuestState.OBJECTIVE_COMPLETE);
+            quest.advanceState(QuestState.OBJECTIVE_FOUND);  // Changed from OBJECTIVE_COMPLETE
             cleanup();
             return;
         }

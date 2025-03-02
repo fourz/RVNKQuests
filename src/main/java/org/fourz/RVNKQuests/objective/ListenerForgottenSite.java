@@ -40,7 +40,7 @@ public class ListenerForgottenSite implements Listener {
 
         spawnDefenders(playerLoc);
         spawned = true;
-        quest.advanceState(QuestState.OBJECTIVE_COMPLETE);
+        quest.advanceState(QuestState.OBJECTIVE_FOUND);
     }
 
     private boolean isNearUnderwaterStructure(Location loc) {        

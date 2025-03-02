@@ -117,6 +117,11 @@ public class NameGenerator {
      * @return A randomly selected name fitting for the entity type
      */
     public static String generateMobName(EntityType entityType) {
+        // on a random chance of 1/10, generate a legendary name
+        if (random.nextInt(10) == 0) {
+            return generateLegendaryName(entityType);
+        }
+
         // on a random chance of 1/5, generate a generic name   
         if (random.nextInt(5) == 0) {
             return generateGenericName(entityType);
@@ -159,7 +164,7 @@ public class NameGenerator {
         }
     }
 
-    private static String generateLedgendaryName(EntityType entityType) {
+    private static String generateLegendaryName(EntityType entityType) {
         String entityTypeName = formatEntityTypeName(entityType.name());
         
         List<String> prefixes = Arrays.asList(

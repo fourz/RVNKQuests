@@ -8,7 +8,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.trigger.*;
-import org.stringtemplate.v4.compiler.CodeGenerator.qualifiedId_return;
 import org.fourz.RVNKQuests.objective.*;
 import org.fourz.RVNKQuests.reward.QuestLoot;
 
@@ -26,7 +25,14 @@ public class QuestPiglinFarFromHome implements Quest {
 
     public QuestPiglinFarFromHome(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.lonePiglinListener = new ListenerLonePiglin(this, plugin);  
+        
+        // Create the listener with custom location parameters
+        // You can customize these values or read them from config
+        String worldName = plugin.getConfigManager().getConfig().getString("quests.piglin_far_from_home.world", "event");
+        double spawnRadius = plugin.getConfigManager().getConfig().getDouble("quests.piglin_far_from_home.spawn_radius", 30.0);
+        
+        // Initialize the listener with specific world and radius
+        this.lonePiglinListener = new ListenerLonePiglin(this, plugin, worldName, null, spawnRadius);  
 
         Map<EntityType, Integer> portalMobs = new HashMap<>();
         portalMobs.put(EntityType.WITHER_SKELETON, 1);
@@ -67,21 +73,11 @@ public class QuestPiglinFarFromHome implements Quest {
 
     @Override
     public void advanceState(QuestState newState) {
-        QuestState previousState = this.currentState;
         this.currentState = newState;
         
         // Handle state-specific logic
-        switch (newState) {
-            case NOT_STARTED:
-                // If we're resetting to NOT_STARTED, schedule piglin checks
-                if (previousState != QuestState.NOT_STARTED) {
-                    lonePiglinListener.scheduleChecks();
-                }
-                break;
-            case QUEST_ACTIVE:
-                // When progressing to QUEST_ACTIVE, stop the piglin check schedule
-                lonePiglinListener.cleanup();
-                break;
+        if (newState == QuestState.QUEST_ACTIVE) {
+            lonePiglinListener.cleanup();
         }
         
         plugin.getQuestManager().updateQuestListeners(this);
@@ -119,8 +115,8 @@ public class QuestPiglinFarFromHome implements Quest {
             case QUEST_ACTIVE:
                 listeners.add(portalListener);
                 break;
-            case OBJECTIVE_COMPLETE:
-                listeners.add(new ListenerEncounterPortalDefeated(this, portalListener,  createPortalLoot()));
+            case OBJECTIVE_FOUND:  // Changed from OBJECTIVE_COMPLETE
+                listeners.add(new ListenerEncounterPortalDefeated(this, portalListener, createPortalLoot()));
                 break;
         }
         
