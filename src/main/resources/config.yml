@@ -1,12 +1,11 @@
-
 general:
-  logLevel: DEBUG # DEBUG, INFO,  WARN, ERROR
-
-
+  # Valid log levels: OFF, SEVERE, WARNING, INFO, DEBUG, FINE
+  # DEBUG and FINE are equivalent and both enable debug logging
+  # Default: INFO
+  logLevel: INFO
 
 storage:
-# types: mysql, sqlite
-  type: sqlite 
+  type: sqlite
   mysql:
     host: localhost
     port: 3306

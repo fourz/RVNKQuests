@@ -11,6 +11,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.EnvironmentEffects;
 import org.fourz.RVNKQuests.util.NameGenerator;
 import org.bukkit.metadata.FixedMetadataValue;
 
@@ -70,10 +71,21 @@ public class ListenerEncounterPortal implements Listener {
 
         // Perform portal check
         if (isNearLitPortal(to, TRIGGER_DISTANCE)) {
-            spawnMobGroup(portalLocation);
+            
+            quest.advanceState(QuestState.OBJECTIVE_FOUND);            
+            EnvironmentEffects.startDramaticSequence(
+                quest.getPlugin(),
+                portalLocation,
+                20,  // 20 block radius
+                200, // 10 second duration (20 ticks/sec)
+                5,   // 5 lightning strikes
+                (v) -> {                                        
+                    spawnMobGroup(portalLocation);
+                    cleanup();
+                }
+            );
+            
             spawned = true;
-            quest.advanceState(QuestState.OBJECTIVE_FOUND);  // Changed from OBJECTIVE_COMPLETE
-            cleanup();
             return;
         }
 

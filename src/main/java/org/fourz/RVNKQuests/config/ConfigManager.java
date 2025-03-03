@@ -2,6 +2,7 @@ package org.fourz.RVNKQuests.config;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
+import java.util.logging.Level;
 
 public class ConfigManager {
     private final RVNKQuests plugin;
@@ -16,18 +17,23 @@ public class ConfigManager {
         plugin.saveDefaultConfig();
         plugin.reloadConfig();
         config = plugin.getConfig();
-        plugin.getDebugger().debug("Configuration loaded successfully");
     }
 
-    public String getLogLevel() {
+    // Called after Debug is initialized
+    public void initDebugLogging() {
+        plugin.getDebugger().debug("Configuration system initialized");
+    }
+
+    public Level getLogLevel() {
         String level = config.getString("general.logLevel", "INFO");
-        plugin.getDebugger().debug("Retrieved log level: " + level);
-        return level;
+        if (level.equalsIgnoreCase("DEBUG")) {
+            return Level.FINE;
+        }
+        return Level.parse(level.toUpperCase());
     }
 
     public String getStorageType() {
         String type = config.getString("storage.type", "sqlite");
-        plugin.getDebugger().debug("Retrieved storage type: " + type);
         return type;
     }
 

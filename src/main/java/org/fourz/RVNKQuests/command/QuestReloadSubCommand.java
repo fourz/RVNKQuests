@@ -32,7 +32,7 @@ public class QuestReloadSubCommand implements SubCommand {
         
         // Reload configuration
         plugin.getConfigManager().reloadConfig();
-        debug.setLogLevel(Debug.getLevel(plugin.getConfigManager().getLogLevel()));
+        debug.setLogLevel(plugin.getConfigManager().getLogLevel());
         
         // Re-initialize quests
         plugin.getQuestManager().initializeQuests();
