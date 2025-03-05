@@ -45,6 +45,7 @@ public class QuestAncientGuardian implements Quest {
     private QuestState currentState = QuestState.NOT_STARTED;
     private final ListenerGuardianAwakening guardianListener;
     private final ListenerForgottenSite forgottenSiteListener;
+    private Location guardianLocation;
 
     public QuestAncientGuardian(RVNKQuests plugin) {
         this.plugin = plugin;
@@ -89,8 +90,18 @@ public class QuestAncientGuardian implements Quest {
     }
 
     @Override
-    public Location getLecternLocation() {
-        return null; // Not used in this quest
+    public Location getStartLocation() {
+        return guardianLocation; // May be null until the guardian spawns
+    }
+
+    @Override
+    public String getStartTrigger() {
+        return "Elder Guardian";
+    }
+
+    // Add getter/setter for guardianLocation
+    public void setGuardianLocation(Location location) {
+        this.guardianLocation = location;
     }
 
     @Override

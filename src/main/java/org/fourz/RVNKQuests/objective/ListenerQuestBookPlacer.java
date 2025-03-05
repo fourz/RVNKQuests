@@ -14,7 +14,7 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.util.Debug;
 import org.bukkit.block.Block;
 import org.bukkit.block.Lectern;
-////import org.fourz.RVNKQuests.util.NMSUtil;
+//import org.fourz.RVNKQuests.util.NMSUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,9 +59,9 @@ public class ListenerQuestBookPlacer implements Listener {
                 try {
                     Block block = lecternLocation.getBlock();
                     if (block.getType() == Material.LECTERN) {
-                        ////boolean success = NMSUtil.placeLecternBook();
+                        //boolean success = NMSUtil.placeLecternBook();
                         boolean success = true;
-                            ////lecternLocation.getWorld(),lecternLocation,book);                        
+                            //lecternLocation.getWorld(),lecternLocation,book);                        
                         if (success) {
                             debugger.debug("Book placed successfully using NMS");
                         } else {

@@ -21,6 +21,7 @@ public class QuestFirstCityProphecy implements Quest {
     private final Debug debugger;
     private QuestState currentState = QuestState.NOT_STARTED;
     private Location lecternLocation;
+    private ListenerProphecyDiscovery prophecyDiscovery;
 
     public QuestFirstCityProphecy(RVNKQuests plugin) {
         this.plugin = plugin;
@@ -46,7 +47,6 @@ public class QuestFirstCityProphecy implements Quest {
         debugger.debug("Building quest beacon");
         ListenerQuestPillarStart pillarStarter = new ListenerQuestPillarStart(plugin);
         this.lecternLocation = pillarStarter.buildQuestBeacon();
-
         
         // Register the book placer listener
         plugin.getServer().getPluginManager().registerEvents(
@@ -87,8 +87,13 @@ public class QuestFirstCityProphecy implements Quest {
     }
 
     @Override
-    public Location getLecternLocation() {
-        return lecternLocation;
+    public Location getStartLocation() {
+        return prophecyDiscovery != null ? prophecyDiscovery.getLecternLocation() : lecternLocation;
+    }
+
+    @Override
+    public String getStartTrigger() {
+        return "Prophecy Lectern";
     }
 
     public boolean isValidSettlementLocation(Location loc) {
@@ -121,7 +126,8 @@ public class QuestFirstCityProphecy implements Quest {
                 listeners.add(new ListenerEventPopulated(this));
                 break;
             case TRIGGER_FOUND:
-                listeners.add(new ListenerProphecyDiscovery(this));
+                prophecyDiscovery = new ListenerProphecyDiscovery(this, lecternLocation);
+                listeners.add(prophecyDiscovery);
                 break;
             case QUEST_ACTIVE:
                 listeners.add(new ListenerProphecyVisions(plugin, this));

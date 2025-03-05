@@ -14,7 +14,19 @@ public interface Quest {
     boolean isCompleted(Player player);
     QuestState getCurrentState();
     void advanceState(QuestState newState);
-    Location getLecternLocation();
+    
+    /**
+     * Returns the starting location for this quest
+     * @return The location where this quest begins, or null if not applicable
+     */
+    Location getStartLocation();
+    
+    /**
+     * Returns the name of the starting trigger for this quest
+     * @return A descriptive name of the starting trigger (e.g. "Prophecy Lectern", "Lost Piglin")
+     */
+    String getStartTrigger();
+    
     RVNKQuests getPlugin();
 
     /**

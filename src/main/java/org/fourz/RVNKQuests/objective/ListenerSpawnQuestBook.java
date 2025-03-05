@@ -11,6 +11,7 @@ import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.bukkit.Location;
 
 // Listener for when a player interacts with the quest book in the prophecy lectern
 
@@ -18,11 +19,13 @@ public class ListenerSpawnQuestBook implements Listener {
     private final RVNKQuests plugin;
     private final Quest quest;
     private final String requiredBookTitle;
+    private final Location lecternLocation;
 
-    public ListenerSpawnQuestBook(RVNKQuests plugin, Quest quest, String requiredBookTitle) {
+    public ListenerSpawnQuestBook(RVNKQuests plugin, Quest quest, String requiredBookTitle, Location lecternLocation) {
         this.plugin = plugin;
         this.quest = quest;
         this.requiredBookTitle = requiredBookTitle;
+        this.lecternLocation = lecternLocation;
     }
 
     @EventHandler
@@ -30,7 +33,7 @@ public class ListenerSpawnQuestBook implements Listener {
         Block block = event.getClickedBlock();
         if (block == null || block.getType() != Material.LECTERN) return;
 
-        if (!block.getLocation().equals(quest.getLecternLocation())) return;
+        if (!block.getLocation().equals(lecternLocation)) return;
 
         Lectern lectern = (Lectern) block.getState();
         ItemStack book = lectern.getInventory().getItem(0);

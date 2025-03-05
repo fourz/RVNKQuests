@@ -22,6 +22,7 @@ public class QuestPiglinFarFromHome implements Quest {
     private QuestState currentState = QuestState.NOT_STARTED;
     private final ListenerLonePiglin lonePiglinListener;
     private final ListenerEncounterPortal portalListener;
+    private Location spawnLocation;
 
     public QuestPiglinFarFromHome(RVNKQuests plugin) {
         this.plugin = plugin;
@@ -84,13 +85,23 @@ public class QuestPiglinFarFromHome implements Quest {
     }
 
     @Override
-    public Location getLecternLocation() {
-        return null; // Not used in this quest
+    public RVNKQuests getPlugin() {
+        return plugin;
     }
 
     @Override
-    public RVNKQuests getPlugin() {
-        return plugin;
+    public Location getStartLocation() {
+        return spawnLocation; // May be null until the piglin spawns
+    }
+
+    @Override
+    public String getStartTrigger() {
+        return "Lost Piglin";
+    }
+
+    // Add getter/setter for spawnLocation
+    public void setSpawnLocation(Location location) {
+        this.spawnLocation = location;
     }
 
     private QuestLoot createPortalLoot() {

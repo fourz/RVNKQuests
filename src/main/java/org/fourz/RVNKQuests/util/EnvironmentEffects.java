@@ -27,7 +27,7 @@ public class EnvironmentEffects {
         }
     }
 
-    public static void startDramaticSequence(JavaPlugin plugin, Location centerLocation, 
+    public static void startDramaticLightningSequence(JavaPlugin plugin, Location centerLocation, 
                                            int radius, int durationTicks, 
                                            int lightningStrikes, Consumer<Void> onComplete) {
         World world = centerLocation.getWorld();
@@ -108,7 +108,6 @@ public class EnvironmentEffects {
         long targetTime = 18000; // Night time
         long currentTime = originalTime + ((targetTime - originalTime) * ticksElapsed / totalTicks);
         world.setTime(currentTime);
-        logDebug("World time updated to: " + currentTime);
     }
 
     private static int[] generateLightningTimes(int count, int maxTime) {

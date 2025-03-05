@@ -13,14 +13,13 @@ import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.util.Debug;
 import org.fourz.RVNKQuests.util.EnvironmentEffects;
 import org.fourz.RVNKQuests.util.NameGenerator;
+import org.fourz.RVNKQuests.util.IntervalChecker;
 import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.logging.Level;
 
@@ -37,14 +36,13 @@ public class ListenerEncounterPortal implements Listener {
     private boolean spawned = false;
     private final Map<EntityType, Integer> mobsToSpawn;
     private final Set<Player> playersInRange = new HashSet<>();
-    private final Random random = new Random();
-    private Map<Player, Location> lastCheckLocations = new HashMap<>();
-    private static final double CHECK_DISTANCE = 5.0; // Check every 5 blocks of movement
+    private final IntervalChecker moveChecker;
 
     public ListenerEncounterPortal(Quest quest, Map<EntityType, Integer> mobsToSpawn) {
         this.quest = quest;
         this.mobsToSpawn = mobsToSpawn;
         this.debug = Debug.createDebugger(quest.getPlugin(), "EncounterPortal", Level.FINE);
+        this.moveChecker = new IntervalChecker(5, 5.0); // Check every 5 ticks, minimum 5.0 blocks moved
         
         debug.debug("Initialized with mob config: " + mobsToSpawn.toString());
     }
@@ -59,13 +57,12 @@ public class ListenerEncounterPortal implements Listener {
         // Height check
         if (to.getY() < PORTAL_HEIGHT) {
             playersInRange.remove(player);
-            lastCheckLocations.remove(player);
+            moveChecker.clearEntity(player.getUniqueId());
             return;
         }
 
-        // Distance check
-        Location lastCheck = lastCheckLocations.get(player);
-        if (lastCheck != null && lastCheck.distance(to) < CHECK_DISTANCE) {
+        // Use IntervalChecker instead of manual distance check
+        if (!moveChecker.shouldCheck(player.getUniqueId(), to)) {
             return;
         }
 
@@ -73,10 +70,10 @@ public class ListenerEncounterPortal implements Listener {
         if (isNearLitPortal(to, TRIGGER_DISTANCE)) {
             
             quest.advanceState(QuestState.OBJECTIVE_FOUND);            
-            EnvironmentEffects.startDramaticSequence(
+            EnvironmentEffects.startDramaticLightningSequence(
                 quest.getPlugin(),
                 portalLocation,
-                20,  // 20 block radius
+                25,  // 20 block radius
                 200, // 10 second duration (20 ticks/sec)
                 5,   // 5 lightning strikes
                 (v) -> {                                        
@@ -88,8 +85,6 @@ public class ListenerEncounterPortal implements Listener {
             spawned = true;
             return;
         }
-
-        lastCheckLocations.put(player, to.clone());
     }
 
     private boolean isNearLitPortal(Location loc, int distance) {
@@ -164,7 +159,7 @@ public class ListenerEncounterPortal implements Listener {
     }
 
     private void cleanup() {
-        lastCheckLocations.clear();
+        moveChecker.reset();
         playersInRange.clear();
     }
 }

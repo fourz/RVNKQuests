@@ -19,7 +19,12 @@ public class NameGenerator {
             "Plagueborn",
             "Ravaged Settler", 
             "Cursed Vagabond",
-            "Forsaken Explorer"
+            "Forsaken Explorer",
+            "Hollow Drudge",
+            "Shambling Husk of Ravenport",
+            "Echo of the Forgotten",
+            "Withered Remnant",
+            "Rotting Sentinel of the Old Wall"
         ));
         
         namesByType.put(EntityType.SKELETON, Arrays.asList(
@@ -27,7 +32,12 @@ public class NameGenerator {
             "Fallen Legionnaire",
             "Hollow Watchman",
             "Crypt Guardian",
-            "Wraith of the Old War"
+            "Wraith of the Old War",
+            "Emberbound Sharpshooter",
+            "Ashen Longbowman of the Dunes",
+            "Vestige of the Shadow War",
+            "Frostbitten Sentinel of Everpeak",
+            "Runebound Bonesmith"
         ));
         
         namesByType.put(EntityType.CREEPER, Arrays.asList(
@@ -35,7 +45,12 @@ public class NameGenerator {
             "Silent Menace",
             "The Lurking Ruin",
             "Whispering Stalker",
-            "Verdant Terror"
+            "Verdant Terror",
+            "Living Fuse of the Netherstorm",
+            "Sapper of the Blackened Front",
+            "The Creeping Doom",
+            "Ravager of the Builder's Ruin",
+            "Spectral Detonator of the Veil"
         ));
         
         namesByType.put(EntityType.SPIDER, Arrays.asList(
@@ -43,7 +58,12 @@ public class NameGenerator {
             "Cave Stalker",
             "Silkweaver Horror",
             "The Eight-Legged Bane",
-            "Shadow Spinner"
+            "Shadow Spinner",
+            "Nestmother of the Abyss",
+            "Webbed Terror of the Catacombs",
+            "The Weaving Horror",
+            "Silken Reaper of Whispering Hollows",
+            "Fanged Phantom of the Obsidian Caverns"
         ));
         
         namesByType.put(EntityType.ENDERMAN, Arrays.asList(
@@ -51,7 +71,12 @@ public class NameGenerator {
             "Ebon Gazer",
             "Wandering Phantom",
             "Riftborn Seer",
-            "The Vanishing Herald"
+            "The Vanishing Herald",
+            "Dimensional Haunt",
+            "Watcher from the Beyond",
+            "The Twilight Revenant",
+            "Gloomborne Wanderer",
+            "Herald of the Shattered Gate"
         ));
         
         namesByType.put(EntityType.WITCH, Arrays.asList(
@@ -59,7 +84,12 @@ public class NameGenerator {
             "The Brewmistress",
             "Coven Elder",
             "Hexborn Alchemist",
-            "Shadow Enchantress"
+            "Shadow Enchantress",
+            "Bog Oracle of Dreadmere",
+            "Ravenwood Hexcaster",
+            "Potionmaster of the Hollow Glade",
+            "Moonborn Sorceress",
+            "Vile Crone of the Fogged Isle"
         ));
         
         namesByType.put(EntityType.BLAZE, Arrays.asList(
@@ -67,7 +97,12 @@ public class NameGenerator {
             "Ember Warden",
             "The Smoldering Shade",
             "Flameborn Revenant",
-            "Guardian of the Pyre"
+            "Guardian of the Pyre",
+            "Pyroclasmic Executioner",
+            "Burning Shade of the Magma Citadel",
+            "Charred Enforcer of the Firelords",
+            "Eternal Flamebound Watcher",
+            "Scorched Phantom of the Abyss"
         ));
         
         namesByType.put(EntityType.GHAST, Arrays.asList(
@@ -75,7 +110,12 @@ public class NameGenerator {
             "Phantom of the Nether",
             "Echoing Doom",
             "Netherbound Lament",
-            "Sorrowful Shade"
+            "Sorrowful Shade",
+            "Screaming Phantom of the Crimson Chasm",
+            "Nether’s Grieving Wraith",
+            "Howling Horror of the Veil",
+            "The Ashen Banshee",
+            "Soulbound Cry of the Nether Wastes"
         ));
         
         namesByType.put(EntityType.WITHER_SKELETON, Arrays.asList(
@@ -83,7 +123,12 @@ public class NameGenerator {
             "Ebonblade Warrior",
             "Cursed Boneguard",
             "Void-Touched Raider",
-            "Ashen Executioner"
+            "Ashen Executioner",
+            "Scourge of the Wither Kings",
+            "Blackflame Marauder",
+            "Soulbound Enforcer of the Abyss",
+            "Runescarred Reaper",
+            "Nether’s Bound Warlord"
         ));
         
         namesByType.put(EntityType.PIGLIN_BRUTE, Arrays.asList(
@@ -91,15 +136,12 @@ public class NameGenerator {
             "The Gilded Ravager",
             "Barbarian of the Bastion",
             "Goldhoarder's Wrath",
-            "Oathbreaker of the Pits"
-        ));
-
-        namesByType.put(EntityType.PIGLIN, Arrays.asList(
-            "Goldseeker",
-            "The Gilded Wanderer",
-            "Barterer of the Bastion",
-            "Goldhoarder's Acolyte",
-            "Oathkeeper of the Pits"
+            "Oathbreaker of the Pits",
+            "Tusks of the Fallen Horde",
+            "Warrior of the Golden Pact",
+            "Savage Harbinger of the Crimson War",
+            "Bastion's Last Stand",
+            "The Golden Butcher"
         ));
 
         namesByType.put(EntityType.HOGLIN, Arrays.asList(
@@ -107,7 +149,10 @@ public class NameGenerator {
             "The Crimson Brute",
             "The Tusked Terror",
             "Bloodbound Marauder",
-            "The Feral Boar"
+            "The Feral Boar",
+            "The Crimson Ravager",
+            "The Zoglin Horror",
+            "The Crimson Beast"
         ));        
     }
     
@@ -150,7 +195,9 @@ public class NameGenerator {
         
         List<String> suffixes = Arrays.asList(
             "of the Deep", "of the Nether", "of Jelly", "of the Plant Lands",
-            "of Fun", "of The Fish Men", "(no really though)", "of the End", "of the Overworld"
+            "of Fun", "of The Fish Men", "(no really though)", "of the End", 
+            "of the Overworld", "the Toasted", "the Toasty", "the Toastmaster", 
+            "the Toasted One", "the Toasted Toast", "the Toasted Toastmaster"
         );
         
         String prefix = prefixes.get(random.nextInt(prefixes.size()));

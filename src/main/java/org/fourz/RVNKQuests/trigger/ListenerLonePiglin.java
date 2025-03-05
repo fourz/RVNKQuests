@@ -17,9 +17,8 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.util.Debug;
 import org.fourz.RVNKQuests.util.IntervalChecker;
+import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 import java.util.logging.Level;
 
@@ -139,6 +138,11 @@ public class ListenerLonePiglin implements Listener {
         Piglin piglin = (Piglin) spawnedPiglin;
         piglin.setImmuneToZombification(true);
         piglin.getEquipment().setItemInMainHand(new ItemStack(Material.GOLDEN_SWORD));
+        
+        // Update the spawn location in the quest if it's a QuestPiglinFarFromHome
+        if (quest instanceof QuestPiglinFarFromHome) {
+            ((QuestPiglinFarFromHome) quest).setSpawnLocation(spawnLoc.clone());
+        }
         
         debug.debug("Piglin spawned successfully at: " + spawnLoc);
         
