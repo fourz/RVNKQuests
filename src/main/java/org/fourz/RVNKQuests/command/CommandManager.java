@@ -20,7 +20,12 @@ public class CommandManager {
 
     public CommandManager(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "CommandManager", Level.FINE);
+        // Use the plugin's global log level from config
+        Level logLevel = plugin.getDebugger().getLogLevel();
+        this.debug = Debug.createDebugger(plugin, "CommandManager", logLevel);
+        
+        debug.debug("Initializing command manager with log level: " + logLevel.getName());
+        
         registerCommands();
     }
 
@@ -68,5 +73,14 @@ public class CommandManager {
      */
     public CommandExecutor getCommand(String commandName) {
         return commands.get(commandName);
+    }
+    
+    /**
+     * Updates the debug level for all command components
+     * @param newLevel The new log level
+     */
+    public void updateDebugLevel(Level newLevel) {
+        debug.setLogLevel(newLevel);
+        debug.debug("Command manager log level updated to: " + newLevel.getName());
     }
 }

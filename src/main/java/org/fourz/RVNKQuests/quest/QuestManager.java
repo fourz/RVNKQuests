@@ -8,7 +8,7 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import java.util.ArrayList;
 import java.util.List;
-import org.fourz.RVNKQuests.quest.*;
+import java.util.logging.Level;
 
 public class QuestManager {
     private static final String CLASS_NAME = "QuestManager";
@@ -20,7 +20,16 @@ public class QuestManager {
 
     public QuestManager(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debugger = new Debug(plugin, CLASS_NAME, plugin.getDebugger().getLogLevel()) {};
+        this.debugger = Debug.createDebugger(plugin, CLASS_NAME, plugin.getDebugger().getLogLevel());
+    }
+
+    /**
+     * Updates the debug level for this manager
+     * @param level New log level
+     */
+    public void updateDebugLevel(Level level) {
+        debugger.setLogLevel(level);
+        debugger.debug("QuestManager log level updated to: " + level.getName());
     }
 
     public void registerQuest(Quest quest) {
@@ -41,7 +50,7 @@ public class QuestManager {
         debugger.debug("Beginning quest initialization");
         //registerQuest(new QuestFirstCityProphecy(plugin));
         registerQuest(new QuestPiglinFarFromHome(plugin));
-        //registerQuest(new QuestAncientGuardian(plugin)); // Add this line
+        registerQuest(new QuestAncientGuardian(plugin)); // Uncommented
         debugger.debug("Quest initialization complete. Total quests: " + quests.size());
     }
 

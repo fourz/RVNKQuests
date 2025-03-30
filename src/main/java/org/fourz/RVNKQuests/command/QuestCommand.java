@@ -26,7 +26,7 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
 
     public QuestCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestCommand", Level.FINE);
+        this.debug = Debug.createDebugger(plugin, "QuestCommand", plugin.getDebugger().getLogLevel());
         registerSubCommands();
     }
 
@@ -39,6 +39,7 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
         registerSubCommand("state", new QuestStateSubCommand(plugin));
         registerSubCommand("reload", new QuestReloadSubCommand(plugin));
         registerSubCommand("trigger", new QuestTriggerSubCommand(plugin));
+        registerSubCommand("debug", new QuestDebugSubCommand(plugin));
         debug.debug("Subcommands registered successfully");
     }
 

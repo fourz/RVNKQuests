@@ -1,0 +1,14 @@
+# RVNKQuests Plugin Configuration
+
+general:
+  # Available log levels: DEBUG, INFO, WARNING, SEVERE, OFF
+  logLevel: INFO
+
+lore_database:
+  enabled: true
+  type: yaml  # Options: yaml, sqlite
+
+quests:
+  piglin_far_from_home:
+    world: event
+    spawn_radius: 30.0

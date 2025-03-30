@@ -5,13 +5,11 @@ import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.util.Debug;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
 /**
- * Subcommand for reloading the plugin and resetting all quests
- * Usage: /quest reload
+ * Handles the /quest reload command to reload plugin configuration
  */
 public class QuestReloadSubCommand implements SubCommand {
     private final RVNKQuests plugin;
@@ -19,41 +17,60 @@ public class QuestReloadSubCommand implements SubCommand {
 
     public QuestReloadSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestReloadCommand", Level.FINE);
+        this.debug = Debug.createDebugger(plugin, "QuestReloadCommand", plugin.getDebugger().getLogLevel());
     }
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        debug.debug("Executing reload command");
-        sender.sendMessage(ChatColor.YELLOW + "Reloading RVNKQuests plugin and resetting all quests...");
+        sender.sendMessage(ChatColor.YELLOW + "Reloading RVNKQuests configuration...");
         
-        // Clean up existing quests
-        plugin.getQuestManager().cleanupQuests();
+        try {
+            // Reload the configuration
+            plugin.getConfigManager().reloadConfig();
+            
+            // Update the log level based on new config using the global method
+            Level newLogLevel = plugin.getConfigManager().getLogLevel();
+            plugin.updateGlobalLogLevel(newLogLevel);
+            
+            debug.info("Configuration reloaded by " + sender.getName());
+            sender.sendMessage(ChatColor.GREEN + "Configuration reloaded successfully!");
+            sender.sendMessage(ChatColor.YELLOW + "Current log level: " + 
+                ChatColor.GREEN + getLevelName(newLogLevel));
+        } catch (Exception e) {
+            debug.error("Error reloading configuration", e);
+            sender.sendMessage(ChatColor.RED + "Error reloading configuration: " + e.getMessage());
+        }
         
-        // Reload configuration
-        plugin.getConfigManager().reloadConfig();
-        debug.setLogLevel(plugin.getConfigManager().getLogLevel());
-        
-        // Re-initialize quests
-        plugin.getQuestManager().initializeQuests();
-        
-        sender.sendMessage(ChatColor.GREEN + "RVNKQuests plugin has been reloaded successfully!");
         return true;
+    }
+    
+    private String getLevelName(Level level) {
+        if (level == Level.FINE) {
+            return "DEBUG";
+        } else if (level == Level.INFO) {
+            return "INFO";
+        } else if (level == Level.WARNING) {
+            return "WARNING";
+        } else if (level == Level.SEVERE) {
+            return "SEVERE";
+        } else if (level == Level.OFF) {
+            return "OFF";
+        }
+        return level.getName();
     }
 
     @Override
     public String getDescription() {
-        return "Reloads the plugin and resets all quests";
+        return "Reload the plugin configuration";
     }
 
     @Override
     public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.command.reload") || sender.isOp();
+        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
     }
 
     @Override
     public List<String> getTabCompletions(CommandSender sender, String[] args) {
-        // No additional arguments for reload command
-        return new ArrayList<>();
+        return null; // No completions for this command
     }
 }
