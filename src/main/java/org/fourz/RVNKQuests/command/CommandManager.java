@@ -41,26 +41,12 @@ public class CommandManager {
      * Registers all commands for the plugin
      */
     private void registerCommands() {
-        QuestCommand questCommand = null;
         try {
-            // Create main quest command
-            questCommand = new QuestCommand(plugin);
+            // Create and register the main quest command only
+            QuestCommand questCommand = new QuestCommand(plugin);
             
-            // Register core subcommands
-            // Note: Some of these are already registered in QuestCommand's constructor
-            try {
-                questCommand.registerSubCommand("item", new QuestItemSubCommand(plugin));
-                debug.debug("Registered item subcommand");
-            } catch (Exception e) {
-                debug.warning("Failed to register item subcommand: " + e.getMessage());
-            }
-            
-            // These may be added later, we'll try them but skip if not available
-            tryRegisterSubCommand(questCommand, "trigger", "QuestTriggerSubCommand");
-            tryRegisterSubCommand(questCommand, "state", "QuestStateSubCommand");
-            tryRegisterSubCommand(questCommand, "debug", "QuestDebugSubCommand");
-            tryRegisterSubCommand(questCommand, "reload", "QuestReloadSubCommand");
-            tryRegisterSubCommand(questCommand, "validate", "QuestValidateSubCommand");
+            // Add validate command if it exists (not in core)
+            tryRegisterOptionalCommand(questCommand, "validate", "QuestValidateSubCommand");
             
             // Register the main quest command with the server
             registerCommand("quest", questCommand);
@@ -72,40 +58,23 @@ public class CommandManager {
     }
     
     /**
-     * Attempts to register a subcommand, handling any errors gracefully
+     * Attempts to register an optional subcommand
      */
-    private void tryRegisterSubCommand(QuestCommand questCommand, String name, String className) {
+    private void tryRegisterOptionalCommand(QuestCommand questCommand, String name, String className) {
         try {
-            // Check if the subcommand is already registered
-            // If so, we don't need to register it again
-            if (questCommand.hasSubCommand(name)) {
-                debug.debug("Subcommand already registered: " + name);
-                return;
-            }
-            
-            // Try to dynamically create the subcommand instance
-            Class<?> subCommandClass = Class.forName("org.fourz.RVNKQuests.command." + className);
-            SubCommand subCommand = (SubCommand) subCommandClass
-                .getConstructor(RVNKQuests.class)
-                .newInstance(plugin);
-                
-            // Register the subcommand
-            questCommand.registerSubCommand(name, subCommand);
-            debug.debug("Successfully registered subcommand: " + name);
+            Class<?> cmdClass = Class.forName("org.fourz.RVNKQuests.command." + className);
+            SubCommand cmd = (SubCommand) cmdClass.getConstructor(RVNKQuests.class).newInstance(plugin);
+            questCommand.registerSubCommand(name, cmd);
+            debug.debug("Registered optional command: " + name);
         } catch (ClassNotFoundException e) {
-            debug.debug("Subcommand class not available: " + name + " (" + className + ")");
-        } catch (NoSuchMethodException e) {
-            debug.warning("Constructor not found for subcommand: " + name);
+            debug.debug("Optional command not available: " + name);
         } catch (Exception e) {
-            debug.warning("Failed to register subcommand: " + name + " - " + e.getMessage());
+            debug.warning("Failed to register command: " + name + " - " + e.getMessage());
         }
     }
 
     /**
      * Registers a command with the server
-     * 
-     * @param commandName The name of the command
-     * @param executor The executor for the command
      */
     private void registerCommand(String commandName, CommandExecutor executor) {
         debug.debug("Registering command: " + commandName);
@@ -118,7 +87,6 @@ public class CommandManager {
         
         command.setExecutor(executor);
         
-        // If the executor also implements TabCompleter, register it
         if (executor instanceof TabCompleter) {
             command.setTabCompleter((TabCompleter) executor);
             debug.debug("Tab completer registered for command: " + commandName);
@@ -130,9 +98,6 @@ public class CommandManager {
 
     /**
      * Gets a registered command executor
-     * 
-     * @param commandName The name of the command
-     * @return The command executor, or null if not found
      */
     public CommandExecutor getCommand(String commandName) {
         return commands.get(commandName);

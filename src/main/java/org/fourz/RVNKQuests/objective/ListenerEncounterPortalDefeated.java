@@ -20,7 +20,8 @@ public class ListenerEncounterPortalDefeated implements Listener {
         this.quest = quest;
         this.portalListener = portalListener;
         this.questLoot = questLoot;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "EncounterPortalDefeated", Level.FINE);
+        // Updated to use quest.getPlugin().getDebugger().getLogLevel()
+        this.debug = Debug.createDebugger(quest.getPlugin(), "EncounterPortalDefeated", quest.getPlugin().getDebugger().getLogLevel());
     }
 
     @EventHandler

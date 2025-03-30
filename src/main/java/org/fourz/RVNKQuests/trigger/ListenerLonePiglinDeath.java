@@ -22,7 +22,8 @@ public class ListenerLonePiglinDeath implements Listener {
     public ListenerLonePiglinDeath(Quest quest, ListenerLonePiglin lonePiglinListener) {
         this.quest = quest;
         this.lonePiglinListener = lonePiglinListener;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "LonePiglinDeath", Level.FINE);
+        // Updated to use quest.getPlugin().getDebugger().getLogLevel()
+        this.debug = Debug.createDebugger(quest.getPlugin(), "LonePiglinDeath", quest.getPlugin().getDebugger().getLogLevel());
     }
 
     @EventHandler

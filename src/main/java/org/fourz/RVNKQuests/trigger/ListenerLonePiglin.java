@@ -45,7 +45,10 @@ public class ListenerLonePiglin implements Listener {
     public ListenerLonePiglin(Quest quest, JavaPlugin plugin, String worldName, Location location, double radius) {
         this.quest = quest;
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "LonePiglin", Level.FINE);
+        
+        // Updated to use quest.getPlugin().getDebugger().getLogLevel()
+        this.debug = Debug.createDebugger(plugin, "LonePiglin", quest.getPlugin().getDebugger().getLogLevel());
+        
         this.spawnRadius = radius;
         this.targetWorld = worldName;
         this.intervalChecker = new IntervalChecker(CHECK_FREQUENCY, MIN_MOVEMENT_CHECK);

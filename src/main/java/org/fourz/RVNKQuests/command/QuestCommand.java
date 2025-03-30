@@ -27,41 +27,73 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
     public QuestCommand(RVNKQuests plugin) {
         this.plugin = plugin;
         this.debug = Debug.createDebugger(plugin, "QuestCommand", plugin.getDebugger().getLogLevel());
-        registerSubCommands();
+        registerCoreCommands();
     }
 
     /**
-     * Registers all subcommands
+     * Registers the core subcommands that are always available
      */
-    private void registerSubCommands() {
-        debug.debug("Registering subcommands...");
-        registerSubCommand("item", new QuestItemSubCommand(plugin));
-        registerSubCommand("state", new QuestStateSubCommand(plugin));
-        registerSubCommand("reload", new QuestReloadSubCommand(plugin));
-        registerSubCommand("trigger", new QuestTriggerSubCommand(plugin));
-        registerSubCommand("debug", new QuestDebugSubCommand(plugin));
-        debug.debug("Subcommands registered successfully");
+    private void registerCoreCommands() {
+        debug.debug("Registering core subcommands");
+        
+        // These commands are always present in the plugin
+        String[][] coreCommands = {
+            {"item", "QuestItemSubCommand"},
+            {"state", "QuestStateSubCommand"},
+            {"reload", "QuestReloadSubCommand"},
+            {"trigger", "QuestTriggerSubCommand"},
+            {"debug", "QuestDebugSubCommand"}
+        };
+        
+        for (String[] cmd : coreCommands) {
+            try {
+                String name = cmd[0];
+                String className = cmd[1];
+                
+                Class<?> cmdClass = Class.forName("org.fourz.RVNKQuests.command." + className);
+                SubCommand subCommand = (SubCommand) cmdClass.getConstructor(RVNKQuests.class).newInstance(plugin);
+                
+                registerSubCommand(name, subCommand);
+            } catch (Exception e) {
+                debug.error("Failed to register core command: " + cmd[0], e);
+            }
+        }
+        
+        debug.debug("Core subcommands registered");
     }
 
     /**
-     * Registers a subcommand
+     * Registers a subcommand if it doesn't already exist
      * 
-     * @param name The name of the subcommand
+     * @param name The name of the subcommand (case insensitive)
      * @param subCommand The subcommand implementation
+     * @return true if the command was newly registered, false if it already existed
      */
-    public void registerSubCommand(String name, SubCommand subCommand) {
-        debug.debug("Registering subcommand: " + name);
-        subCommands.put(name.toLowerCase(), subCommand);
+    public boolean registerSubCommand(String name, SubCommand subCommand) {
+        if (name == null || name.isEmpty() || subCommand == null) {
+            debug.warning("Invalid subcommand registration attempt");
+            return false;
+        }
+        
+        String lowerName = name.toLowerCase();
+        if (subCommands.containsKey(lowerName)) {
+            debug.debug("Subcommand already registered: " + name);
+            return false;
+        }
+        
+        subCommands.put(lowerName, subCommand);
+        debug.debug("Registered subcommand: " + name);
+        return true;
     }
     
     /**
      * Checks if a subcommand is already registered
      * 
-     * @param name The name of the subcommand
+     * @param name The name of the subcommand (case insensitive)
      * @return true if the subcommand exists
      */
     public boolean hasSubCommand(String name) {
-        return subCommands.containsKey(name.toLowerCase());
+        return name != null && subCommands.containsKey(name.toLowerCase());
     }
 
     @Override

@@ -41,7 +41,8 @@ public class ListenerEncounterPortal implements Listener {
     public ListenerEncounterPortal(Quest quest, Map<EntityType, Integer> mobsToSpawn) {
         this.quest = quest;
         this.mobsToSpawn = mobsToSpawn;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "EncounterPortal", Level.FINE);
+        // Updated to use quest.getPlugin().getDebugger().getLogLevel()
+        this.debug = Debug.createDebugger(quest.getPlugin(), "EncounterPortal", quest.getPlugin().getDebugger().getLogLevel());
         this.moveChecker = new IntervalChecker(5, 5.0); // Check every 5 ticks, minimum 5.0 blocks moved
         
         debug.debug("Initialized with mob config: " + mobsToSpawn.toString());
