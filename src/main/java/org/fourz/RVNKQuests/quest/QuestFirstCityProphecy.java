@@ -135,6 +135,9 @@ public class QuestFirstCityProphecy implements Quest {
             case OBJECTIVE_FOUND:
                 listeners.add(new ListenerFirstCityChoice(plugin, this));
                 break;
+            case COMPLETED:
+                // No listeners needed for completed state
+                break;
         }
         return listeners;
     }
