@@ -20,22 +20,85 @@ public class CommandManager {
 
     public CommandManager(RVNKQuests plugin) {
         this.plugin = plugin;
-        // Use the plugin's global log level from config
-        Level logLevel = plugin.getDebugger().getLogLevel();
-        this.debug = Debug.createDebugger(plugin, "CommandManager", logLevel);
-        
-        debug.debug("Initializing command manager with log level: " + logLevel.getName());
-        
-        registerCommands();
+        this.debug = Debug.createDebugger(plugin, "CommandManager", Level.FINE);
+        try {
+            registerCommands();
+        } catch (Exception e) {
+            debug.error("Failed to register commands", e);
+        }
+    }
+
+    /**
+     * Updates the debug level for this manager
+     * @param level New log level
+     */
+    public void updateDebugLevel(Level level) {
+        debug.setLogLevel(level);
+        debug.debug("CommandManager log level updated to: " + level.getName());
     }
 
     /**
      * Registers all commands for the plugin
      */
     private void registerCommands() {
-        debug.debug("Registering commands...");
-        registerCommand("quest", new QuestCommand(plugin));
-        debug.debug("Commands registered successfully");
+        QuestCommand questCommand = null;
+        try {
+            // Create main quest command
+            questCommand = new QuestCommand(plugin);
+            
+            // Register core subcommands
+            // Note: Some of these are already registered in QuestCommand's constructor
+            try {
+                questCommand.registerSubCommand("item", new QuestItemSubCommand(plugin));
+                debug.debug("Registered item subcommand");
+            } catch (Exception e) {
+                debug.warning("Failed to register item subcommand: " + e.getMessage());
+            }
+            
+            // These may be added later, we'll try them but skip if not available
+            tryRegisterSubCommand(questCommand, "trigger", "QuestTriggerSubCommand");
+            tryRegisterSubCommand(questCommand, "state", "QuestStateSubCommand");
+            tryRegisterSubCommand(questCommand, "debug", "QuestDebugSubCommand");
+            tryRegisterSubCommand(questCommand, "reload", "QuestReloadSubCommand");
+            tryRegisterSubCommand(questCommand, "validate", "QuestValidateSubCommand");
+            
+            // Register the main quest command with the server
+            registerCommand("quest", questCommand);
+            
+            debug.info("Commands registered successfully");
+        } catch (Exception e) {
+            debug.error("Error registering commands", e);
+        }
+    }
+    
+    /**
+     * Attempts to register a subcommand, handling any errors gracefully
+     */
+    private void tryRegisterSubCommand(QuestCommand questCommand, String name, String className) {
+        try {
+            // Check if the subcommand is already registered
+            // If so, we don't need to register it again
+            if (questCommand.hasSubCommand(name)) {
+                debug.debug("Subcommand already registered: " + name);
+                return;
+            }
+            
+            // Try to dynamically create the subcommand instance
+            Class<?> subCommandClass = Class.forName("org.fourz.RVNKQuests.command." + className);
+            SubCommand subCommand = (SubCommand) subCommandClass
+                .getConstructor(RVNKQuests.class)
+                .newInstance(plugin);
+                
+            // Register the subcommand
+            questCommand.registerSubCommand(name, subCommand);
+            debug.debug("Successfully registered subcommand: " + name);
+        } catch (ClassNotFoundException e) {
+            debug.debug("Subcommand class not available: " + name + " (" + className + ")");
+        } catch (NoSuchMethodException e) {
+            debug.warning("Constructor not found for subcommand: " + name);
+        } catch (Exception e) {
+            debug.warning("Failed to register subcommand: " + name + " - " + e.getMessage());
+        }
     }
 
     /**
@@ -73,14 +136,5 @@ public class CommandManager {
      */
     public CommandExecutor getCommand(String commandName) {
         return commands.get(commandName);
-    }
-    
-    /**
-     * Updates the debug level for all command components
-     * @param newLevel The new log level
-     */
-    public void updateDebugLevel(Level newLevel) {
-        debug.setLogLevel(newLevel);
-        debug.debug("Command manager log level updated to: " + newLevel.getName());
     }
 }
