@@ -33,11 +33,38 @@ public class QuestManager {
     }
 
     public void registerQuest(Quest quest) {
-        debugger.debug("Registering quest: " + quest.getId());
-        quests.put(quest.getId(), quest);
-        quest.initialize();
-        updateQuestListeners(quest);
-        debugger.debug("Quest registered and initialized: " + quest.getId());
+        if (quest == null) {
+            debugger.warning("Attempted to register null quest");
+            return;
+        }
+        
+        String questId = quest.getId();
+        if (questId == null || questId.isEmpty()) {
+            debugger.warning("Attempted to register quest with null or empty ID");
+            return;
+        }
+        
+        if (quests.containsKey(questId)) {
+            debugger.warning("Quest already registered with ID: " + questId);
+            return;
+        }
+        
+        debugger.debug("Registering quest: " + questId);
+        quests.put(questId, quest);
+        
+        try {
+            quest.initialize();
+            debugger.debug("Quest initialized: " + questId);
+        } catch (Exception e) {
+            debugger.error("Failed to initialize quest: " + questId, e);
+        }
+        
+        try {
+            updateQuestListeners(quest);
+            debugger.debug("Quest registered and listeners initialized: " + questId);
+        } catch (Exception e) {
+            debugger.error("Failed to register listeners for quest: " + questId, e);
+        }
     }
 
     public Quest getQuest(String id) {
@@ -98,7 +125,13 @@ public class QuestManager {
     }
 
     public void updateQuestListeners(Quest quest) {
-        debugger.debug("Updating listeners for quest: " + quest.getId() + " (State: " + quest.getCurrentState() + ")");
+        if (quest == null) {
+            debugger.warning("Attempted to update listeners for null quest");
+            return;
+        }
+        
+        QuestState currentState = quest.getCurrentState();
+        debugger.debug("Updating listeners for quest: " + quest.getId() + " (State: " + currentState + ")");
         
         // Clean up existing listeners for this quest
         if (activeListeners.containsKey(quest)) {
@@ -108,13 +141,32 @@ public class QuestManager {
             oldListeners.clear();
         }
 
-        List<Listener> newListeners = quest.createListenersForState(quest.getCurrentState());
+        List<Listener> newListeners;
+        try {
+            newListeners = quest.createListenersForState(currentState);
+            if (newListeners == null) {
+                debugger.warning("Quest returned null listeners for state " + currentState + ": " + quest.getId());
+                newListeners = new ArrayList<>();
+            }
+        } catch (Exception e) {
+            debugger.error("Error creating listeners for quest: " + quest.getId(), e);
+            newListeners = new ArrayList<>();
+        }
         
         // Register all new listeners
         debugger.debug("Registering " + newListeners.size() + " new listeners");
         for (Listener listener : newListeners) {
-            debugger.debug("Registering new listener: " + listener.getClass().getSimpleName());
-            plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+            if (listener == null) {
+                debugger.warning("Null listener in list for quest: " + quest.getId());
+                continue;
+            }
+            
+            try {
+                debugger.debug("Registering new listener: " + listener.getClass().getSimpleName());
+                plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+            } catch (Exception e) {
+                debugger.error("Failed to register listener: " + listener.getClass().getSimpleName(), e);
+            }
         }
         activeListeners.put(quest, newListeners);
         debugger.debug("Listener update complete for quest: " + quest.getId());
@@ -172,5 +224,46 @@ public class QuestManager {
      */
     public List<Quest> getAllQuests() {
         return new ArrayList<>(quests.values());
+    }
+
+    /**
+     * Validates all registered quests to catch configuration issues
+     * @return true if all quests are valid
+     */
+    public boolean validateQuests() {
+        debugger.debug("Validating all registered quests...");
+        boolean allValid = true;
+        
+        for (Quest quest : quests.values()) {
+            try {
+                // Basic validation
+                if (quest.getId() == null || quest.getId().isEmpty()) {
+                    debugger.warning("Quest has null or empty ID");
+                    allValid = false;
+                }
+                
+                if (quest.getName() == null || quest.getName().isEmpty()) {
+                    debugger.warning("Quest has null or empty name: " + quest.getId());
+                    allValid = false;
+                }
+                
+                // Check listener creation for each state
+                for (QuestState state : QuestState.values()) {
+                    List<Listener> listeners = quest.createListenersForState(state);
+                    if (listeners == null) {
+                        debugger.warning(quest.getId() + " returned null listeners for state: " + state);
+                        allValid = false;
+                    }
+                }
+                
+                debugger.debug("Validated quest: " + quest.getId());
+            } catch (Exception e) {
+                debugger.error("Exception during validation of quest: " + quest.getId(), e);
+                allValid = false;
+            }
+        }
+        
+        debugger.debug("Quest validation complete. All valid: " + allValid);
+        return allValid;
     }
 }

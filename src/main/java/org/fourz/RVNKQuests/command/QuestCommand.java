@@ -49,9 +49,19 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
      * @param name The name of the subcommand
      * @param subCommand The subcommand implementation
      */
-    private void registerSubCommand(String name, SubCommand subCommand) {
+    public void registerSubCommand(String name, SubCommand subCommand) {
         debug.debug("Registering subcommand: " + name);
         subCommands.put(name.toLowerCase(), subCommand);
+    }
+    
+    /**
+     * Checks if a subcommand is already registered
+     * 
+     * @param name The name of the subcommand
+     * @return true if the subcommand exists
+     */
+    public boolean hasSubCommand(String name) {
+        return subCommands.containsKey(name.toLowerCase());
     }
 
     @Override

@@ -96,6 +96,20 @@ debug.debug("Processing player move event at " + location);
    debug.debug("Quest initialization complete. Total quests: " + quests.size());
    ```
 
+5. **Catch and log exceptions properly**:
+   ```java
+   try {
+       // risky operation
+   } catch (Exception e) {
+       debug.error("Failed to perform operation", e);
+       // recovery logic
+   }
+   ```
+
+## Quest Validation
+
+The plugin includes a validation system to detect potential issues with quests. Use the following command to validate quests:
+
 ## Log Level Configuration
 
 In your `config.yml`:
