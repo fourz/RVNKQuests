@@ -2,7 +2,7 @@ name: RVNKQuests
 api: "1.17"
 version: 1.0.0
 description: A quest system for Minecraft
-authors: [YourName]
+authors: [Fourz]
 main: org.fourz.RVNKQuests.RVNKQuests
 api-version: 1.17
 
