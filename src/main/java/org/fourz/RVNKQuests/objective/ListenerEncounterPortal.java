@@ -37,6 +37,7 @@ public class ListenerEncounterPortal implements Listener {
     private final Map<EntityType, Integer> mobsToSpawn;
     private final Set<Player> playersInRange = new HashSet<>();
     private final IntervalChecker moveChecker;
+    private ListenerPreventQuestMobPortal portalPreventionListener;
 
     public ListenerEncounterPortal(Quest quest, Map<EntityType, Integer> mobsToSpawn) {
         this.quest = quest;
@@ -136,8 +137,9 @@ public class ListenerEncounterPortal implements Listener {
         });
 
         // Register the portal prevention listener
+        portalPreventionListener = new ListenerPreventQuestMobPortal(quest.getPlugin());
         quest.getPlugin().getServer().getPluginManager().registerEvents(
-            new ListenerPreventQuestMobPortal(quest.getPlugin()),
+            portalPreventionListener,
             quest.getPlugin()
         );
 
@@ -162,5 +164,13 @@ public class ListenerEncounterPortal implements Listener {
     private void cleanup() {
         moveChecker.reset();
         playersInRange.clear();
+    }
+
+    /**
+     * Gets the portal prevention listener
+     * @return The portal prevention listener or null if not yet created
+     */
+    public ListenerPreventQuestMobPortal getPortalPreventionListener() {
+        return portalPreventionListener;
     }
 }

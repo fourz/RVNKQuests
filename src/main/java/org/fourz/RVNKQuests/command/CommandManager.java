@@ -20,7 +20,7 @@ public class CommandManager {
 
     public CommandManager(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "CommandManager", Level.FINE);
+        this.debug = Debug.createDebugger(plugin, "CommandManager", plugin.getDebugger().getLogLevel());
         try {
             registerCommands();
         } catch (Exception e) {

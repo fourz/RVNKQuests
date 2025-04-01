@@ -106,10 +106,6 @@ debug.debug("Processing player move event at " + location);
    }
    ```
 
-## Quest Validation
-
-The plugin includes a validation system to detect potential issues with quests. Use the following command to validate quests:
-
 ## Log Level Configuration
 
 In your `config.yml`:

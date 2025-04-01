@@ -59,7 +59,8 @@ public class QuestPiglinFarFromHome implements Quest {
 
     @Override
     public void cleanup() {
-        // Remove any remaining entities if needed
+        // Clean up any remaining entities and listeners
+        cleanupPortalPrevention();
     }
 
     @Override
@@ -79,9 +80,21 @@ public class QuestPiglinFarFromHome implements Quest {
         // Handle state-specific logic
         if (newState == QuestState.QUEST_ACTIVE) {
             lonePiglinListener.cleanup();
+        } else if (newState == QuestState.COMPLETED) {
+            // Clean up portal prevention listener when quest is completed
+            cleanupPortalPrevention();
         }
         
         plugin.getQuestManager().updateQuestListeners(this);
+    }
+
+    /**
+     * Cleans up the portal prevention listener if it exists
+     */
+    private void cleanupPortalPrevention() {
+        if (portalListener != null && portalListener.getPortalPreventionListener() != null) {
+            portalListener.getPortalPreventionListener().unregister();
+        }
     }
 
     @Override

@@ -4,7 +4,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.trigger.TriggerCommand;
 import org.fourz.RVNKQuests.util.Debug;
 

@@ -12,8 +12,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 /**
  * Main command handler for the /quest command.
@@ -36,28 +34,12 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
     private void registerCoreCommands() {
         debug.debug("Registering core subcommands");
         
-        // These commands are always present in the plugin
-        String[][] coreCommands = {
-            {"item", "QuestItemSubCommand"},
-            {"state", "QuestStateSubCommand"},
-            {"reload", "QuestReloadSubCommand"},
-            {"trigger", "QuestTriggerSubCommand"},
-            {"debug", "QuestDebugSubCommand"}
-        };
-        
-        for (String[] cmd : coreCommands) {
-            try {
-                String name = cmd[0];
-                String className = cmd[1];
-                
-                Class<?> cmdClass = Class.forName("org.fourz.RVNKQuests.command." + className);
-                SubCommand subCommand = (SubCommand) cmdClass.getConstructor(RVNKQuests.class).newInstance(plugin);
-                
-                registerSubCommand(name, subCommand);
-            } catch (Exception e) {
-                debug.error("Failed to register core command: " + cmd[0], e);
-            }
-        }
+        // Create and register each subcommand directly
+        registerSubCommand("item", new QuestItemSubCommand(plugin));
+        registerSubCommand("state", new QuestStateSubCommand(plugin));
+        registerSubCommand("reload", new QuestReloadSubCommand(plugin));
+        registerSubCommand("trigger", new QuestTriggerSubCommand(plugin));
+        registerSubCommand("debug", new QuestDebugSubCommand(plugin));
         
         debug.debug("Core subcommands registered");
     }

@@ -4,6 +4,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.plugin.Plugin;
@@ -18,7 +19,7 @@ public class ListenerPreventQuestMobPortal implements Listener {
 
     public ListenerPreventQuestMobPortal(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "EncounterPortalDefeated", Level.FINE);
+        this.debug = Debug.createDebugger(plugin, "PreventQuestMobPortal", Level.FINE);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -43,5 +44,13 @@ public class ListenerPreventQuestMobPortal implements Listener {
                 }
             });
         }
+    }
+    
+    /**
+     * Unregisters this listener from the server
+     */
+    public void unregister() {
+        debug.debug("Unregistering portal prevention listener");
+        HandlerList.unregisterAll(this);
     }
 }
