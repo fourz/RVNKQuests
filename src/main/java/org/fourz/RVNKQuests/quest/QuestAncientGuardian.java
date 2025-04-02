@@ -32,7 +32,6 @@ package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
@@ -45,66 +44,36 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class QuestAncientGuardian implements Quest {
-    private final RVNKQuests plugin;
-    private QuestState currentState = QuestState.NOT_STARTED;
+public class QuestAncientGuardian extends AbstractQuest {
+    // Quest-specific fields
     private final ListenerGuardianAwakening guardianListener;
     private final ListenerForgottenSite forgottenSiteListener;
     private Location guardianLocation;
 
     public QuestAncientGuardian(RVNKQuests plugin) {
-        this.plugin = plugin;
+        // Call parent constructor with quest ID and name
+        super(plugin, "ancient_guardian", "Ancient Guardian");
+        
+        // Initialize quest-specific listeners
         this.guardianListener = new ListenerGuardianAwakening(this);
         this.forgottenSiteListener = new ListenerForgottenSite(this);
     }
 
     @Override
-    public String getId() {
-        return "ancient_guardian";
-    }
-
-    @Override
-    public String getName() {
-        return "Ancient Guardian";
-    }
-
-    @Override
     public void initialize() {
-        // No initialization needed
+        debugger.debug("Initializing Ancient Guardian quest");
+        // Initialize the quest in NOT_STARTED state
+        this.state = QuestState.NOT_STARTED;
     }
 
     @Override
     public void cleanup() {
+        debugger.debug("Cleaning up Ancient Guardian quest");
         // Remove any remaining entities if needed
         if (guardianListener.getGuardian() != null) {
             guardianListener.getGuardian().remove();
         }
         forgottenSiteListener.getDefenders().forEach(drowned -> drowned.remove());
-    }
-
-    @Override
-    public boolean isCompleted(Player player) {
-        return currentState == QuestState.COMPLETED;
-    }
-
-    @Override
-    public QuestState getCurrentState() {
-        return currentState;
-    }
-
-    @Override
-    public void advanceState(QuestState newState) {
-        this.currentState = newState;
-        
-        // Handle state-specific logic
-        if (newState == QuestState.QUEST_ACTIVE) {
-            // Announce the quest has been activated
-            plugin.getServer().broadcastMessage(
-                "§b[Ancient Guardian] §fThe Elder Guardian has been defeated, but ancient secrets remain hidden in the depths..."
-            );
-        }
-        
-        plugin.getQuestManager().updateQuestListeners(this);
     }
 
     @Override
@@ -120,11 +89,6 @@ public class QuestAncientGuardian implements Quest {
     // Add getter/setter for guardianLocation
     public void setGuardianLocation(Location location) {
         this.guardianLocation = location;
-    }
-
-    @Override
-    public RVNKQuests getPlugin() {
-        return plugin;
     }
 
     private QuestLoot createUnderwaterLoot() {
@@ -143,6 +107,51 @@ public class QuestAncientGuardian implements Quest {
     }
 
     /**
+     * Implements abstract method from AbstractQuest
+     * Called when a player starts this quest
+     */
+    @Override
+    protected boolean onStart(Player player) {
+        debugger.debug("Starting Ancient Guardian quest for player: " + player.getName());
+        
+        // Send the player a quest start message
+        player.sendMessage("§b[Ancient Guardian] §fYou've discovered an ancient underwater mystery!");
+        player.sendMessage("§b[Ancient Guardian] §fDefeat the Elder Guardian to uncover its secrets.");
+        
+        return true;
+    }
+
+    /**
+     * Implements abstract method from AbstractQuest
+     * Called when a player completes this quest
+     */
+    @Override
+    protected boolean onComplete(Player player) {
+        debugger.debug("Completing Ancient Guardian quest for player: " + player.getName());
+        
+        // Send completion message
+        player.sendMessage("§b[Ancient Guardian] §fYou've defeated the ancient defenders and claimed their treasure!");
+        
+        // Record the achievement globally
+        plugin.getServer().broadcastMessage(
+            "§b[Ancient Guardian] §f" + player.getName() + " has uncovered the secrets of the ancient underwater ruins!"
+        );
+        
+        return true;
+    }
+
+    /**
+     * Implements abstract method from AbstractQuest
+     * Called to update quest progress for a player
+     */
+    @Override
+    public boolean update(Player player) {
+        // This quest uses event-based progression rather than manual updates
+        debugger.debug("Update called for Ancient Guardian quest, but this quest uses event-based progression");
+        return false;
+    }
+
+    /**
      * Manages the quest's state transitions and associated listeners.
      * Each state has specific listeners that handle the quest mechanics:
      * - GuardianAwakening: Spawns the Elder Guardian when players gather
@@ -150,6 +159,7 @@ public class QuestAncientGuardian implements Quest {
      * - ForgottenSite: Detects when players find underwater ruins
      * - ForgottenSiteDefeated: Manages defender deaths and final reward
      */
+    @Override
     public List<Listener> createListenersForState(QuestState state) {
         List<Listener> listeners = new ArrayList<>();
         

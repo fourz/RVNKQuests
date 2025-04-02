@@ -17,75 +17,49 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class QuestPiglinFarFromHome implements Quest {
-    private final RVNKQuests plugin;
-    private QuestState currentState = QuestState.NOT_STARTED;
-    private final ListenerLonePiglin lonePiglinListener;
-    private final ListenerEncounterPortal portalListener;
+public class QuestPiglinFarFromHome extends AbstractQuest {
+    private ListenerLonePiglin lonePiglinListener;
+    private ListenerEncounterPortal portalListener;
     private Location spawnLocation;
 
     public QuestPiglinFarFromHome(RVNKQuests plugin) {
-        this.plugin = plugin;
+        // Call the parent constructor with the plugin, quest ID, and display name
+        super(plugin, "piglin_far_from_home", "Piglin Far From Home");
+    }
+
+    @Override
+    public void initialize() {
+        debugger.debug("Initializing Piglin Far From Home quest");
         
-        // Create the listener with custom location parameters
-        // You can customize these values or read them from config
-        String worldName = plugin.getConfigManager().getConfig().getString("quests.piglin_far_from_home.world", "event");
-        double spawnRadius = plugin.getConfigManager().getConfig().getDouble("quests.piglin_far_from_home.spawn_radius", 30.0);
+        // Create the listener with custom location parameters from config
+        String worldName = getPlugin().getConfigManager().getConfig()
+                .getString("quests.piglin_far_from_home.world", "event");
+        double spawnRadius = getPlugin().getConfigManager().getConfig()
+                .getDouble("quests.piglin_far_from_home.spawn_radius", 30.0);
         
         // Initialize the listener with specific world and radius
-        this.lonePiglinListener = new ListenerLonePiglin(this, plugin, worldName, null, spawnRadius);  
+        this.lonePiglinListener = new ListenerLonePiglin(this, getPlugin(), worldName, null, spawnRadius);
 
+        // Set up portal encounter mobs
         Map<EntityType, Integer> portalMobs = new HashMap<>();
         portalMobs.put(EntityType.WITHER_SKELETON, 1);
         portalMobs.put(EntityType.SKELETON, 2);
         portalMobs.put(EntityType.HOGLIN, 2);        
         this.portalListener = new ListenerEncounterPortal(this, portalMobs);
-    }
-
-    @Override
-    public String getId() {
-        return "piglin_far_from_home";
-    }
-
-    @Override
-    public String getName() {
-        return "Piglin Far From Home";
-    }
-
-    @Override
-    public void initialize() {
-        // No initialization needed
+        
+        debugger.debug("Piglin Far From Home quest initialized");
     }
 
     @Override
     public void cleanup() {
+        debugger.debug("Cleaning up Piglin Far From Home quest");
+        
         // Clean up any remaining entities and listeners
         cleanupPortalPrevention();
-    }
-
-    @Override
-    public boolean isCompleted(Player player) {
-        return currentState == QuestState.COMPLETED;
-    }
-
-    @Override
-    public QuestState getCurrentState() {
-        return currentState;
-    }
-
-    @Override
-    public void advanceState(QuestState newState) {
-        this.currentState = newState;
         
-        // Handle state-specific logic
-        if (newState == QuestState.QUEST_ACTIVE) {
+        if (lonePiglinListener != null) {
             lonePiglinListener.cleanup();
-        } else if (newState == QuestState.COMPLETED) {
-            // Clean up portal prevention listener when quest is completed
-            cleanupPortalPrevention();
         }
-        
-        plugin.getQuestManager().updateQuestListeners(this);
     }
 
     /**
@@ -98,11 +72,6 @@ public class QuestPiglinFarFromHome implements Quest {
     }
 
     @Override
-    public RVNKQuests getPlugin() {
-        return plugin;
-    }
-
-    @Override
     public Location getStartLocation() {
         return spawnLocation; // May be null until the piglin spawns
     }
@@ -112,7 +81,7 @@ public class QuestPiglinFarFromHome implements Quest {
         return "Lost Piglin";
     }
 
-    // Add getter/setter for spawnLocation
+    // Add setter for spawnLocation
     public void setSpawnLocation(Location location) {
         this.spawnLocation = location;
     }
@@ -126,6 +95,7 @@ public class QuestPiglinFarFromHome implements Quest {
         );
     }
 
+    @Override
     public List<Listener> createListenersForState(QuestState state) {
         List<Listener> listeners = new ArrayList<>();
         
@@ -139,11 +109,41 @@ public class QuestPiglinFarFromHome implements Quest {
             case QUEST_ACTIVE:
                 listeners.add(portalListener);
                 break;
-            case OBJECTIVE_FOUND:  // Changed from OBJECTIVE_COMPLETE
+            case OBJECTIVE_FOUND:  
                 listeners.add(new ListenerEncounterPortalDefeated(this, portalListener, createPortalLoot()));
                 break;
         }
         
         return listeners;
+    }
+    
+    @Override
+    protected boolean onStart(Player player) {
+        debugger.debug("Starting Piglin Far From Home quest for " + player.getName());
+        
+        // Any quest-specific start logic goes here
+        // For this quest, we don't need special handling beyond what AbstractQuest provides
+        
+        return true;
+    }
+    
+    @Override
+    protected boolean onComplete(Player player) {
+        debugger.debug("Completing Piglin Far From Home quest for " + player.getName());
+        
+        // Cleanup quest-specific resources
+        cleanupPortalPrevention();
+        
+        // Award additional rewards if needed beyond the loot
+        player.giveExp(500); // Give player some XP as completion reward
+        
+        return true;
+    }
+    
+    @Override
+    public boolean update(Player player) {
+        // This quest doesn't need periodic updates, but we could implement progress tracking here
+        debugger.debug("Update requested for player: " + player.getName() + ", state: " + getCurrentState());
+        return false; // No updates performed
     }
 }
