@@ -8,7 +8,6 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestLoot;
 import org.fourz.RVNKQuests.util.Debug;
-import java.util.logging.Level;
 
 public class ListenerEncounterPortalDefeated implements Listener {
     private final Quest quest;

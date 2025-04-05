@@ -1,52 +1,69 @@
 package org.fourz.RVNKQuests.trigger;
 
-import org.bukkit.Material;
-import org.bukkit.entity.Piglin;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.BookMeta;
-import org.fourz.RVNKQuests.objective.ListenerLonePiglin;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestItem;
 import org.fourz.RVNKQuests.util.Debug;
 
-
-import java.util.logging.Level;
-
+/**
+ * Listener that handles the death of the quest piglin.
+ * This supports the "combat path" of certain quests by detecting when players 
+ * kill the quest piglin and dropping special items like journals.
+ */
 public class ListenerLonePiglinDeath implements Listener {
     private final Quest quest;
-    private final TriggerLonePiglin lonePiglinListener;
+    private final ListenerLonePiglinTrigger lonePiglinListener;
     private final Debug debug;
+    private final ItemStack questItem;
 
-    public ListenerLonePiglinDeath(Quest quest, TriggerLonePiglin lonePiglinListener) {
+    /**
+     * Creates a listener with the default quest item (GrotSnout's journal)
+     * 
+     * @param quest The quest this listener belongs to
+     * @param lonePiglinListener The trigger that spawns and tracks the piglin
+     */
+    public ListenerLonePiglinDeath(Quest quest, ListenerLonePiglinTrigger lonePiglinListener) {
+        this(quest, lonePiglinListener, QuestItem.getQuestItem("grotsnouts_journal"));
+    }
+
+    /**
+     * Creates a listener with a custom quest item to drop
+     * 
+     * @param quest The quest this listener belongs to
+     * @param lonePiglinListener The trigger that spawns and tracks the piglin
+     * @param questItem The item to drop when the piglin is killed
+     */
+    public ListenerLonePiglinDeath(Quest quest, ListenerLonePiglinTrigger lonePiglinListener, ItemStack questItem) {
         this.quest = quest;
         this.lonePiglinListener = lonePiglinListener;
-        // Updated to use quest.getPlugin().getDebugger().getLogLevel()
+        this.questItem = questItem;
         this.debug = Debug.createDebugger(quest.getPlugin(), "LonePiglinDeath", quest.getPlugin().getDebugger().getLogLevel());
     }
 
     @EventHandler
-    public void onPiglinDeath(EntityDeathEvent event) {     
-        if (!event.getEntity().getName().equals("Lost Piglin")) {
+    public void onPiglinDeath(EntityDeathEvent event) {
+        // Verify this is our specific quest piglin using the listener's tracking
+        if (!lonePiglinListener.isQuestPiglin(event.getEntity())) {
             debug.debug("Piglin death: not the quest Piglin");
             return;
         }
 
         debug.debug("Quest Piglin died, preparing to drop journal");
-        ItemStack book = QuestItem.getQuestItem("grotsnouts_journal");
-        
-        if (book == null) {
+        if (questItem == null) {
             debug.warning("Failed to retrieve quest item!");
             return;
         }
 
+        // Replace normal drops with our quest item
         debug.debug("Clearing existing drops and adding quest journal");
         event.getDrops().clear();
-        event.getDrops().add(book);
+        event.getDrops().add(questItem);
         
+        // Advance the quest to the active state since player has chosen the combat path
         debug.debug("Advancing quest state to QUEST_ACTIVE");
         quest.advanceState(QuestState.QUEST_ACTIVE);
     }

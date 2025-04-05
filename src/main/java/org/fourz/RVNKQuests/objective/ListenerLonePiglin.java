@@ -7,9 +7,7 @@ import org.bukkit.event.Listener;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.util.Debug;
-
 import java.util.UUID;
-import java.util.logging.Level;
 
 /**
  * Listener that handles the spawning and tracking of a lone piglin in the overworld
