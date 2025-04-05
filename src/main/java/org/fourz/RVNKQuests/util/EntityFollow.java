@@ -28,7 +28,7 @@ public class EntityFollow {
     // Follow mechanics constants
     private static final double DEFAULT_FOLLOW_DISTANCE = 3.0;
     private static final double DEFAULT_MAX_FOLLOW_DISTANCE = 30.0;
-    private static final double DEFAULT_FOLLOW_SPEED = 1.1;
+    private static final double DEFAULT_FOLLOW_SPEED = 1.05;
     private static final int DEFAULT_FOLLOW_TASK_DELAY = 5;
     private static final double DEFAULT_JUMP_VELOCITY = 0.3;
     private static final int STUCK_THRESHOLD = 10; // ticks before considering entity "stuck"
