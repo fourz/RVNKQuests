@@ -1,6 +1,5 @@
 package org.fourz.RVNKQuests.trigger;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -14,15 +13,17 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.quest.Quest;
+import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.util.Debug;
 import org.fourz.RVNKQuests.util.IntervalChecker;
-import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 
 import java.util.Random;
-import java.util.logging.Level;
 
-public class ListenerLonePiglin implements Listener {
+/**
+ * Trigger for spawning a lone piglin when a player enters a specific area
+ */
+public class TriggerLonePiglin implements Listener {
     private static final double DETECTION_RADIUS = 30.0;
     private static final double MIN_MOVEMENT_CHECK = 5.0;
     private static final int CHECK_FREQUENCY = 20;
@@ -37,18 +38,16 @@ public class ListenerLonePiglin implements Listener {
     private final String targetWorld;
     private final Location targetLocation;
     private final double spawnRadius;
+    private String piglinName = "Lost Piglin";
 
-    public ListenerLonePiglin(Quest quest, JavaPlugin plugin) {
+    public TriggerLonePiglin(Quest quest, JavaPlugin plugin) {
         this(quest, plugin, "event", null, DETECTION_RADIUS);
     }
     
-    public ListenerLonePiglin(Quest quest, JavaPlugin plugin, String worldName, Location location, double radius) {
+    public TriggerLonePiglin(Quest quest, JavaPlugin plugin, String worldName, Location location, double radius) {
         this.quest = quest;
         this.plugin = plugin;
-        
-        // Updated to use quest.getPlugin().getDebugger().getLogLevel()
-        this.debug = Debug.createDebugger(plugin, "LonePiglin", quest.getPlugin().getDebugger().getLogLevel());
-        
+        this.debug = Debug.createDebugger(plugin, "TriggerLonePiglin", quest.getPlugin().getDebugger().getLogLevel());
         this.spawnRadius = radius;
         this.targetWorld = worldName;
         this.intervalChecker = new IntervalChecker(CHECK_FREQUENCY, MIN_MOVEMENT_CHECK);
@@ -98,7 +97,6 @@ public class ListenerLonePiglin implements Listener {
     }
 
     private boolean shouldSpawnPiglin(Location location) {
-        
         // Check if we have a valid target location
         if (targetLocation == null) {
             debug.debug("No valid target location for spawning");
@@ -134,7 +132,7 @@ public class ListenerLonePiglin implements Listener {
         
         // Spawn the piglin
         spawnedPiglin = spawnLoc.getWorld().spawnEntity(spawnLoc, EntityType.PIGLIN);
-        spawnedPiglin.setCustomName("Lost Piglin");
+        spawnedPiglin.setCustomName(piglinName);
         spawnedPiglin.setCustomNameVisible(true);
         
         // Give the piglin special equipment if needed
@@ -154,10 +152,54 @@ public class ListenerLonePiglin implements Listener {
     }
 
     public void cleanup() {
-        debug.debug("Cleaning up ListenerLonePiglin");
+        debug.debug("Cleaning up TriggerLonePiglin");
         if (spawnedPiglin != null && !spawnedPiglin.isDead()) {
             spawnedPiglin.remove();
         }
         intervalChecker.reset();
+    }
+
+    /**
+     * Sets the custom name for the quest piglin
+     * @param name The name to give the spawned piglin
+     */
+    public void setPiglinName(String name) {
+        this.piglinName = name;
+        if (spawnedPiglin != null && !spawnedPiglin.isDead()) {
+            spawnedPiglin.setCustomName(name);
+        }
+    }
+
+    /**
+     * Checks if an entity is the quest piglin spawned by this trigger
+     * @param entity The entity to check
+     * @return true if this is the quest piglin
+     */
+    public boolean isQuestPiglin(Entity entity) {
+        if (entity == null) return false;
+        
+        // Direct reference check first (most reliable)
+        if (entity.equals(spawnedPiglin)) {
+            return true;
+        }
+        
+        // Fallback to checking name and type
+        if (entity.getType() == EntityType.PIGLIN) {
+            // Check custom name
+            String customName = entity.getCustomName();
+            if (customName != null && (customName.equals(piglinName) || customName.equals("Lost Piglin"))) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Gets the spawned piglin entity
+     * @return The piglin entity or null if not spawned
+     */
+    public Entity getSpawnedPiglin() {
+        return spawnedPiglin;
     }
 }

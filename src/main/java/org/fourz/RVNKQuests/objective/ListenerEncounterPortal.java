@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
 
 public class ListenerEncounterPortal implements Listener {
     public static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
@@ -172,5 +171,13 @@ public class ListenerEncounterPortal implements Listener {
      */
     public ListenerPreventQuestMobPortal getPortalPreventionListener() {
         return portalPreventionListener;
+    }
+    
+    /**
+     * Gets the location of the portal
+     * @return The portal location or null if not yet found
+     */
+    public Location getPortalLocation() {
+        return portalLocation;
     }
 }

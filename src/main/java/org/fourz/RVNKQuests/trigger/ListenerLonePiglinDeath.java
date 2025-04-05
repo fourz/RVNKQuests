@@ -7,19 +7,21 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
+import org.fourz.RVNKQuests.objective.ListenerLonePiglin;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestItem;
 import org.fourz.RVNKQuests.util.Debug;
 
+
 import java.util.logging.Level;
 
 public class ListenerLonePiglinDeath implements Listener {
     private final Quest quest;
-    private final ListenerLonePiglin lonePiglinListener;
+    private final TriggerLonePiglin lonePiglinListener;
     private final Debug debug;
 
-    public ListenerLonePiglinDeath(Quest quest, ListenerLonePiglin lonePiglinListener) {
+    public ListenerLonePiglinDeath(Quest quest, TriggerLonePiglin lonePiglinListener) {
         this.quest = quest;
         this.lonePiglinListener = lonePiglinListener;
         // Updated to use quest.getPlugin().getDebugger().getLogLevel()

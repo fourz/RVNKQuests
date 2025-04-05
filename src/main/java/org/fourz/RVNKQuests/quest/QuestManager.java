@@ -108,6 +108,25 @@ public class QuestManager {
         debugger.debug("Quest cleanup complete");
     }
 
+    /**
+     * Fully resets the quest system by cleaning up all existing quests
+     * and reinitializing them. This simulates a plugin restart.
+     * 
+     * Warning: This will lose all in-memory quest progress.
+     * Future implementations should preserve progress for players in a database.
+     */
+    public void resetQuests() {
+        debugger.debug("Resetting all quests");
+        
+        // First clean up all existing quests
+        cleanupQuests();
+        
+        // Then reinitialize quests
+        initializeQuests();
+        
+        debugger.debug("Quest reset complete");
+    }
+
     public void registerQuestListeners(Quest quest, Listener... listeners) {
         debugger.debug("Registering " + listeners.length + " listeners for quest: " + quest.getId());
         for (Listener listener : listeners) {

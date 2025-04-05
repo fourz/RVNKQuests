@@ -129,4 +129,46 @@ public class EnvironmentEffects {
         return times;
     }
 
+    /**
+     * Start a dramatic lightning sequence at a location
+     * 
+     * @param plugin The plugin instance
+     * @param center The center location for the effect
+     * @param radius The radius in blocks
+     * @param duration The total duration in ticks
+     * @param strikes The number of lightning strikes
+     * @param onComplete Callback when the sequence is complete
+     */
+    public static void startDramaticLightningSequence(
+            RVNKQuests plugin, 
+            Location center, 
+            int radius, 
+            int duration, 
+            int strikes, 
+            Consumer<Void> onComplete) {
+        
+        new BukkitRunnable() {
+            private int count = 0;
+            
+            @Override
+            public void run() {
+                // Strike lightning at a random offset from center
+                if (count < strikes) {
+                    double offsetX = (Math.random() * 2 - 1) * radius;
+                    double offsetZ = (Math.random() * 2 - 1) * radius;
+                    
+                    Location strikeLoc = center.clone().add(offsetX, 0, offsetZ);
+                    center.getWorld().strikeLightningEffect(strikeLoc);
+                    
+                    count++;
+                } else {
+                    // We're done with the sequence
+                    cancel();
+                    if (onComplete != null) {
+                        onComplete.accept(null);
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 0, duration / strikes);
+    }
 }
