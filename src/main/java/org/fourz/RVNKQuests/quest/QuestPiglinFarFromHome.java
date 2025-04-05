@@ -183,6 +183,14 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
         return playerPaths.getOrDefault(player.getUniqueId(), QuestPath.COMBAT_PATH);
     }
 
+    /**
+     * Checks if any player has chosen the escort path
+     */
+    private boolean hasActiveEscorter() {
+        return playerPaths.containsValue(QuestPath.ESCORT_PATH) && 
+               piglinEscortListener.getActiveEscorter() != null;
+    }
+
     @Override
     public List<Listener> createListenersForState(QuestState state) {
         List<Listener> listeners = new ArrayList<>();
@@ -191,20 +199,40 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
             case NOT_STARTED:
                 listeners.add(lonePiglinTrigger);
                 break;
+                
             case TRIGGER_FOUND:
                 // Add both path options - players can either kill the piglin or escort it
                 listeners.add(new ListenerLonePiglinDeath(this, lonePiglinTrigger, createGrotsnoutJournal()));
                 listeners.add(piglinEscortListener);
                 break;
+                
             case QUEST_ACTIVE:
+                // Add portal listener for detecting the portal location
                 listeners.add(portalListener);
+                
+                // IMPORTANT FIX: Keep piglin escort listener active if escort path is chosen
+                // This ensures the piglin continues to follow the player
+                if (hasActiveEscorter()) {
+                    debugger.debug("Maintaining piglin escort listener for active escort path");
+                    listeners.add(piglinEscortListener);
+                }
                 break;
-            case OBJECTIVE_FOUND:  
+                
+            case OBJECTIVE_FOUND:
                 // The combat path just needs to defeat the portal guards
                 listeners.add(new ListenerEncounterPortalDefeated(this, portalListener, createPortalLoot()));
                 
-                // The escort path also needs to track if GrotSnout reaches the portal
-                listeners.add(new ListenerPiglinPortalReunion(this, piglinEscortListener, portalListener, createSpecialLoot()));
+                // IMPORTANT FIX: Keep escort listener active during this state too
+                if (hasActiveEscorter()) {
+                    listeners.add(piglinEscortListener);
+                    // The escort path also needs to track if GrotSnout reaches the portal
+                    listeners.add(new ListenerPiglinPortalReunion(this, piglinEscortListener, portalListener, createSpecialLoot()));
+                }
+                break;
+                
+            //case OBJECTIVE_COMPLETE:
+            case COMPLETED:
+                // Keep minimal listeners for completed quests if needed
                 break;
         }
         
