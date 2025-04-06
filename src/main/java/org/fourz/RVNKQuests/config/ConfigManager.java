@@ -14,6 +14,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 
+/**
+ * Manages plugin configuration with support for quest-specific settings.
+ * 
+ * This class provides centralized access to all configuration data, including:
+ * - Plugin-wide settings (logging, features)
+ * - Quest-specific settings (enabled status, custom properties)
+ * - Dynamic configuration reloading
+ */
 public class ConfigManager {
     private final RVNKQuests plugin;
     private final Debug debug;
@@ -27,6 +35,10 @@ public class ConfigManager {
     public static final String KEY_QUESTS_PREFIX = "quests.";
     public static final String KEY_ENABLE_SUFFIX = ".enable";
     
+    /**
+     * Creates a new configuration manager and loads initial settings
+     * @param plugin The plugin instance
+     */
     public ConfigManager(RVNKQuests plugin) {
         this.plugin = plugin;
         this.debug = Debug.createDebugger(plugin, "ConfigManager", Level.INFO);
@@ -192,7 +204,8 @@ public class ConfigManager {
     }
     
     /**
-     * Loads the enable/disable status for all quests from the configuration
+     * Loads the enable/disable status for all quests from the configuration.
+     * The status is cached for performance when checking quest status frequently.
      */
     private void loadQuestEnableStatus() {
         questEnableStatus.clear();

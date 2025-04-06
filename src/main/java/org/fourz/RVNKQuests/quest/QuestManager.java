@@ -10,6 +10,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
+/**
+ * Core manager for quest registration, state management, and event handling.
+ * 
+ * This class manages the full quest lifecycle:
+ * 1. Registration and initialization of quest instances
+ * 2. Dynamic event listener registration based on quest state
+ * 3. Scheduled task management for quest-related activities
+ * 4. Cleanup and state validation
+ * 
+ * The manager uses a state-based event listener model where each quest 
+ * provides different listeners based on its current state. This makes
+ * quests more efficient by only listening to relevant events.
+ */
 public class QuestManager {
     private static final String CLASS_NAME = "QuestManager";
     private final RVNKQuests plugin;
@@ -163,6 +176,15 @@ public class QuestManager {
         }
     }
 
+    /**
+     * Updates the event listeners for a quest based on its current state.
+     * This method:
+     * 1. Unregisters previous listeners to prevent memory leaks
+     * 2. Requests new listeners from the quest for its current state
+     * 3. Registers the new listeners with Bukkit's event system
+     * 
+     * @param quest The quest to update listeners for
+     */
     public void updateQuestListeners(Quest quest) {
         if (quest == null) {
             debugger.warning("Attempted to update listeners for null quest");

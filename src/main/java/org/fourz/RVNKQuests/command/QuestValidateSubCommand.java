@@ -3,7 +3,10 @@ package org.fourz.RVNKQuests.command;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.quest.Quest;
+import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.util.Debug;
+import org.bukkit.event.Listener;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,21 +28,88 @@ public class QuestValidateSubCommand implements SubCommand {
         sender.sendMessage(ChatColor.YELLOW + "Validating all quests...");
         
         try {
-            boolean valid = plugin.getQuestManager().validateQuests();
+            boolean allValid = validateAllQuests(sender);
             
-            if (valid) {
+            if (allValid) {
                 sender.sendMessage(ChatColor.GREEN + "All quests validated successfully!");
             } else {
                 sender.sendMessage(ChatColor.RED + "Some quests failed validation. Check the server logs for details.");
             }
             
-            debug.info("Quest validation performed by " + sender.getName() + " - Result: " + (valid ? "Valid" : "Invalid"));
+            debug.info("Quest validation performed by " + sender.getName() + " - Result: " + (allValid ? "Valid" : "Invalid"));
         } catch (Exception e) {
             debug.error("Error during quest validation", e);
             sender.sendMessage(ChatColor.RED + "Error validating quests: " + e.getMessage());
         }
         
         return true;
+    }
+    
+    private boolean validateAllQuests(CommandSender sender) {
+        boolean allValid = true;
+        List<Quest> quests = plugin.getQuestManager().getAllQuests();
+        
+        sender.sendMessage(ChatColor.YELLOW + "Found " + quests.size() + " quests to validate...");
+        
+        for (Quest quest : quests) {
+            try {
+                boolean questValid = validateQuest(quest);
+                
+                String statusColor = questValid ? ChatColor.GREEN.toString() : ChatColor.RED.toString();
+                String status = questValid ? "VALID" : "INVALID";
+                
+                sender.sendMessage(
+                    statusColor + "[" + status + "] " +
+                    ChatColor.YELLOW + quest.getName() + 
+                    ChatColor.GRAY + " (" + quest.getId() + ")"
+                );
+                
+                if (!questValid) {
+                    allValid = false;
+                }
+            } catch (Exception e) {
+                debug.error("Exception validating quest: " + quest.getId(), e);
+                sender.sendMessage(ChatColor.RED + "[ERROR] " + 
+                    ChatColor.YELLOW + quest.getName() + 
+                    ChatColor.GRAY + " (" + quest.getId() + "): " + e.getMessage());
+                allValid = false;
+            }
+        }
+        
+        return allValid;
+    }
+    
+    private boolean validateQuest(Quest quest) {
+        debug.debug("Validating quest: " + quest.getId());
+        boolean valid = true;
+        
+        // Basic validation
+        if (quest.getId() == null || quest.getId().isEmpty()) {
+            debug.warning("Quest has null or empty ID");
+            valid = false;
+        }
+        
+        if (quest.getName() == null || quest.getName().isEmpty()) {
+            debug.warning("Quest has null or empty name: " + quest.getId());
+            valid = false;
+        }
+        
+        // Check listener creation for each state
+        for (QuestState state : QuestState.values()) {
+            try {
+                List<Listener> listeners = quest.createListenersForState(state);
+                if (listeners == null) {
+                    debug.warning(quest.getId() + " returned null listeners for state: " + state);
+                    valid = false;
+                }
+            } catch (Exception e) {
+                debug.error("Error creating listeners for quest " + quest.getId() + " state " + state, e);
+                valid = false;
+            }
+        }
+        
+        debug.debug("Quest validation result for " + quest.getId() + ": " + (valid ? "Valid" : "Invalid"));
+        return valid;
     }
 
     @Override

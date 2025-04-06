@@ -12,6 +12,14 @@ import java.util.logging.Level;
 
 /**
  * Manages command registration and execution for the RVNKQuests plugin.
+ * 
+ * This class uses a compositional approach to command handling:
+ * - Main commands (like 'quest') are registered with Bukkit
+ * - Subcommands are handled by the main command's executor
+ * - Dynamic loading of optional commands is supported via reflection
+ * 
+ * This structure allows for modular addition of new commands without
+ * modifying core code.
  */
 public class CommandManager {
     private final RVNKQuests plugin;
@@ -58,7 +66,13 @@ public class CommandManager {
     }
     
     /**
-     * Attempts to register an optional subcommand
+     * Attempts to register an optional subcommand via reflection.
+     * This allows for modular command registration without requiring
+     * all command classes to be present at compile time.
+     * 
+     * @param questCommand The main command handler
+     * @param name The subcommand name
+     * @param className The class name to load via reflection
      */
     private void tryRegisterOptionalCommand(QuestCommand questCommand, String name, String className) {
         try {
@@ -74,7 +88,10 @@ public class CommandManager {
     }
 
     /**
-     * Registers a command with the server
+     * Registers a command with the Bukkit server and sets up tab completion.
+     * 
+     * @param commandName The name of the command as defined in plugin.yml
+     * @param executor The command executor implementation
      */
     private void registerCommand(String commandName, CommandExecutor executor) {
         debug.debug("Registering command: " + commandName);

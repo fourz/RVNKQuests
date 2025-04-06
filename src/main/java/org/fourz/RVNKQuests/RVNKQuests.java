@@ -9,6 +9,18 @@ import org.fourz.RVNKQuests.lore.LoreDatabase;
 
 import java.util.logging.Level;
 
+/**
+ * Main plugin class for RVNKQuests, a dynamic narrative quest system for Bukkit/Spigot servers.
+ * 
+ * The plugin architecture follows a manager-based approach:
+ * - ConfigManager handles all configuration access
+ * - QuestManager manages quest registration, state tracking and event handling
+ * - CommandManager handles player commands and subcommands
+ * - LoreDatabase (optional) stores narrative content for quests
+ * 
+ * Each manager is independent but can be accessed through this main class,
+ * providing a clean API for extensions or add-ons.
+ */
 public class RVNKQuests extends JavaPlugin {
     private Debug debugger;
     private ConfigManager configManager;
@@ -29,7 +41,7 @@ public class RVNKQuests extends JavaPlugin {
             // Update log level from config
             updateGlobalLogLevel(configManager.getLogLevel());
             
-            // Initialize managers
+            // Initialize managers in correct dependency order
             questManager = new QuestManager(this);
             commandManager = new CommandManager(this);
             
@@ -98,8 +110,10 @@ public class RVNKQuests extends JavaPlugin {
     }
     
     /**
-     * Updates the global log level for all components
-     * @param level The new log level
+     * Updates the log level across all plugin components.
+     * This ensures consistent logging behavior throughout the plugin.
+     * 
+     * @param level The new logging level to apply
      */
     public void updateGlobalLogLevel(Level level) {
         debugger.info("Updating global log level to: " + level.getName());
