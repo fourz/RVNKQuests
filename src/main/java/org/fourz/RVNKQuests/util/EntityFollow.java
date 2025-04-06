@@ -52,6 +52,7 @@ public class EntityFollow {
     private int stuckCounter = 0;
     private Location pathTarget = null;
     private boolean shouldUseNavigator = false;
+    private boolean ignoreQuestMobs = false; // New flag to ignore quest mobs
     
     // Cache of created FollowingMob instances
     private static final Map<UUID, FollowingMob> mobCache = new HashMap<>();
@@ -144,6 +145,16 @@ public class EntityFollow {
      */
     public EntityFollow useNavigator(boolean useNavigator) {
         this.shouldUseNavigator = useNavigator;
+        return this;
+    }
+    
+    /**
+     * Configure whether to ignore quest mobs during following
+     * @param ignoreQuestMobs Whether follower should ignore quest mobs
+     * @return this, for method chaining
+     */
+    public EntityFollow ignoreQuestMobs(boolean ignoreQuestMobs) {
+        this.ignoreQuestMobs = ignoreQuestMobs;
         return this;
     }
     
@@ -346,7 +357,27 @@ public class EntityFollow {
             
             // Start pathfinding to the target using our wrapper
             try {
-                boolean result = followingMob.getPathfinder().moveTo(target, followSpeed);
+                boolean result;
+                
+                if (ignoreQuestMobs && followingMob.getMob() instanceof Mob) {
+                    Mob mob = (Mob) followingMob.getMob();
+                    // Save current target to restore after path update
+                    Entity currentTarget = mob.getTarget();
+                    
+                    // Clear target temporarily to avoid combat during navigation update
+                    mob.setTarget(null);
+                    
+                    // Update path
+                    result = followingMob.getPathfinder().moveTo(target, followSpeed);
+                    
+                    // Restore original target if it wasn't a quest mob
+                    if (currentTarget != null && !currentTarget.hasMetadata("rvnkquests.questmob")) {
+                        mob.setTarget((LivingEntity)currentTarget);
+                    }
+                } else {
+                    result = followingMob.getPathfinder().moveTo(target, followSpeed);
+                }
+                
                 if (debug != null) debug.debug("Updated pathfinding target, success: " + result);
             } catch (Exception e) {
                 if (debug != null) debug.debug("Error updating navigation: " + e.getMessage());

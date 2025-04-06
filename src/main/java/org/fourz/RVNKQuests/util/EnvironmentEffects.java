@@ -30,8 +30,16 @@ public class EnvironmentEffects {
     public static void startDramaticLightningSequence(JavaPlugin plugin, Location centerLocation, 
                                            int radius, int durationTicks, 
                                            int lightningStrikes, Consumer<Void> onComplete) {
+        if (centerLocation == null || centerLocation.getWorld() == null) {
+            logDebug("Cannot start lightning sequence: null location or world");
+            if (onComplete != null) onComplete.accept(null);
+            return;
+        }
+        
         World world = centerLocation.getWorld();
         long originalTime = world.getTime();
+
+        logDebug("Starting dramatic lightning sequence in world: " + world.getName());
 
         new BukkitRunnable() {
             int ticksElapsed = 0;
@@ -42,6 +50,14 @@ public class EnvironmentEffects {
             public void run() {
                 ticksElapsed++;
 
+                // Verify world is still loaded/valid
+                if (!world.equals(centerLocation.getWorld())) {
+                    logDebug("World mismatch, cancelling lightning sequence");
+                    this.cancel();
+                    if (onComplete != null) onComplete.accept(null);
+                    return;
+                }
+
                 if (lightningStruck < lightningStrikes && ticksElapsed >= lightningTimes[lightningStruck]) {
                     strikeDramaticLightning(centerLocation, radius);
                     lightningStruck++;
@@ -50,6 +66,7 @@ public class EnvironmentEffects {
                 updateWorldDarkness(world, originalTime, ticksElapsed, durationTicks);
 
                 if (ticksElapsed >= durationTicks) {
+                    logDebug("Lightning sequence completed in: " + world.getName());
                     if (onComplete != null) {
                         onComplete.accept(null);
                     }
@@ -60,9 +77,16 @@ public class EnvironmentEffects {
     }
 
     public static void weatherClearDramatic(JavaPlugin plugin, World world, int durationTicks) {
+        if (world == null) {
+            logDebug("Cannot clear weather: null world");
+            return;
+        }
+        
         long startTime = world.getTime();
         boolean wasStorming = world.hasStorm();
         boolean wasThundering = world.isThundering();
+
+        logDebug("Starting dramatic weather clearing in world: " + world.getName());
 
         new BukkitRunnable() {
             int ticksElapsed = 0;
@@ -88,6 +112,7 @@ public class EnvironmentEffects {
                 }
 
                 if (ticksElapsed >= durationTicks) {
+                    logDebug("Weather clearing completed in: " + world.getName());
                     this.cancel();
                 }
             }
@@ -95,6 +120,8 @@ public class EnvironmentEffects {
     }
 
     private static void strikeDramaticLightning(Location center, int radius) {
+        if (center == null || center.getWorld() == null) return;
+        
         double xOffset = (random.nextDouble() - 0.5) * radius;
         double zOffset = (random.nextDouble() - 0.5) * radius;
         
@@ -105,9 +132,16 @@ public class EnvironmentEffects {
     }
 
     private static void updateWorldDarkness(World world, long originalTime, int ticksElapsed, int totalTicks) {
+        if (world == null) return;
+        
         long targetTime = 18000; // Night time
         long currentTime = originalTime + ((targetTime - originalTime) * ticksElapsed / totalTicks);
         world.setTime(currentTime);
+        
+        // Debug time changes
+        if (ticksElapsed % 20 == 0) { // Log every second
+            logDebug("World time update: " + world.getName() + " time " + currentTime);
+        }
     }
 
     private static int[] generateLightningTimes(int count, int maxTime) {

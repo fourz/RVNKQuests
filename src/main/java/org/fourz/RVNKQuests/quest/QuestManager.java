@@ -75,10 +75,30 @@ public class QuestManager {
 
     public void initializeQuests() {
         debugger.debug("Beginning quest initialization");
-        //registerQuest(new QuestFirstCityProphecy(plugin));
-        registerQuest(new QuestPiglinFarFromHome(plugin));
-        registerQuest(new QuestAncientGuardian(plugin)); // Uncommented
-        debugger.debug("Quest initialization complete. Total quests: " + quests.size());
+        
+        try {
+            registerQuestIfEnabled(new QuestPiglinFarFromHome(plugin));
+            registerQuestIfEnabled(new QuestAncientGuardian(plugin));
+            debugger.debug("Quest initialization complete. Total quests: " + quests.size());
+        } catch (Exception e) {
+            debugger.error("Error during quest initialization", e);
+        }
+    }
+    
+    /**
+     * Register a quest if it is enabled in the configuration
+     * @param quest The quest to register
+     */
+    private void registerQuestIfEnabled(Quest quest) {
+        String questId = quest.getId();
+        boolean enabled = plugin.getConfigManager().getConfig().getBoolean("quests." + questId + ".enable", true);
+        
+        if (enabled) {
+            debugger.debug("Registering enabled quest: " + questId);
+            registerQuest(quest);
+        } else {
+            debugger.info("Skipping disabled quest: " + questId);
+        }
     }
 
     public void cleanupQuests() {

@@ -24,12 +24,12 @@ public class QuestReloadSubCommand implements SubCommand {
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        // Check if this is a debug reload
-        boolean debugReload = args.length > 0 && "debug".equalsIgnoreCase(args[0]);
+        // Check if this is a reset reload
+        boolean resetReload = args.length > 0 && "reset".equalsIgnoreCase(args[0]);
         
-        if (debugReload) {
-            sender.sendMessage(ChatColor.RED + "Performing debug reload - resetting all quests and reloading configuration...");
-            debug.warning("Debug reload initiated by " + sender.getName() + " - all quests will be reset");
+        if (resetReload) {
+            sender.sendMessage(ChatColor.RED + "Performing reset reload - resetting all quests and reloading configuration...");
+            debug.warning("Reset reload initiated by " + sender.getName() + " - all quests will be reset");
         } else {
             sender.sendMessage(ChatColor.YELLOW + "Reloading RVNKQuests configuration...");
         }
@@ -42,17 +42,17 @@ public class QuestReloadSubCommand implements SubCommand {
             Level newLogLevel = plugin.getConfigManager().getLogLevel();
             plugin.updateGlobalLogLevel(newLogLevel);
             
-            // If this is a debug reload, reset all quests
-            if (debugReload) {
+            // If this is a reset reload, reset all quests
+            if (resetReload) {
                 resetQuests(sender);
             }
             
-            debug.info("Configuration reloaded by " + sender.getName() + (debugReload ? " with quest reset" : ""));
+            debug.info("Configuration reloaded by " + sender.getName() + (resetReload ? " with quest reset" : ""));
             sender.sendMessage(ChatColor.GREEN + "Configuration reloaded successfully!");
             sender.sendMessage(ChatColor.YELLOW + "Current log level: " + 
                 ChatColor.GREEN + getLevelName(newLogLevel));
         } catch (Exception e) {
-            debug.error("Error during " + (debugReload ? "debug reload" : "reload"), e);
+            debug.error("Error during " + (resetReload ? "reset reload" : "reload"), e);
             sender.sendMessage(ChatColor.RED + "Error reloading configuration: " + e.getMessage());
         }
         
@@ -100,7 +100,7 @@ public class QuestReloadSubCommand implements SubCommand {
 
     @Override
     public String getDescription() {
-        return "Reload the plugin configuration. Add 'debug' to reset all quests.";
+        return "Reload the plugin configuration. Add 'reset' to reset all quests.";
     }
 
     @Override
@@ -110,9 +110,9 @@ public class QuestReloadSubCommand implements SubCommand {
 
     @Override
     public List<String> getTabCompletions(CommandSender sender, String[] args) {
-        // Return "debug" as a tab completion option for the first argument
+        // Return "reset" as a tab completion option for the first argument
         if (args.length == 1) {
-            return Collections.singletonList("debug");
+            return Collections.singletonList("reset");
         }
         return Collections.emptyList();
     }

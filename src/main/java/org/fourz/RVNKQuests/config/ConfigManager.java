@@ -45,4 +45,12 @@ public class ConfigManager {
         plugin.reloadConfig();
         config = plugin.getConfig();
     }
+
+    public void saveConfig() {
+        try {
+            plugin.saveConfig();
+        } catch (Exception e) {
+            plugin.getDebugger().error("Failed to save configuration", e);
+        }
+    }
 }

@@ -88,11 +88,16 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
     }
 
     /**
-     * Cleans up the portal prevention listener if it exists
+     * Cleans up the portal prevention listeners if they exist
      */
     private void cleanupPortalPrevention() {
-        if (portalListener != null && portalListener.getPortalPreventionListener() != null) {
-            portalListener.getPortalPreventionListener().unregister();
+        if (portalListener != null) {
+            if (portalListener.getPortalPreventionListener() != null) {
+                portalListener.getPortalPreventionListener().unregister();
+            }
+            if (portalListener.getInfightingPreventionListener() != null) {
+                portalListener.getInfightingPreventionListener().unregister();
+            }
         }
     }
 
@@ -153,14 +158,14 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
         BookMeta meta = (BookMeta) book.getItemMeta();
         
         if (meta != null) {
-            meta.setTitle("GrotSnout's Last Stand");
+            meta.setTitle("GrotSnout's Journal");
             meta.setAuthor("GrotSnout da Lost");
             
-            meta.addPage("GrotSnout sat alone, starin' at da broken portal.\n\nNo fire. No gold. No herd.\n\nJust cold wind whisperin', stones too dead ta burn, an' stars dat didn't care.\n\n'Dis place is gonna be me stinkin' grave,' he muttered.");
-            meta.addPage("He thinks of da Bastions, da lootin', da shiny gold.\n\nHow long he gotta sit 'ere, waitin' for nothin'?\n\n'Is dere someone I can trade wid to let me go?'\n\nBut dere's no one. Just da guards.");
-            meta.addPage("One big an' dark. Two rattlin' bone-walkers. Two tusked beasts, gruntin' in da dark.\n\nDey guard da broken portal way up high, where clouds touch da stone.\n\nDey don't know his name.\n\nDey don't care he's stuck down 'ere.");
-            meta.addPage("'Dey think dey got me beat.'\n\nHe grinned.\n\n'Well I ain't stayin' in dis rotten place.'\n\nGrotSnout's last stand.\n\nA stupid plan, da best kind. He'd smash 'em. All of 'em.\n\nFix da gate. Let da fire come back.");
-            meta.addPage("If it don't work?\n\nAt least he'd go down swingin'.\n\nWind howlin' on da clifftops.\n\nBlade drawn.\n\n'Let's see who's still standin' when da sun burns bright!'");
+            meta.addPage("I'z stuck 'ere, starin' at dis broken portal.\n\nNo fire. No gold. Just cold wind an' dead stones.\n\n'Dis place gonna be me grave,' I growlz.");
+            meta.addPage("I fink 'bout da Bastions, da loot, da shiny gold.\n\nHow long I gotta wait 'ere?\n\nNo one ta trade wif. Just dem stupid guards.");
+            meta.addPage("Big dark one. Two bone-walkers. Two tusked beasts.\n\nDey guard da portal up high in the hills.\n\nDey don't know me name. Dey don't care.");
+            meta.addPage("'Dey fink dey got me beat.'\n\nI grin.\n\n'Well, I ain't stayin' 'ere.'\n\nI'z gonna smash 'em, fix da gate, an' bring back da fire.");
+            meta.addPage("If it don't work?\n\nAt least I'z goin' down swingin'.\n\nBlade drawn.\n\n'Let's see who's still standin'!' WAAAGH!");
             
             book.setItemMeta(meta);
         }

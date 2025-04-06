@@ -40,6 +40,8 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
         registerSubCommand("reload", new QuestReloadSubCommand(plugin));
         registerSubCommand("trigger", new QuestTriggerSubCommand(plugin));
         registerSubCommand("debug", new QuestDebugSubCommand(plugin));
+        registerSubCommand("mobs", new QuestMobsSubCommand(plugin));
+        registerSubCommand("config", new QuestConfigSubCommand(plugin));
         
         debug.debug("Core subcommands registered");
     }

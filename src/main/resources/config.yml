@@ -3,7 +3,12 @@ general:
   # DEBUG and FINE are equivalent and both enable debug logging
   # Default: INFO
   logLevel: INFO
-
+quests:
+  piglin_far_from_home:
+    world: event
+    enable: true
+  ancient_guardian:
+    enable: true
 storage:
   type: sqlite
   mysql:

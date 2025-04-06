@@ -29,14 +29,15 @@ public class ListenerEncounterPortal implements Listener {
     private final Debug debug;
     private final List<Entity> spawnedMobs = new ArrayList<>();
     private final Set<String> spawnedMobNames = new HashSet<>();
-    private static final int PORTAL_HEIGHT = 85;
+    private static final int PORTAL_HEIGHT = 160;
     private static final int TRIGGER_DISTANCE = 30;
     private Location portalLocation;
     private boolean spawned = false;
     private final Map<EntityType, Integer> mobsToSpawn;
     private final Set<Player> playersInRange = new HashSet<>();
     private final IntervalChecker moveChecker;
-    private ListenerPreventQuestMobPortal portalPreventionListener;
+    private ListenerPreventMobInfighting infightingPreventionListener;
+    private ListenerPreventPortalUse portalPreventionListener;
 
     public ListenerEncounterPortal(Quest quest, Map<EntityType, Integer> mobsToSpawn) {
         this.quest = quest;
@@ -71,6 +72,13 @@ public class ListenerEncounterPortal implements Listener {
         if (isNearLitPortal(to, TRIGGER_DISTANCE)) {
             
             quest.advanceState(QuestState.OBJECTIVE_FOUND);            
+            
+            // Capture world here to ensure it's available for the lambda
+            final Location portalLoc = portalLocation.clone();
+            final String worldName = portalLoc.getWorld().getName();
+            
+            debug.debug("Starting dramatic lightning sequence in world: " + worldName);
+            
             EnvironmentEffects.startDramaticLightningSequence(
                 quest.getPlugin(),
                 portalLocation,
@@ -135,8 +143,15 @@ public class ListenerEncounterPortal implements Listener {
             }
         });
 
-        // Register the portal prevention listener
-        portalPreventionListener = new ListenerPreventQuestMobPortal(quest.getPlugin());
+        // Register the mob infighting prevention listener
+        infightingPreventionListener = new ListenerPreventMobInfighting(quest.getPlugin());
+        quest.getPlugin().getServer().getPluginManager().registerEvents(
+            infightingPreventionListener,
+            quest.getPlugin()
+        );
+        
+        // Register the portal use prevention listener
+        portalPreventionListener = new ListenerPreventPortalUse(quest.getPlugin());
         quest.getPlugin().getServer().getPluginManager().registerEvents(
             portalPreventionListener,
             quest.getPlugin()
@@ -166,10 +181,18 @@ public class ListenerEncounterPortal implements Listener {
     }
 
     /**
-     * Gets the portal prevention listener
-     * @return The portal prevention listener or null if not yet created
+     * Gets the mob infighting prevention listener
+     * @return The mob infighting prevention listener or null if not yet created
      */
-    public ListenerPreventQuestMobPortal getPortalPreventionListener() {
+    public ListenerPreventMobInfighting getInfightingPreventionListener() {
+        return infightingPreventionListener;
+    }
+    
+    /**
+     * Gets the portal use prevention listener
+     * @return The portal use prevention listener or null if not yet created
+     */
+    public ListenerPreventPortalUse getPortalPreventionListener() {
         return portalPreventionListener;
     }
     

@@ -1,12 +1,9 @@
 package org.fourz.RVNKQuests.quest;
 
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Listener;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.util.Debug;
 
-import java.util.List;
 
 /**
  * Base abstract class for quest implementations.
