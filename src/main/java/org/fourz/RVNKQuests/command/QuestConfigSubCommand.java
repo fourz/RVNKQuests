@@ -5,6 +5,8 @@ import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.config.ConfigManager;
+
 
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -47,10 +47,10 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
         debugger.debug("Initializing Piglin Far From Home quest");
         
         // Create the listener with custom location parameters from config
-        String worldName = getPlugin().getConfigManager().getConfig()
-                .getString("quests.piglin_far_from_home.world", "event");
-        double spawnRadius = getPlugin().getConfigManager().getConfig()
-                .getDouble("quests.piglin_far_from_home.spawn_radius", 30.0);
+        String worldName = getPlugin().getConfigManager().getQuestConfigString(
+                getId(), "world", "event");
+        double spawnRadius = getPlugin().getConfigManager().getQuestConfigDouble(
+                getId(), "spawn_radius", 30.0);
         
         // Initialize the ListenerLonePiglinTrigger with specific world and radius
         this.lonePiglinTrigger = new ListenerLonePiglinTrigger(this, getPlugin(), worldName, null, spawnRadius);

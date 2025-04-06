@@ -91,7 +91,7 @@ public class QuestManager {
      */
     private void registerQuestIfEnabled(Quest quest) {
         String questId = quest.getId();
-        boolean enabled = plugin.getConfigManager().getConfig().getBoolean("quests." + questId + ".enable", true);
+        boolean enabled = plugin.getConfigManager().isQuestEnabled(questId);
         
         if (enabled) {
             debugger.debug("Registering enabled quest: " + questId);

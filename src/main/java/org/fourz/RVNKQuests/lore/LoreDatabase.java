@@ -309,4 +309,21 @@ public class LoreDatabase {
             debug.debug("LoreDatabase log level updated to: " + level.getName());
         }
     }
+
+    /**
+     * Check if the database is initialized
+     * @return true if initialized, false otherwise
+     */
+    public void close() {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                debug.error("Error closing database connection", e);
+            }
+        }
+        if (loreConfig != null) {
+            saveYamlConfig();
+        }
+    }    
 }

@@ -8,6 +8,7 @@ import org.fourz.RVNKQuests.util.Debug;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 /**
@@ -35,8 +36,13 @@ public class QuestReloadSubCommand implements SubCommand {
         }
         
         try {
-            // First reload the configuration
+            // First reload the configuration - this will update the quest enable status
             plugin.getConfigManager().reloadConfig();
+            
+            // Display quest status after reload
+            if (resetReload) {
+                displayQuestStatus(sender);
+            }
             
             // Update the log level based on new config using the global method
             Level newLogLevel = plugin.getConfigManager().getLogLevel();
@@ -57,6 +63,32 @@ public class QuestReloadSubCommand implements SubCommand {
         }
         
         return true;
+    }
+    
+    /**
+     * Display the status of all quests to the sender
+     * @param sender The command sender
+     */
+    private void displayQuestStatus(CommandSender sender) {
+        Map<String, Boolean> questStatus = plugin.getConfigManager().getQuestEnableStatus();
+        
+        if (questStatus.isEmpty()) {
+            sender.sendMessage(ChatColor.YELLOW + "No quest configuration found.");
+            return;
+        }
+        
+        sender.sendMessage(ChatColor.YELLOW + "Quest Status:");
+        
+        for (Map.Entry<String, Boolean> entry : questStatus.entrySet()) {
+            String questId = entry.getKey();
+            boolean enabled = entry.getValue();
+            
+            if (enabled) {
+                sender.sendMessage(ChatColor.GREEN + "  ✓ " + questId + ": Enabled");
+            } else {
+                sender.sendMessage(ChatColor.RED + "  ✗ " + questId + ": Disabled");
+            }
+        }
     }
     
     /**
