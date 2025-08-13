@@ -11,21 +11,23 @@ import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.bukkit.Location;
 
 // Listener for when a player interacts with the quest book in the prophecy lectern
 
 public class ListenerSpawnQuestBook implements Listener {
-    private final RVNKQuests plugin;
     private final Quest quest;
     private final String requiredBookTitle;
     private final Location lecternLocation;
+    private final RVNKLogger logger;
 
     public ListenerSpawnQuestBook(RVNKQuests plugin, Quest quest, String requiredBookTitle, Location lecternLocation) {
-        this.plugin = plugin;
         this.quest = quest;
         this.requiredBookTitle = requiredBookTitle;
         this.lecternLocation = lecternLocation;
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @EventHandler
@@ -42,7 +44,7 @@ public class ListenerSpawnQuestBook implements Listener {
 
         BookMeta meta = (BookMeta) book.getItemMeta();
         if (meta != null && meta.getTitle().equals(requiredBookTitle)) {
-            plugin.getDebugger().debug("Player found quest pillar book: " + requiredBookTitle);
+            logger.debug("Player found quest pillar book: {}", requiredBookTitle);
             quest.advanceState(QuestState.TRIGGER_FOUND);
             event.getPlayer().sendMessage("§5The ancient text speaks to you...");
         }

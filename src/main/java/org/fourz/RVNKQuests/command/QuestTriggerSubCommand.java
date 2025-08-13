@@ -5,11 +5,11 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.trigger.TriggerCommand;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
@@ -19,12 +19,12 @@ import java.util.stream.Collectors;
  */
 public class QuestTriggerSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private final TriggerCommand triggerCommand;
 
     public QuestTriggerSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestTriggerSubCommand", Level.FINE);
+        this.logger = LogManager.getInstance(plugin, getClass());
         this.triggerCommand = new TriggerCommand(plugin);
     }
 
@@ -46,7 +46,7 @@ public class QuestTriggerSubCommand implements SubCommand {
         String questId = args[0].toLowerCase();
         String location = args.length > 1 ? args[1].toLowerCase() : "here";
 
-        debug.debug("Player " + player.getName() + " attempting to trigger quest: " + questId + " at " + location);
+        logger.debug("Player {} attempting to trigger quest: {} at {}", player.getName(), questId, location);
 
         // Validate location parameter
         if (!location.equals("here") && !location.equals("around")) {

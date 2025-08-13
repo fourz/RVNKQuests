@@ -9,19 +9,18 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.Debug;
-
-import java.util.logging.Level;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 public class ListenerGuardianDefeat implements Listener {
     private final Quest quest;
     private final ListenerGuardianAwakening guardianListener;
-    private final Debug debug;
+    private final RVNKLogger logger;
 
     public ListenerGuardianDefeat(Quest quest, ListenerGuardianAwakening guardianListener) {
         this.quest = quest;
         this.guardianListener = guardianListener;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "GuardianDefeat", Level.FINE);
+        this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
     }
 
     @EventHandler
@@ -29,7 +28,7 @@ public class ListenerGuardianDefeat implements Listener {
         if (!(event.getEntity() instanceof ElderGuardian)) return;
         if (event.getEntity() != guardianListener.getGuardian()) return;
 
-        debug.debug("Elder Guardian defeated, dropping Ancient Inscription");
+        logger.debug("Elder Guardian defeated, dropping Ancient Inscription");
         
         ItemStack book = createAncientInscription();
         

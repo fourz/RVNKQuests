@@ -10,6 +10,8 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -35,7 +37,7 @@ public class EntityFollow {
     
     // Instance-specific settings
     private final JavaPlugin plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private double followDistance;
     private double maxFollowDistance;
     private double followSpeed;
@@ -77,17 +79,8 @@ public class EntityFollow {
      * @param plugin The plugin instance
      */
     public EntityFollow(JavaPlugin plugin) {
-        this(plugin, null);
-    }
-    
-    /**
-     * Creates an EntityFollow with default settings and debug logging
-     * @param plugin The plugin instance
-     * @param debugger The debug logger (or null for no debug)
-     */
-    public EntityFollow(JavaPlugin plugin, Debug debugger) {
         this.plugin = plugin;
-        this.debug = debugger;
+        this.logger = LogManager.getInstance(plugin, getClass());
         this.followDistance = DEFAULT_FOLLOW_DISTANCE;
         this.maxFollowDistance = DEFAULT_MAX_FOLLOW_DISTANCE;
         this.followSpeed = DEFAULT_FOLLOW_SPEED;
@@ -166,7 +159,7 @@ public class EntityFollow {
      */
     public boolean start(Entity follower, Player leader) {
         if (follower == null || leader == null || !leader.isOnline()) {
-            if (debug != null) debug.debug("Cannot start follow - invalid entities");
+            logger.debug("Cannot start follow - invalid entities");
             return false;
         }
         
@@ -186,9 +179,9 @@ public class EntityFollow {
             } else {
                 followingMob = mobCache.get(entityId);
             }
-            
+
             if (followingMob == null) {
-                if (debug != null) debug.debug("Failed to create FollowingMob wrapper, falling back to velocity-based movement");
+                logger.debug("Failed to create FollowingMob wrapper, falling back to velocity-based movement");
             }
         } else {
             followingMob = null;
@@ -212,7 +205,7 @@ public class EntityFollow {
             }
         }.runTaskTimer(plugin, 0, followTaskDelay);
         
-        if (debug != null) debug.debug("Started entity follow task");
+    logger.debug("Started entity follow task");
         return true;
     }
     
@@ -231,11 +224,11 @@ public class EntityFollow {
             try {
                 followingMob.getPathfinder().stopPathfinding();
             } catch (Exception e) {
-                if (debug != null) debug.debug("Error stopping pathfinding: " + e.getMessage());
+                logger.debug("Error stopping pathfinding: {}", e.getMessage());
             }
         }
-        
-        if (debug != null) debug.debug("Stopped entity follow task");
+
+        logger.debug("Stopped entity follow task");
         
         // Make the entity look at the leader when stopped, if both still valid
         if (isValidLeaderAndFollower()) {
@@ -378,9 +371,9 @@ public class EntityFollow {
                     result = followingMob.getPathfinder().moveTo(target, followSpeed);
                 }
                 
-                if (debug != null) debug.debug("Updated pathfinding target, success: " + result);
+                logger.debug("Updated pathfinding target, success: {}", result);
             } catch (Exception e) {
-                if (debug != null) debug.debug("Error updating navigation: " + e.getMessage());
+                logger.debug("Error updating navigation: {}", e.getMessage());
                 // Fall back to velocity-based movement for this update
                 moveTowardsTarget(target);
             }
@@ -406,7 +399,7 @@ public class EntityFollow {
         // Add jump component if needed
         if (needsJump) {
             direction.setY(jumpVelocity);
-            if (debug != null) debug.debug("Adding jump velocity to clear obstacle");
+            logger.debug("Adding jump velocity to clear obstacle");
         }
         
         // Apply velocity
@@ -430,8 +423,8 @@ public class EntityFollow {
         double moveDistance = lastFollowerLocation.distanceSquared(currentLoc);
         if (moveDistance < 0.01) { // Barely moved
             stuckCounter++;
-            if (stuckCounter >= STUCK_THRESHOLD && debug != null) {
-                debug.debug("Entity appears stuck, stuckCounter: " + stuckCounter);
+            if (stuckCounter >= STUCK_THRESHOLD) {
+                logger.debug("Entity appears stuck, stuckCounter: {}", stuckCounter);
             }
         } else {
             // Reset stuck counter if we've moved
@@ -462,7 +455,7 @@ public class EntityFollow {
                 !block.isPassable() || 
                 OBSTACLE_MATERIALS.contains(block.getType())) {
                 
-                if (debug != null) debug.debug("Detected obstacle: " + block.getType() + " at distance " + d);
+                logger.debug("Detected obstacle: {} at distance {}", block.getType(), d);
                 return true;
             }
             
@@ -491,10 +484,10 @@ public class EntityFollow {
                     gapDepth++;
                 }
                 
-                if (gapDepth > 2) { // Gap is too deep to safely cross
-                    if (debug != null) debug.debug("Detected drop ahead with depth " + gapDepth);
-                    return true;
-                }
+                    if (gapDepth > 2) { // Gap is too deep to safely cross
+                        logger.debug("Detected drop ahead with depth {}", gapDepth);
+                        return true;
+                    }
             }
         }
         

@@ -2,7 +2,8 @@ package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 
 /**
@@ -14,7 +15,7 @@ public abstract class AbstractQuest implements Quest {
     protected final String questId;
     protected final String name;
     protected QuestState state;
-    protected final Debug debugger;
+    protected final RVNKLogger logger;
     
     /**
      * Creates a new quest with the specified ID and name.
@@ -28,7 +29,7 @@ public abstract class AbstractQuest implements Quest {
         this.questId = questId;
         this.name = name;
         this.state = QuestState.NOT_STARTED;
-        this.debugger = Debug.createDebugger(plugin, "Quest-" + questId, plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
@@ -48,7 +49,7 @@ public abstract class AbstractQuest implements Quest {
 
     @Override
     public void advanceState(QuestState newState) {
-        debugger.debug("Advancing quest state from " + state + " to " + newState);
+        logger.debug("Advancing quest state from {} to {}", state, newState);
         this.state = newState;
         plugin.getQuestManager().updateQuestListeners(this);
     }
@@ -72,16 +73,16 @@ public abstract class AbstractQuest implements Quest {
      */
     public boolean start(Player player) {
         if (player == null) {
-            debugger.warning("Cannot start quest: Player is null");
+            logger.warning("Cannot start quest: Player is null");
             return false;
         }
         
         if (state != QuestState.NOT_STARTED && state != QuestState.TRIGGER_FOUND) {
-            debugger.debug("Cannot start quest: Already started (current state: " + state + ")");
+            logger.debug("Cannot start quest: Already started (current state: {})", state);
             return false;
         }
         
-        debugger.debug("Starting quest for player: " + player.getName());
+        logger.debug("Starting quest for player: {}", player.getName());
         boolean success = onStart(player);
         
         if (success) {
@@ -101,16 +102,16 @@ public abstract class AbstractQuest implements Quest {
      */
     public boolean complete(Player player) {
         if (player == null) {
-            debugger.warning("Cannot complete quest: Player is null");
+            logger.warning("Cannot complete quest: Player is null");
             return false;
         }
         
         if (state == QuestState.COMPLETED) {
-            debugger.debug("Cannot complete quest: Already completed");
+            logger.debug("Cannot complete quest: Already completed");
             return false;
         }
         
-        debugger.debug("Completing quest for player: " + player.getName());
+        logger.debug("Completing quest for player: {}", player.getName());
         boolean success = onComplete(player);
         
         if (success) {

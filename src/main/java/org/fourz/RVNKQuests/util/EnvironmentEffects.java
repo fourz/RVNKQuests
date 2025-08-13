@@ -5,25 +5,27 @@ import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.Random;
 import java.util.function.Consumer;
 
 public class EnvironmentEffects {
     private static final Random random = new Random();
-    private static Debug debug;
+    private static RVNKLogger logger;
     private static boolean initialized = false;
 
     private EnvironmentEffects() {} // Prevent instantiation
 
     public static void init(RVNKQuests plugin) {
-        debug = plugin.getDebugger();
-        initialized = true;
+    logger = LogManager.getInstance(plugin, EnvironmentEffects.class);
+    initialized = true;
     }
 
     private static void logDebug(String message) {
-        if (initialized && debug != null) {
-            debug.debug(message);
+        if (initialized && logger != null) {
+            logger.debug(message);
         }
     }
 

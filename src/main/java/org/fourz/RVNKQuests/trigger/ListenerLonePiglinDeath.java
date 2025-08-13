@@ -7,7 +7,8 @@ import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestItem;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 /**
  * Listener that handles the death of the quest piglin.
@@ -17,7 +18,7 @@ import org.fourz.RVNKQuests.util.Debug;
 public class ListenerLonePiglinDeath implements Listener {
     private final Quest quest;
     private final ListenerLonePiglinTrigger lonePiglinListener;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private final ItemStack questItem;
 
     /**
@@ -27,7 +28,7 @@ public class ListenerLonePiglinDeath implements Listener {
      * @param lonePiglinListener The trigger that spawns and tracks the piglin
      */
     public ListenerLonePiglinDeath(Quest quest, ListenerLonePiglinTrigger lonePiglinListener) {
-        this(quest, lonePiglinListener, QuestItem.getQuestItem("grotsnouts_journal"));
+    this(quest, lonePiglinListener, QuestItem.getQuestItem("grotsnouts_journal"));
     }
 
     /**
@@ -38,33 +39,33 @@ public class ListenerLonePiglinDeath implements Listener {
      * @param questItem The item to drop when the piglin is killed
      */
     public ListenerLonePiglinDeath(Quest quest, ListenerLonePiglinTrigger lonePiglinListener, ItemStack questItem) {
-        this.quest = quest;
-        this.lonePiglinListener = lonePiglinListener;
-        this.questItem = questItem;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "LonePiglinDeath", quest.getPlugin().getDebugger().getLogLevel());
+    this.quest = quest;
+    this.lonePiglinListener = lonePiglinListener;
+    this.questItem = questItem;
+    this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
     }
 
     @EventHandler
     public void onPiglinDeath(EntityDeathEvent event) {
         // Verify this is our specific quest piglin using the listener's tracking
         if (!lonePiglinListener.isQuestPiglin(event.getEntity())) {
-            debug.debug("Piglin death: not the quest Piglin");
+            logger.debug("Piglin death: not the quest Piglin");
             return;
         }
 
-        debug.debug("Quest Piglin died, preparing to drop journal");
+        logger.debug("Quest Piglin died, preparing to drop journal");
         if (questItem == null) {
-            debug.warning("Failed to retrieve quest item!");
+            logger.warning("Failed to retrieve quest item!");
             return;
         }
 
         // Replace normal drops with our quest item
-        debug.debug("Clearing existing drops and adding quest journal");
+        logger.debug("Clearing existing drops and adding quest journal");
         event.getDrops().clear();
         event.getDrops().add(questItem);
-        
+
         // Advance the quest to the active state since player has chosen the combat path
-        debug.debug("Advancing quest state to QUEST_ACTIVE");
+        logger.debug("Advancing quest state to QUEST_ACTIVE");
         quest.advanceState(QuestState.QUEST_ACTIVE);
     }
 }

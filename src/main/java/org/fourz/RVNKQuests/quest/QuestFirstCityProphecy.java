@@ -10,7 +10,8 @@ import org.fourz.RVNKQuests.trigger.ListenerQuestPillarStart;
 import org.fourz.RVNKQuests.trigger.ListenerEventPopulated;
 import org.fourz.RVNKQuests.objective.ListenerFirstCityChoice;
 import org.fourz.RVNKQuests.objective.ListenerQuestBookPlacer;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,14 +19,14 @@ import java.util.List;
 public class QuestFirstCityProphecy implements Quest {
     private static final String CLASS_NAME = "QuestFirstCityProphecy";
     private final RVNKQuests plugin;
-    private final Debug debugger;
+    private final RVNKLogger logger;
     private QuestState currentState = QuestState.NOT_STARTED;
     private Location lecternLocation;
     private ListenerProphecyDiscovery prophecyDiscovery;
 
     public QuestFirstCityProphecy(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debugger = new Debug(plugin, CLASS_NAME, plugin.getDebugger().getLogLevel()) {};
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
@@ -44,7 +45,7 @@ public class QuestFirstCityProphecy implements Quest {
     }
 
     public void buildQuestBeacon() {
-        debugger.debug("Building quest beacon");
+        logger.debug("Building quest beacon");
         ListenerQuestPillarStart pillarStarter = new ListenerQuestPillarStart(plugin);
         this.lecternLocation = pillarStarter.buildQuestBeacon();
         
@@ -57,13 +58,13 @@ public class QuestFirstCityProphecy implements Quest {
 
     @Override
     public void initialize() {
-        debugger.debug("Initializing First City Prophecy quest");
+        logger.debug("Initializing First City Prophecy quest");
         // No longer creating pillar here - will be triggered by EventPopulated
     }
 
     @Override
     public void cleanup() {
-        debugger.debug("Cleaning up First City Prophecy quest");
+        logger.debug("Cleaning up First City Prophecy quest");
         if (lecternLocation != null) {
             lecternLocation.getBlock().setType(Material.AIR);
         }
@@ -81,7 +82,7 @@ public class QuestFirstCityProphecy implements Quest {
 
     @Override
     public void advanceState(QuestState newState) {
-        debugger.debug("Advancing quest state from " + currentState + " to " + newState);
+        logger.debug("Advancing quest state from {} to {}", currentState, newState);
         this.currentState = newState;
         plugin.getQuestManager().updateQuestListeners(this);
     }
@@ -97,12 +98,12 @@ public class QuestFirstCityProphecy implements Quest {
     }
 
     public boolean isValidSettlementLocation(Location loc) {
-        debugger.debug("Checking settlement location validity at: " + loc);
+        logger.debug("Checking settlement location validity at: {}", loc);
         World world = loc.getWorld();
         int highestY = world.getHighestBlockYAt(loc);
         
         if (highestY < 100) {
-            debugger.debug("Location rejected: Height " + highestY + " is too low");
+            logger.debug("Location rejected: Height {} is too low", highestY);
             return false;
         }
         
@@ -110,12 +111,12 @@ public class QuestFirstCityProphecy implements Quest {
             for (int z = -16; x <= 16; z++) {
                 Location check = loc.clone().add(x, 0, z);
                 if (check.getBlock().getType() == Material.WATER) {
-                    debugger.debug("Location accepted: Found water source nearby");
+                    logger.debug("Location accepted: Found water source nearby");
                     return true;
                 }
             }
         }
-        debugger.debug("Location rejected: No water source found nearby");
+        logger.debug("Location rejected: No water source found nearby");
         return false;
     }
 

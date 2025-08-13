@@ -7,20 +7,20 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestLoot;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 public class ListenerEncounterPortalDefeated implements Listener {
     private final Quest quest;
     private final ListenerEncounterPortal portalListener;
     private final QuestLoot questLoot;
-    private final Debug debug;
+    private final RVNKLogger logger;
 
     public ListenerEncounterPortalDefeated(Quest quest, ListenerEncounterPortal portalListener, QuestLoot questLoot) {
-        this.quest = quest;
-        this.portalListener = portalListener;
-        this.questLoot = questLoot;
-        // Updated to use quest.getPlugin().getDebugger().getLogLevel()
-        this.debug = Debug.createDebugger(quest.getPlugin(), "EncounterPortalDefeated", quest.getPlugin().getDebugger().getLogLevel());
+    this.quest = quest;
+    this.portalListener = portalListener;
+    this.questLoot = questLoot;
+    this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
     }
 
     @EventHandler
@@ -29,14 +29,12 @@ public class ListenerEncounterPortalDefeated implements Listener {
         String mobName = entity.getCustomName();
         
         if (mobName != null && portalListener.getSpawnedMobNames().contains(mobName)) {
-            debug.debug(String.format("Quest mob died: %s (Type: %s)", 
-                mobName,
-                event.getEntityType()));
-                
+            logger.debug("Quest mob died: {} (Type: {})", mobName, event.getEntityType());
+
             portalListener.removeMob(mobName);
-            
+
             if (portalListener.getSpawnedMobNames().isEmpty()) {
-                debug.debug("All quest mobs defeated, generating loot and completing quest");
+                logger.debug("All quest mobs defeated, generating loot and completing quest");
                 event.getDrops().addAll(questLoot.generateLoot());
                 quest.advanceState(QuestState.COMPLETED);
             }

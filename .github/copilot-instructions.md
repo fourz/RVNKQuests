@@ -74,14 +74,19 @@ public class MyQuest implements Quest {
 **MANDATORY**: Use LogManager for all logging operations. The Debug class is deprecated.
 
 ```java
-// REQUIRED: Use LogManager instance
-private final RVNKLogger logger = LogManager.getInstance(plugin, getClass());
+// REQUIRED: Use LogManager instance with Class parameter for proper context
+private final LogManager logger = LogManager.getInstance(plugin, getClass());
 
 // Correct logging patterns
 logger.info("Quest initialized: " + getId());
 logger.debug("Processing quest state transition");
 logger.warning("Quest configuration incomplete");
 logger.error("Failed to save quest state", exception);
+
+// Performance monitoring
+logger.startTiming("operation_name");
+// ... perform operation ...
+long duration = logger.endTiming("operation_name");
 
 // AVOID: Do not use Debug class for new code
 private final Debug debug = Debug.createDebugger(...); // DEPRECATED

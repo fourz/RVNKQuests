@@ -14,7 +14,8 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.trigger.ListenerLonePiglinTrigger;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.fourz.RVNKQuests.util.EntityFollow;
 
 import java.util.HashMap;
@@ -28,7 +29,7 @@ import java.util.UUID;
 public class ListenerPiglinEscort implements Listener {
     private final Quest quest;
     private final ListenerLonePiglinTrigger piglinTrigger;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private Player activeEscorter = null;
     
     // Add cooldown to prevent double toggling
@@ -44,10 +45,10 @@ public class ListenerPiglinEscort implements Listener {
     public ListenerPiglinEscort(Quest quest, ListenerLonePiglinTrigger piglinTrigger) {
         this.quest = quest;
         this.piglinTrigger = piglinTrigger;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "PiglinEscort", quest.getPlugin().getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
         
         // Initialize EntityFollow with smarter settings
-        this.entityFollow = new EntityFollow(quest.getPlugin(), debug)
+        this.entityFollow = new EntityFollow(quest.getPlugin())
             .withDistances(3.0, 20.0)     // Configure follow and max distances
             .withSpeed(1.0)               // Configure follow speed
             .withTaskDelay(5)             // Configure task delay 
@@ -65,7 +66,7 @@ public class ListenerPiglinEscort implements Listener {
             return;
         }
         
-        debug.debug("Player " + player.getName() + " interacted with quest piglin");
+        logger.debug("Player {} interacted with quest piglin", player.getName());
         
         // Check cooldown to prevent double toggling
         UUID playerUUID = player.getUniqueId();
@@ -73,7 +74,7 @@ public class ListenerPiglinEscort implements Listener {
         long lastTime = lastInteractionTime.getOrDefault(playerUUID, 0L);
         
         if (currentTime - lastTime < INTERACTION_COOLDOWN) {
-            debug.debug("Interaction cooldown active for player " + player.getName() + ", ignoring event");
+            logger.debug("Interaction cooldown active for player {}, ignoring event", player.getName());
             event.setCancelled(true);
             return;
         }
@@ -211,7 +212,7 @@ public class ListenerPiglinEscort implements Listener {
             activeEscorter.sendMessage(ChatColor.RED + "Someone else is now escorting the piglin.");
         }
         activeEscorter = player;
-        debug.debug("Set active escorter to: " + (player != null ? player.getName() : "null"));
+        logger.debug("Set active escorter to: {}", (player != null ? player.getName() : "null"));
     }
     
     /**
@@ -234,7 +235,7 @@ public class ListenerPiglinEscort implements Listener {
      * Cleans up any resources used by this listener
      */
     public void cleanup() {
-        debug.debug("Cleaning up PiglinEscort listener");
+        logger.debug("Cleaning up PiglinEscort listener");
         activeEscorter = null;
         entityFollow.cleanup();
     }

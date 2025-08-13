@@ -7,21 +7,21 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 /**
  * Prevents quest mobs from targeting each other during encounters
  */
 public class ListenerPreventMobInfighting implements Listener {
     private final JavaPlugin plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private boolean isRegistered = true;
 
     public ListenerPreventMobInfighting(JavaPlugin plugin) {
         this.plugin = plugin;
-        // Fixed: Use null to inherit the plugin's default log level
-        this.debug = Debug.createDebugger(plugin, "PreventMobInfighting", null);
-        debug.debug("Initialized mob infighting prevention listener");
+        this.logger = LogManager.getInstance(plugin, getClass());
+        logger.debug("Initialized mob infighting prevention listener");
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -34,8 +34,8 @@ public class ListenerPreventMobInfighting implements Listener {
 
         // Check if both entities are quest mobs
         if (isQuestMob(source) && isQuestMob(target)) {
-            debug.debug("Prevented quest mob " + source.getCustomName() + 
-                       " from targeting quest mob " + target.getCustomName());
+            logger.debug("Prevented quest mob {} from targeting quest mob {}", 
+                        source.getCustomName(), target.getCustomName());
             event.setCancelled(true);
         }
     }
@@ -54,7 +54,7 @@ public class ListenerPreventMobInfighting implements Listener {
         if (isRegistered) {
             HandlerList.unregisterAll(this);
             isRegistered = false;
-            debug.debug("Unregistered mob infighting prevention listener");
+            logger.debug("Unregistered mob infighting prevention listener");
         }
     }
     

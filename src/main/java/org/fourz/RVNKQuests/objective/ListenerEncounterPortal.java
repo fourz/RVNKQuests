@@ -10,7 +10,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.fourz.RVNKQuests.util.EnvironmentEffects;
 import org.fourz.RVNKQuests.util.NameGenerator;
 import org.fourz.RVNKQuests.util.IntervalChecker;
@@ -26,7 +27,7 @@ public class ListenerEncounterPortal implements Listener {
     public static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
     
     private final Quest quest;
-    private final Debug debug;
+        private final RVNKLogger logger;
     private final List<Entity> spawnedMobs = new ArrayList<>();
     private final Set<String> spawnedMobNames = new HashSet<>();
     private static final int PORTAL_HEIGHT = 160;
@@ -43,10 +44,10 @@ public class ListenerEncounterPortal implements Listener {
         this.quest = quest;
         this.mobsToSpawn = mobsToSpawn;
         // Updated to use quest.getPlugin().getDebugger().getLogLevel()
-        this.debug = Debug.createDebugger(quest.getPlugin(), "EncounterPortal", quest.getPlugin().getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
         this.moveChecker = new IntervalChecker(5, 5.0); // Check every 5 ticks, minimum 5.0 blocks moved
         
-        debug.debug("Initialized with mob config: " + mobsToSpawn.toString());
+        logger.debug("Initialized with mob config: {}", mobsToSpawn.toString());
     }
 
     @EventHandler
@@ -77,7 +78,7 @@ public class ListenerEncounterPortal implements Listener {
             final Location portalLoc = portalLocation.clone();
             final String worldName = portalLoc.getWorld().getName();
             
-            debug.debug("Starting dramatic lightning sequence in world: " + worldName);
+                logger.debug("Starting dramatic lightning sequence in world: {}", worldName);
             
             EnvironmentEffects.startDramaticLightningSequence(
                 quest.getPlugin(),
@@ -97,27 +98,27 @@ public class ListenerEncounterPortal implements Listener {
     }
 
     private boolean isNearLitPortal(Location loc, int distance) {
-        debug.debug("Checking for portal within " + distance + " blocks");
+            logger.debug("Checking for portal within {} blocks", distance);
         for (int x = -distance; x <= distance; x++) {
             for (int y = -distance; y <= distance; y++) {
                 for (int z = -distance; z <= distance; z++) {
                     Location checkLoc = loc.clone().add(x, y, z);
                     if (checkLoc.getBlock().getType() == Material.NETHER_PORTAL) {
-                        debug.debug("Found portal at: " + checkLoc.toString());
+                            logger.debug("Found portal at: {}", checkLoc.toString());
                         portalLocation = checkLoc;
                         return true;
                     }
                 }
             }
         }
-        debug.debug("No portal found in range");
+            logger.debug("No portal found in range");
         return false;
     }
 
     private void spawnMobGroup(Location near) {
-        debug.debug("Spawning mob group near: " + near.toString());
+            logger.debug("Spawning mob group near: {}", near.toString());
         mobsToSpawn.forEach((entityType, count) -> {
-            debug.debug(String.format("Spawning %d x %s", count, entityType));
+                logger.debug("Spawning {} x {}", count, entityType);
             for (int i = 0; i < count; i++) {
                 Location spawnLoc = near.clone().add(
                     Math.random() * 10 - 5,
@@ -137,9 +138,7 @@ public class ListenerEncounterPortal implements Listener {
                 entity.setMetadata(QUEST_MOB_METADATA, 
                     new FixedMetadataValue(quest.getPlugin(), quest.getId()));
                 
-                debug.debug(String.format("Spawned %s at %s", 
-                    mobName,
-                    spawnLoc.toString()));
+                    logger.debug("Spawned {} at {}", mobName, spawnLoc.toString());
             }
         });
 
@@ -157,7 +156,7 @@ public class ListenerEncounterPortal implements Listener {
             quest.getPlugin()
         );
 
-        debug.debug("Mob group spawn complete. Total mobs: " + spawnedMobs.size());
+            logger.debug("Mob group spawn complete. Total mobs: {}", spawnedMobs.size());
     }
 
     public Set<String> getSpawnedMobNames() {
@@ -168,7 +167,7 @@ public class ListenerEncounterPortal implements Listener {
         spawnedMobNames.remove(mobName);
         spawnedMobs.removeIf(entity -> entity.getCustomName() != null && 
                                       entity.getCustomName().equals(mobName));
-        debug.debug("Removed mob: " + mobName + ", Remaining mobs: " + spawnedMobNames.size());
+            logger.debug("Removed mob: {}, Remaining mobs: {}", mobName, spawnedMobNames.size());
     }
 
     public List<Entity> getSpawnedMobs() {

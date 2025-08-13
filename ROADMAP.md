@@ -43,7 +43,7 @@ The project currently uses the legacy `Debug` class but needs to migrate to the 
 ```java
 // Target Migration Pattern:
 // OLD: private final Debug debug = Debug.createDebugger(plugin, "ClassName", Level.INFO);
-// NEW: private final RVNKLogger logger = LogManager.getInstance(plugin, getClass());
+// NEW: private final LogManager logger = LogManager.getInstance(plugin, getClass());
 
 // OLD: debug.info("Message");
 // NEW: logger.info("Message");
@@ -312,6 +312,26 @@ public class QuestService {
 - Verify lore database integration when enabled/disabled
 - Test command functionality with various permission levels
 - Validate configuration reloading behavior
+
+## Documentation Resources
+
+### LogManager Examples and Migration
+
+The following example files have been created to support the LogManager migration:
+
+- **`docs/examples/log/LogManagerRVNKQuests.java`** - Complete LogManager implementation
+- **`docs/examples/log/DebugRVNKQuests.java`** - Enhanced Debug class with performance monitoring
+- **`docs/examples/log/LogManagerUsageExample.java`** - Comprehensive usage examples
+- **`docs/examples/LogManager-Interface.md`** - Interface definition and usage patterns
+- **`docs/examples/LogManager-Migration-Guide.md`** - Detailed migration instructions
+- **`docs/examples/RVNKQuests-Examples-README.md`** - Overview of all examples and patterns
+
+These resources provide:
+- Complete implementation examples
+- Migration patterns from Debug to LogManager
+- Performance monitoring integration
+- Best practices for error handling
+- RVNKCore integration preparation
 
 ## Long-Term Vision (2026+)
 

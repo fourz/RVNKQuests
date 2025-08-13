@@ -1,7 +1,8 @@
 package org.fourz.RVNKQuests.quest;
 
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import java.util.HashMap;
 import java.util.Map;
 import org.bukkit.event.HandlerList;
@@ -24,16 +25,15 @@ import java.util.logging.Level;
  * quests more efficient by only listening to relevant events.
  */
 public class QuestManager {
-    private static final String CLASS_NAME = "QuestManager";
     private final RVNKQuests plugin;
-    private final Debug debugger;
+    private final RVNKLogger logger;
     private final Map<String, Quest> quests = new HashMap<>();
     private final Map<Quest, List<Listener>> activeListeners = new HashMap<>();
     private final Map<String, Integer> scheduledTasks = new HashMap<>();
 
     public QuestManager(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debugger = Debug.createDebugger(plugin, CLASS_NAME, plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     /**
@@ -41,60 +41,60 @@ public class QuestManager {
      * @param level New log level
      */
     public void updateDebugLevel(Level level) {
-        debugger.setLogLevel(level);
-        debugger.debug("QuestManager log level updated to: " + level.getName());
+        logger.setLogLevel(level);
+        logger.debug("QuestManager log level updated to: {}", level.getName());
     }
 
     public void registerQuest(Quest quest) {
         if (quest == null) {
-            debugger.warning("Attempted to register null quest");
+            logger.warning("Attempted to register null quest");
             return;
         }
         
         String questId = quest.getId();
         if (questId == null || questId.isEmpty()) {
-            debugger.warning("Attempted to register quest with null or empty ID");
+            logger.warning("Attempted to register quest with null or empty ID");
             return;
         }
         
         if (quests.containsKey(questId)) {
-            debugger.warning("Quest already registered with ID: " + questId);
+            logger.warning("Quest already registered with ID: {}", questId);
             return;
         }
         
-        debugger.debug("Registering quest: " + questId);
+        logger.debug("Registering quest: {}", questId);
         quests.put(questId, quest);
         
         try {
             quest.initialize();
-            debugger.debug("Quest initialized: " + questId);
+            logger.debug("Quest initialized: {}", questId);
         } catch (Exception e) {
-            debugger.error("Failed to initialize quest: " + questId, e);
+            logger.error("Failed to initialize quest: " + questId, e);
         }
         
         try {
             updateQuestListeners(quest);
-            debugger.debug("Quest registered and listeners initialized: " + questId);
+            logger.debug("Quest registered and listeners initialized: {}", questId);
         } catch (Exception e) {
-            debugger.error("Failed to register listeners for quest: " + questId, e);
+            logger.error("Failed to register listeners for quest: " + questId, e);
         }
     }
 
     public Quest getQuest(String id) {
         Quest quest = quests.get(id);
-        debugger.debug("Quest lookup for ID '" + id + "': " + (quest != null ? "found" : "not found"));
+        logger.debug("Quest lookup for ID '{}': {}", id, (quest != null ? "found" : "not found"));
         return quest;
     }
 
     public void initializeQuests() {
-        debugger.debug("Beginning quest initialization");
+        logger.debug("Beginning quest initialization");
         
         try {
             registerQuestIfEnabled(new QuestPiglinFarFromHome(plugin));
             registerQuestIfEnabled(new QuestAncientGuardian(plugin));
-            debugger.debug("Quest initialization complete. Total quests: " + quests.size());
+            logger.debug("Quest initialization complete. Total quests: {}", quests.size());
         } catch (Exception e) {
-            debugger.error("Error during quest initialization", e);
+            logger.error("Error during quest initialization", e);
         }
     }
     
@@ -107,18 +107,18 @@ public class QuestManager {
         boolean enabled = plugin.getConfigManager().isQuestEnabled(questId);
         
         if (enabled) {
-            debugger.debug("Registering enabled quest: " + questId);
+            logger.debug("Registering enabled quest: {}", questId);
             registerQuest(quest);
         } else {
-            debugger.info("Skipping disabled quest: " + questId);
+            logger.info("Skipping disabled quest: {}", questId);
         }
     }
 
     public void cleanupQuests() {
-        debugger.debug("Starting quest cleanup process");
+        logger.debug("Starting quest cleanup process");
         
         // Cancel all scheduled tasks
-        debugger.debug("Cancelling " + scheduledTasks.size() + " scheduled tasks");
+        logger.debug("Cancelling {} scheduled tasks", scheduledTasks.size());
         for (String taskId : new ArrayList<>(scheduledTasks.keySet())) {
             cancelTask(taskId);
         }
@@ -126,19 +126,19 @@ public class QuestManager {
         
         // Unregister all listeners first
         activeListeners.forEach((quest, listeners) -> {
-            debugger.debug("Unregistering " + listeners.size() + " listeners for quest: " + quest.getId());
+            logger.debug("Unregistering {} listeners for quest: {}", listeners.size(), quest.getId());
             listeners.forEach(HandlerList::unregisterAll);
         });
         activeListeners.clear();
         
         // Clean up quests
-        debugger.debug("Cleaning up " + quests.size() + " quests");
+        logger.debug("Cleaning up {} quests", quests.size());
         quests.values().forEach(quest -> {
-            debugger.debug("Cleaning up quest: " + quest.getId());
+            logger.debug("Cleaning up quest: {}", quest.getId());
             quest.cleanup();
         });
         quests.clear();
-        debugger.debug("Quest cleanup complete");
+        logger.debug("Quest cleanup complete");
     }
 
     /**
@@ -149,7 +149,7 @@ public class QuestManager {
      * Future implementations should preserve progress for players in a database.
      */
     public void resetQuests() {
-        debugger.debug("Resetting all quests");
+        logger.debug("Resetting all quests");
         
         // First clean up all existing quests
         cleanupQuests();
@@ -157,21 +157,21 @@ public class QuestManager {
         // Then reinitialize quests
         initializeQuests();
         
-        debugger.debug("Quest reset complete");
+        logger.debug("Quest reset complete");
     }
 
     public void registerQuestListeners(Quest quest, Listener... listeners) {
-        debugger.debug("Registering " + listeners.length + " listeners for quest: " + quest.getId());
+        logger.debug("Registering {} listeners for quest: {}", listeners.length, quest.getId());
         for (Listener listener : listeners) {
-            debugger.debug("Registering listener: " + listener.getClass().getSimpleName());
+            logger.debug("Registering listener: {}", listener.getClass().getSimpleName());
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         }
     }
 
     public void unregisterQuestListeners(Listener... listeners) {
-        debugger.debug("Unregistering " + listeners.length + " listeners");
+        logger.debug("Unregistering {} listeners", listeners.length);
         for (Listener listener : listeners) {
-            debugger.debug("Unregistering listener: " + listener.getClass().getSimpleName());
+            logger.debug("Unregistering listener: {}", listener.getClass().getSimpleName());
             HandlerList.unregisterAll(listener);
         }
     }
@@ -187,17 +187,17 @@ public class QuestManager {
      */
     public void updateQuestListeners(Quest quest) {
         if (quest == null) {
-            debugger.warning("Attempted to update listeners for null quest");
+            logger.warning("Attempted to update listeners for null quest");
             return;
         }
         
         QuestState currentState = quest.getCurrentState();
-        debugger.debug("Updating listeners for quest: " + quest.getId() + " (State: " + currentState + ")");
+        logger.debug("Updating listeners for quest: {} (State: {})", quest.getId(), currentState);
         
         // Clean up existing listeners for this quest
         if (activeListeners.containsKey(quest)) {
             List<Listener> oldListeners = activeListeners.get(quest);
-            debugger.debug("Removing " + oldListeners.size() + " existing listeners");
+            logger.debug("Removing {} existing listeners", oldListeners.size());
             unregisterQuestListeners(oldListeners.toArray(new Listener[0]));
             oldListeners.clear();
         }
@@ -206,31 +206,31 @@ public class QuestManager {
         try {
             newListeners = quest.createListenersForState(currentState);
             if (newListeners == null) {
-                debugger.warning("Quest returned null listeners for state " + currentState + ": " + quest.getId());
+                logger.warning("Quest returned null listeners for state {} : {}", currentState, quest.getId());
                 newListeners = new ArrayList<>();
             }
         } catch (Exception e) {
-            debugger.error("Error creating listeners for quest: " + quest.getId(), e);
+            logger.error("Error creating listeners for quest: " + quest.getId(), e);
             newListeners = new ArrayList<>();
         }
         
         // Register all new listeners
-        debugger.debug("Registering " + newListeners.size() + " new listeners");
+        logger.debug("Registering {} new listeners", newListeners.size());
         for (Listener listener : newListeners) {
             if (listener == null) {
-                debugger.warning("Null listener in list for quest: " + quest.getId());
+                logger.warning("Null listener in list for quest: {}", quest.getId());
                 continue;
             }
             
             try {
-                debugger.debug("Registering new listener: " + listener.getClass().getSimpleName());
+                logger.debug("Registering new listener: {}", listener.getClass().getSimpleName());
                 plugin.getServer().getPluginManager().registerEvents(listener, plugin);
             } catch (Exception e) {
-                debugger.error("Failed to register listener: " + listener.getClass().getSimpleName(), e);
+                logger.error("Failed to register listener: " + listener.getClass().getSimpleName(), e);
             }
         }
         activeListeners.put(quest, newListeners);
-        debugger.debug("Listener update complete for quest: " + quest.getId());
+        logger.debug("Listener update complete for quest: {}", quest.getId());
     }
 
     /**
@@ -242,15 +242,15 @@ public class QuestManager {
      * @return The task ID from Bukkit scheduler
      */
     public int scheduleRepeatingTask(String taskId, Runnable task, long interval) {
-        debugger.debug("Scheduling repeating task: " + taskId + " (interval: " + interval + " ticks)");
+        logger.debug("Scheduling repeating task: {} (interval: {} ticks)", taskId, interval);
         int taskNumber = plugin.getServer().getScheduler()
             .scheduleSyncRepeatingTask(plugin, task, 0L, interval);
         
         if (taskNumber != -1) {
             scheduledTasks.put(taskId, taskNumber);
-            debugger.debug("Task scheduled successfully: " + taskId + " (task#: " + taskNumber + ")");
+            logger.debug("Task scheduled successfully: {} (task#: {})", taskId, taskNumber);
         } else {
-            debugger.warning("Failed to schedule task: " + taskId);
+            logger.warning("Failed to schedule task: {}", taskId);
         }
         
         return taskNumber;
@@ -264,7 +264,7 @@ public class QuestManager {
     public void cancelTask(String taskId) {
         Integer taskNumber = scheduledTasks.remove(taskId);
         if (taskNumber != null) {
-            debugger.debug("Cancelling task: " + taskId + " (task#: " + taskNumber + ")");
+            logger.debug("Cancelling task: {} (task#: {})", taskId, taskNumber);
             plugin.getServer().getScheduler().cancelTask(taskNumber);
         }
     }
@@ -292,19 +292,19 @@ public class QuestManager {
      * @return true if all quests are valid
      */
     public boolean validateQuests() {
-        debugger.debug("Validating all registered quests...");
+        logger.debug("Validating all registered quests...");
         boolean allValid = true;
         
         for (Quest quest : quests.values()) {
             try {
                 // Basic validation
                 if (quest.getId() == null || quest.getId().isEmpty()) {
-                    debugger.warning("Quest has null or empty ID");
+                    logger.warning("Quest has null or empty ID");
                     allValid = false;
                 }
                 
                 if (quest.getName() == null || quest.getName().isEmpty()) {
-                    debugger.warning("Quest has null or empty name: " + quest.getId());
+                    logger.warning("Quest has null or empty name: {}", quest.getId());
                     allValid = false;
                 }
                 
@@ -312,19 +312,19 @@ public class QuestManager {
                 for (QuestState state : QuestState.values()) {
                     List<Listener> listeners = quest.createListenersForState(state);
                     if (listeners == null) {
-                        debugger.warning(quest.getId() + " returned null listeners for state: " + state);
+                        logger.warning("{} returned null listeners for state: {}", quest.getId(), state);
                         allValid = false;
                     }
                 }
                 
-                debugger.debug("Validated quest: " + quest.getId());
+                logger.debug("Validated quest: {}", quest.getId());
             } catch (Exception e) {
-                debugger.error("Exception during validation of quest: " + quest.getId(), e);
+                logger.error("Exception during validation of quest: " + quest.getId(), e);
                 allValid = false;
             }
         }
         
-        debugger.debug("Quest validation complete. All valid: " + allValid);
+        logger.debug("Quest validation complete. All valid: {}", allValid);
         return allValid;
     }
 }

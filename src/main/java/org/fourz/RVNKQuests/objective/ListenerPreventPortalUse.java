@@ -8,20 +8,21 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 /**
  * Prevents quest mobs from using portals during encounters
  */
 public class ListenerPreventPortalUse implements Listener {
     private final JavaPlugin plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private boolean isRegistered = true;
 
     public ListenerPreventPortalUse(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "PreventPortalUse", null);
-        debug.debug("Initialized portal use prevention listener");
+        this.logger = LogManager.getInstance(plugin, getClass());
+        logger.debug("Initialized portal use prevention listener");
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -29,7 +30,7 @@ public class ListenerPreventPortalUse implements Listener {
         Entity entity = event.getEntity();
         
         if (entity.hasMetadata(ListenerEncounterPortal.QUEST_MOB_METADATA)) {
-            debug.debug("Prevented quest mob from using portal: " + entity.getCustomName());
+            logger.debug("Prevented quest mob from using portal: {}", entity.getCustomName());
             event.setCancelled(true);
             
             // Move the entity away from the portal slightly
@@ -55,7 +56,7 @@ public class ListenerPreventPortalUse implements Listener {
         if (isRegistered) {
             HandlerList.unregisterAll(this);
             isRegistered = false;
-            debug.debug("Unregistered portal use prevention listener");
+            logger.debug("Unregistered portal use prevention listener");
         }
     }
     

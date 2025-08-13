@@ -5,7 +5,8 @@ import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.bukkit.event.Listener;
 
 import java.util.Collections;
@@ -16,11 +17,11 @@ import java.util.List;
  */
 public class QuestValidateSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
 
     public QuestValidateSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestValidateCommand", plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
@@ -36,9 +37,9 @@ public class QuestValidateSubCommand implements SubCommand {
                 sender.sendMessage(ChatColor.RED + "Some quests failed validation. Check the server logs for details.");
             }
             
-            debug.info("Quest validation performed by " + sender.getName() + " - Result: " + (allValid ? "Valid" : "Invalid"));
+            logger.info("Quest validation performed by {} - Result: {}", sender.getName(), (allValid ? "Valid" : "Invalid"));
         } catch (Exception e) {
-            debug.error("Error during quest validation", e);
+            logger.error("Error during quest validation", e);
             sender.sendMessage(ChatColor.RED + "Error validating quests: " + e.getMessage());
         }
         
@@ -68,7 +69,7 @@ public class QuestValidateSubCommand implements SubCommand {
                     allValid = false;
                 }
             } catch (Exception e) {
-                debug.error("Exception validating quest: " + quest.getId(), e);
+                logger.error("Exception validating quest: {}", quest.getId(), e);
                 sender.sendMessage(ChatColor.RED + "[ERROR] " + 
                     ChatColor.YELLOW + quest.getName() + 
                     ChatColor.GRAY + " (" + quest.getId() + "): " + e.getMessage());
@@ -80,17 +81,17 @@ public class QuestValidateSubCommand implements SubCommand {
     }
     
     private boolean validateQuest(Quest quest) {
-        debug.debug("Validating quest: " + quest.getId());
+        logger.debug("Validating quest: {}", quest.getId());
         boolean valid = true;
         
         // Basic validation
         if (quest.getId() == null || quest.getId().isEmpty()) {
-            debug.warning("Quest has null or empty ID");
+            logger.warning("Quest has null or empty ID");
             valid = false;
         }
         
         if (quest.getName() == null || quest.getName().isEmpty()) {
-            debug.warning("Quest has null or empty name: " + quest.getId());
+            logger.warning("Quest has null or empty name: {}", quest.getId());
             valid = false;
         }
         
@@ -99,16 +100,16 @@ public class QuestValidateSubCommand implements SubCommand {
             try {
                 List<Listener> listeners = quest.createListenersForState(state);
                 if (listeners == null) {
-                    debug.warning(quest.getId() + " returned null listeners for state: " + state);
+                    logger.warning("{} returned null listeners for state: {}", quest.getId(), state);
                     valid = false;
                 }
             } catch (Exception e) {
-                debug.error("Error creating listeners for quest " + quest.getId() + " state " + state, e);
+                logger.error("Error creating listeners for quest {} state {}", quest.getId(), state, e);
                 valid = false;
             }
         }
         
-        debug.debug("Quest validation result for " + quest.getId() + ": " + (valid ? "Valid" : "Invalid"));
+        logger.debug("Quest validation result for {}: {}", quest.getId(), (valid ? "Valid" : "Invalid"));
         return valid;
     }
 

@@ -10,7 +10,8 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.fourz.RVNKQuests.util.IntervalChecker;
 import org.fourz.RVNKQuests.util.EnvironmentEffects;
 
@@ -18,20 +19,19 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
 
 public class ListenerForgottenSite implements Listener {
     private final Quest quest;
     private final List<Drowned> defenders = new ArrayList<>();
     private static final int TRIGGER_DISTANCE = 30;
     private boolean spawned = false;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private final IntervalChecker moveChecker;
     private final Set<Material> ruinMaterials = new HashSet<>();
 
     public ListenerForgottenSite(Quest quest) {
         this.quest = quest;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "ForgottenSite", Level.FINE);
+        this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
         this.moveChecker = new IntervalChecker(5, 5.0); // Check every 5 ticks, minimum 5.0 blocks moved
         
         // Initialize the ruin materials to detect
@@ -57,11 +57,11 @@ public class ListenerForgottenSite implements Listener {
 
         // If the player is underwater, make sure they're actually underwater
         if (playerLoc.getBlock().getType() != Material.WATER && !playerLoc.getBlock().isLiquid()) {
-            debug.debug("Found structure materials but player is not underwater");
+            logger.debug("Found structure materials but player is not underwater");
             return;
         }
 
-        debug.debug("Player found underwater ruin at: " + playerLoc);
+        logger.debug("Player found underwater ruin at: {}", playerLoc);
         spawnDefenders(playerLoc);
         spawned = true;
         
@@ -79,7 +79,7 @@ public class ListenerForgottenSite implements Listener {
     }
 
     private boolean isNearUnderwaterStructure(Location loc) {
-        debug.debug("Checking for underwater structures around: " + loc);
+        logger.debug("Checking for underwater structures around: {}", loc);
         
         for (int x = -TRIGGER_DISTANCE; x <= TRIGGER_DISTANCE; x+= 4) {
             for (int y = -TRIGGER_DISTANCE; y <= TRIGGER_DISTANCE; y += 4) {
@@ -87,7 +87,7 @@ public class ListenerForgottenSite implements Listener {
                     Location checkLoc = loc.clone().add(x, y, z);
                     Material type = checkLoc.getBlock().getType();
                     if (ruinMaterials.contains(type)) {
-                        debug.debug("Found structure material: " + type + " at " + checkLoc);
+                        logger.debug("Found structure material: {} at {}", type, checkLoc);
                         return true;
                     }
                 }
@@ -97,7 +97,7 @@ public class ListenerForgottenSite implements Listener {
     }
 
     private void spawnDefenders(Location center) {
-        debug.debug("Spawning underwater defenders at: " + center);
+        logger.debug("Spawning underwater defenders at: {}", center);
         
         // Find a suitable underwater location
         Location spawnCenter = findSuitableLocation(center);
@@ -121,7 +121,7 @@ public class ListenerForgottenSite implements Listener {
             }
             
             defenders.add(drowned);
-            debug.debug("Spawned defender at: " + spawnLoc);
+            logger.debug("Spawned defender at: {}", spawnLoc);
         }
         
         quest.getPlugin().getServer().broadcastMessage(

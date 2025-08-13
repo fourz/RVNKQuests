@@ -10,17 +10,16 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestLoot;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.fourz.RVNKQuests.objective.ListenerPiglinEscort;
-
-import java.util.logging.Level;
 
 public class ListenerPiglinPortalReunion implements Listener {
     private final Quest quest;
     private final ListenerPiglinEscort piglinEscortListener;
     private final ListenerEncounterPortal portalListener;
     private final QuestLoot specialLoot;
-    private final Debug debug;
+    private final RVNKLogger logger;
     
     private static final double PORTAL_PROXIMITY_THRESHOLD = 5.0;
     private boolean rewardGiven = false;
@@ -31,8 +30,7 @@ public class ListenerPiglinPortalReunion implements Listener {
         this.piglinEscortListener = piglinEscortListener;
         this.portalListener = portalListener;
         this.specialLoot = specialLoot;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "PiglinPortalReunion", 
-                quest.getPlugin().getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
     }
 
     @EventHandler
@@ -64,7 +62,7 @@ public class ListenerPiglinPortalReunion implements Listener {
         
         // Check if the piglin is close to the portal
         if (piglin.getLocation().distance(portalLocation) <= PORTAL_PROXIMITY_THRESHOLD) {
-            debug.debug("Piglin has reached the portal with player: " + player.getName());
+            logger.debug("Piglin has reached the portal with player: {}", player.getName());
             
             // Give special reward
             giveSpecialReward(player);
@@ -82,7 +80,7 @@ public class ListenerPiglinPortalReunion implements Listener {
      * Give the special reward for reuniting the piglin with the portal
      */
     private void giveSpecialReward(Player player) {
-        debug.debug("Giving special reward to player: " + player.getName());
+        logger.debug("Giving special reward to player: {}", player.getName());
         
         // Add all special loot items to player's inventory
         specialLoot.generateLoot().forEach(item -> {

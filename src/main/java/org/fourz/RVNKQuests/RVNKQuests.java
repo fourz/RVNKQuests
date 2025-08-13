@@ -4,7 +4,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.quest.QuestManager;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 
 import java.util.logging.Level;
@@ -22,7 +23,7 @@ import java.util.logging.Level;
  * providing a clean API for extensions or add-ons.
  */
 public class RVNKQuests extends JavaPlugin {
-    private Debug debugger;
+    private RVNKLogger logger;
     private ConfigManager configManager;
     private QuestManager questManager;
     private CommandManager commandManager;
@@ -30,9 +31,9 @@ public class RVNKQuests extends JavaPlugin {
     
     @Override
     public void onEnable() {
-        // Initialize the debugger first with default INFO level
-        debugger = Debug.createDebugger(this, "RVNKQuests", Level.INFO);
-        debugger.info("Initializing RVNKQuests plugin");
+        // Initialize the logger first
+        logger = LogManager.getInstance(this, getClass());
+        logger.info("Initializing RVNKQuests plugin");
         
         try {
             // Load configuration
@@ -48,23 +49,23 @@ public class RVNKQuests extends JavaPlugin {
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
                 loreDatabase = new LoreDatabase(this);
-                debugger.info("Lore database initialized");
+                logger.info("Lore database initialized");
             } else {
-                debugger.info("Lore database disabled in config");
+                logger.info("Lore database disabled in config");
             }
             
             // Register quests
             questManager.initializeQuests();
             
-            debugger.info("RVNKQuests plugin enabled successfully");
+            logger.info("RVNKQuests plugin enabled successfully");
         } catch (Exception e) {
-            debugger.error("Failed to initialize RVNKQuests plugin", e);
+            logger.error("Failed to initialize RVNKQuests plugin", e);
         }
     }
     
     @Override
     public void onDisable() {
-        debugger.info("Disabling RVNKQuests plugin");
+        logger.info("Disabling RVNKQuests plugin");
         
         try {
             if (questManager != null) {
@@ -75,14 +76,21 @@ public class RVNKQuests extends JavaPlugin {
                 loreDatabase.close();
             }
             
-            debugger.info("RVNKQuests plugin disabled successfully");
+            logger.info("RVNKQuests plugin disabled successfully");
         } catch (Exception e) {
-            debugger.error("Error during plugin shutdown", e);
+            logger.error("Error during plugin shutdown", e);
         }
+        
+        // Clean up loggers on shutdown
+        LogManager.clearLoggers(this);
     }
     
-    public Debug getDebugger() {
-        return debugger;
+    /**
+     * Gets the RVNKLogger instance for this plugin.
+     * @return The RVNKLogger instance
+     */
+    public RVNKLogger getRVNKLogger() {
+        return logger;
     }
     
     public ConfigManager getConfigManager() {
@@ -116,8 +124,8 @@ public class RVNKQuests extends JavaPlugin {
      * @param level The new logging level to apply
      */
     public void updateGlobalLogLevel(Level level) {
-        debugger.info("Updating global log level to: " + level.getName());
-        debugger.setLogLevel(level);
+        logger.info("Updating global log level to: {}", level.getName());
+        logger.setLogLevel(level);
         
         // Update log level for all managers
         if (configManager != null) {

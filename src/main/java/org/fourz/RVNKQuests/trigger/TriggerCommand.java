@@ -7,23 +7,23 @@ import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.Random;
-import java.util.logging.Level;
 
 /**
  * Handles the execution of quest trigger commands.
  */
 public class TriggerCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private final Random random = new Random();
     private static final int AROUND_RADIUS = 40;
 
     public TriggerCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "TriggerCommand", Level.FINE);
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     /**
@@ -38,7 +38,7 @@ public class TriggerCommand {
         Quest quest = plugin.getQuestManager().getQuest(questId);
         
         if (quest == null) {
-            debug.warning("Quest not found: " + questId);
+            logger.warning("Quest not found: {}", questId);
             player.sendMessage(ChatColor.RED + "Quest not found: " + questId);
             return false;
         }
@@ -46,11 +46,12 @@ public class TriggerCommand {
         // Calculate the trigger location based on the type
         Location triggerLocation = getLocationForType(player.getLocation(), locationType);
         
-        debug.debug("Triggering quest " + questId + " for player " + player.getName() + 
-                    " at " + triggerLocation.getWorld().getName() + " " + 
-                    triggerLocation.getBlockX() + "," + 
-                    triggerLocation.getBlockY() + "," + 
-                    triggerLocation.getBlockZ());
+        logger.debug("Triggering quest {} for player {} at {},{},{} in world {}", 
+                    questId, player.getName(), 
+                    triggerLocation.getBlockX(), 
+                    triggerLocation.getBlockY(), 
+                    triggerLocation.getBlockZ(),
+                    triggerLocation.getWorld().getName());
 
         // Handle quest-specific triggering
         boolean success = handleQuestTrigger(quest, player, triggerLocation);
@@ -76,10 +77,10 @@ public class TriggerCommand {
                 // This allows the spawner listeners to use this location
                 piglinQuest.setSpawnLocation(location);
                 quest.advanceState(QuestState.TRIGGER_FOUND);
-                debug.debug("Set piglin quest spawn location and advanced state to TRIGGER_FOUND");
+                logger.debug("Set piglin quest spawn location and advanced state to TRIGGER_FOUND");
                 return true;
             } else {
-                debug.debug("Piglin quest already started, current state: " + quest.getCurrentState());
+                logger.debug("Piglin quest already started, current state: {}", quest.getCurrentState());
                 player.sendMessage(ChatColor.YELLOW + "Quest is already in progress (state: " + quest.getCurrentState() + ")");
                 return false;
             }
@@ -87,10 +88,10 @@ public class TriggerCommand {
             // Generic handling for other quest types
             if (quest.getCurrentState() == QuestState.NOT_STARTED) {
                 quest.advanceState(QuestState.TRIGGER_FOUND);
-                debug.debug("Advanced generic quest state to TRIGGER_FOUND");
+                logger.debug("Advanced generic quest state to TRIGGER_FOUND");
                 return true;
             } else {
-                debug.debug("Quest already started, current state: " + quest.getCurrentState());
+                logger.debug("Quest already started, current state: {}", quest.getCurrentState());
                 player.sendMessage(ChatColor.YELLOW + "Quest is already in progress (state: " + quest.getCurrentState() + ")");
                 return false;
             }

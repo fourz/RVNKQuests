@@ -4,7 +4,8 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,16 +24,16 @@ import java.util.logging.Level;
  */
 public class CommandManager {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private final Map<String, CommandExecutor> commands = new HashMap<>();
 
     public CommandManager(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "CommandManager", plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
         try {
             registerCommands();
         } catch (Exception e) {
-            debug.error("Failed to register commands", e);
+            logger.error("Failed to register commands", e);
         }
     }
 
@@ -41,8 +42,8 @@ public class CommandManager {
      * @param level New log level
      */
     public void updateDebugLevel(Level level) {
-        debug.setLogLevel(level);
-        debug.debug("CommandManager log level updated to: " + level.getName());
+        logger.setLogLevel(level);
+        logger.debug("CommandManager log level updated to: {}", level.getName());
     }
 
     /**
@@ -59,9 +60,9 @@ public class CommandManager {
             // Register the main quest command with the server
             registerCommand("quest", questCommand);
             
-            debug.info("Commands registered successfully");
+            logger.info("Commands registered successfully");
         } catch (Exception e) {
-            debug.error("Error registering commands", e);
+            logger.error("Error registering commands", e);
         }
     }
     
@@ -79,11 +80,11 @@ public class CommandManager {
             Class<?> cmdClass = Class.forName("org.fourz.RVNKQuests.command." + className);
             SubCommand cmd = (SubCommand) cmdClass.getConstructor(RVNKQuests.class).newInstance(plugin);
             questCommand.registerSubCommand(name, cmd);
-            debug.debug("Registered optional command: " + name);
+            logger.debug("Registered optional command: {}", name);
         } catch (ClassNotFoundException e) {
-            debug.debug("Optional command not available: " + name);
+            logger.debug("Optional command not available: {}", name);
         } catch (Exception e) {
-            debug.warning("Failed to register command: " + name + " - " + e.getMessage());
+            logger.warning("Failed to register command: {} - {}", name, e.getMessage());
         }
     }
 
@@ -94,11 +95,11 @@ public class CommandManager {
      * @param executor The command executor implementation
      */
     private void registerCommand(String commandName, CommandExecutor executor) {
-        debug.debug("Registering command: " + commandName);
+        logger.debug("Registering command: {}", commandName);
         PluginCommand command = plugin.getCommand(commandName);
         
         if (command == null) {
-            debug.warning("Failed to register command: " + commandName + " (not found in plugin.yml)");
+            logger.warning("Failed to register command: {} (not found in plugin.yml)", commandName);
             return;
         }
         
@@ -106,11 +107,11 @@ public class CommandManager {
         
         if (executor instanceof TabCompleter) {
             command.setTabCompleter((TabCompleter) executor);
-            debug.debug("Tab completer registered for command: " + commandName);
+            logger.debug("Tab completer registered for command: {}", commandName);
         }
         
         commands.put(commandName, executor);
-        debug.debug("Command registered: " + commandName);
+        logger.debug("Command registered: {}", commandName);
     }
 
     /**

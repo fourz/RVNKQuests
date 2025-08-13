@@ -3,7 +3,8 @@ package org.fourz.RVNKQuests.lore;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,7 +23,7 @@ import java.util.logging.Level;
  */
 public class LoreDatabase {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private Connection connection;
     private String databaseType;
     private boolean initialized = false;
@@ -49,7 +50,7 @@ public class LoreDatabase {
     
     public LoreDatabase(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "LoreDatabase", Level.FINE);
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
     
     /**
@@ -67,9 +68,9 @@ public class LoreDatabase {
                 initializeYaml();
             }
             initialized = true;
-            debug.info("Lore database initialized using " + databaseType);
+            logger.info("Lore database initialized using {}", databaseType);
         } catch (Exception e) {
-            debug.error("Failed to initialize lore database", e);
+            logger.error("Failed to initialize lore database", e);
             throw new RuntimeException("Failed to initialize lore database", e);
         }
     }
