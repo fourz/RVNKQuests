@@ -5,12 +5,12 @@ import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
@@ -19,11 +19,11 @@ import java.util.stream.Collectors;
  */
 public class QuestStateSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
 
     public QuestStateSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestStateCommand", Level.FINE);
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
@@ -36,7 +36,7 @@ public class QuestStateSubCommand implements SubCommand {
         String questId = args[0].toLowerCase();
         String stateStr = args[1].toUpperCase();
         
-        debug.debug("Attempting to change quest state: " + questId + " to " + stateStr);
+        logger.debug("Attempting to change quest state: {} to {}", questId, stateStr);
 
         Quest quest = plugin.getQuestManager().getQuest(questId);
         if (quest == null) {
@@ -56,7 +56,7 @@ public class QuestStateSubCommand implements SubCommand {
             return true;
         }
 
-        debug.debug("Changing quest " + questId + " state from " + currentState + " to " + newState);
+        logger.debug("Changing quest {} state from {} to {}", questId, currentState, newState);
         quest.advanceState(newState);
         sender.sendMessage(ChatColor.GREEN + "Changed quest state for " + questId + " from " + 
                 currentState + " to " + newState);

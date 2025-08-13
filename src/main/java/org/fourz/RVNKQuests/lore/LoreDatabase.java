@@ -86,7 +86,7 @@ public class LoreDatabase {
         
         // Connect to the database
         String url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
-        debug.debug("Connecting to SQLite database at: " + url);
+        logger.debug("Connecting to SQLite database at: {}", url);
         
         connection = DriverManager.getConnection(url);
         
@@ -109,7 +109,7 @@ public class LoreDatabase {
             try {
                 loreFile.createNewFile();
             } catch (IOException e) {
-                debug.error("Could not create lore.yml", e);
+                logger.error("Could not create lore.yml", e);
                 throw new RuntimeException("Could not create lore.yml", e);
             }
         }
@@ -127,13 +127,13 @@ public class LoreDatabase {
      * Shut down the lore database
      */
     public void shutdown() {
-        debug.debug("Shutting down lore database");
+        logger.debug("Shutting down lore database");
         
         if ("sqlite".equalsIgnoreCase(databaseType) && connection != null) {
             try {
                 connection.close();
             } catch (SQLException e) {
-                debug.error("Error closing database connection", e);
+                logger.error("Error closing database connection", e);
             }
         } else if (loreConfig != null) {
             saveYamlConfig();
@@ -146,7 +146,7 @@ public class LoreDatabase {
         try {
             loreConfig.save(loreFile);
         } catch (IOException e) {
-            debug.error("Could not save lore.yml", e);
+            logger.error("Could not save lore.yml", e);
         }
     }
     
@@ -163,12 +163,12 @@ public class LoreDatabase {
      */
     public boolean recordDiscovery(String discoveryType, String world, int x, int y, int z, String description) {
         if (!initialized) {
-            debug.warning("Attempted to record discovery when lore database not initialized");
+            logger.warning("Attempted to record discovery when lore database not initialized");
             return false;
         }
         
-        debug.debug(String.format("Recording discovery: %s at %s (%d, %d, %d): %s", 
-            discoveryType, world, x, y, z, description));
+        logger.debug("Recording discovery: {} at {} ({}, {}, {}): {}", 
+            discoveryType, world, x, y, z, description);
         
         try {
             if ("sqlite".equalsIgnoreCase(databaseType)) {
@@ -177,7 +177,7 @@ public class LoreDatabase {
                 return recordDiscoveryYaml(discoveryType, world, x, y, z, description);
             }
         } catch (Exception e) {
-            debug.error("Error recording discovery", e);
+            logger.error("Error recording discovery", e);
             return false;
         }
     }
@@ -230,7 +230,7 @@ public class LoreDatabase {
         List<LoreDiscovery> discoveries = new ArrayList<>();
         
         if (!initialized) {
-            debug.warning("Attempted to get discoveries when lore database not initialized");
+            logger.warning("Attempted to get discoveries when lore database not initialized");
             return discoveries;
         }
         
@@ -241,7 +241,7 @@ public class LoreDatabase {
                 return getDiscoveriesByTypeYaml(discoveryType);
             }
         } catch (Exception e) {
-            debug.error("Error getting discoveries", e);
+            logger.error("Error getting discoveries", e);
             return discoveries;
         }
     }
@@ -305,10 +305,8 @@ public class LoreDatabase {
      * @param level New log level
      */
     public void updateDebugLevel(Level level) {
-        if (debug != null) {
-            debug.setLogLevel(level);
-            debug.debug("LoreDatabase log level updated to: " + level.getName());
-        }
+        // LogManager handles level updates automatically
+        logger.debug("LoreDatabase log level updated to: {}", level.getName());
     }
 
     /**
@@ -320,7 +318,7 @@ public class LoreDatabase {
             try {
                 connection.close();
             } catch (SQLException e) {
-                debug.error("Error closing database connection", e);
+                logger.error("Error closing database connection", e);
             }
         }
         if (loreConfig != null) {

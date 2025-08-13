@@ -4,7 +4,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.fourz.RVNKQuests.config.ConfigManager;
 
 
@@ -19,12 +20,12 @@ import java.util.stream.Collectors;
  */
 public class QuestConfigSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private static final List<String> VALID_OPERATIONS = Arrays.asList("disable", "enable", "list");
     
     public QuestConfigSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestConfigCommand", null);
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
@@ -166,10 +167,10 @@ public class QuestConfigSubCommand implements SubCommand {
             String path = "quests." + questId + ".enable";
             plugin.getConfigManager().getConfig().set(path, enabled);
             plugin.getConfigManager().saveConfig();
-            debug.debug("Set quest " + questId + " enabled status to: " + enabled);
+            logger.debug("Set quest {} enabled status to: {}", questId, enabled);
             return true;
         } catch (Exception e) {
-            debug.error("Failed to update quest enabled status", e);
+            logger.error("Failed to update quest enabled status", e);
             return false;
         }
     }

@@ -8,21 +8,20 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestLoot;
-import org.fourz.RVNKQuests.util.Debug;
-
-import java.util.logging.Level;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 public class ListenerForgottenSiteDefeated implements Listener {
     private final Quest quest;
     private final ListenerForgottenSite siteListener;
     private final QuestLoot questLoot;
-    private final Debug debug;
+    private final RVNKLogger logger;
 
     public ListenerForgottenSiteDefeated(Quest quest, ListenerForgottenSite siteListener, QuestLoot questLoot) {
         this.quest = quest;
         this.siteListener = siteListener;
         this.questLoot = questLoot;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "ForgottenSiteDefeated", Level.FINE);
+        this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
     }
 
     @EventHandler
@@ -30,11 +29,11 @@ public class ListenerForgottenSiteDefeated implements Listener {
         if (!(event.getEntity() instanceof Drowned)) return;
         
         if (siteListener.getDefenders().contains(event.getEntity())) {
-            debug.debug("Defender drowned killed: " + event.getEntity().getCustomName());
+            logger.debug("Defender drowned killed: {}", event.getEntity().getCustomName());
             siteListener.getDefenders().remove(event.getEntity());
             
             if (siteListener.getDefenders().isEmpty()) {
-                debug.debug("All defenders defeated, generating loot");
+                logger.debug("All defenders defeated, generating loot");
                 event.getDrops().addAll(questLoot.generateLoot());
                 
                 quest.getPlugin().getServer().broadcastMessage(

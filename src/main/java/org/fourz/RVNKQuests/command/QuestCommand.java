@@ -6,7 +6,8 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,12 +20,12 @@ import java.util.Map;
  */
 public class QuestCommand implements CommandExecutor, TabCompleter {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private final Map<String, SubCommand> subCommands = new HashMap<>();
 
     public QuestCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestCommand", plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
         registerCoreCommands();
     }
 
@@ -32,7 +33,7 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
      * Registers the core subcommands that are always available
      */
     private void registerCoreCommands() {
-        debug.debug("Registering core subcommands");
+        logger.debug("Registering core subcommands");
         
         // Create and register each subcommand directly
         registerSubCommand("item", new QuestItemSubCommand(plugin));
@@ -45,7 +46,7 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
         registerSubCommand("validate", new QuestValidateSubCommand(plugin));
         //registerSubCommand("help", new QuestHelpSubCommand(plugin));
         
-        debug.debug("Core subcommands registered");
+        logger.debug("Core subcommands registered");
     }
 
     /**
@@ -57,18 +58,18 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
      */
     public boolean registerSubCommand(String name, SubCommand subCommand) {
         if (name == null || name.isEmpty() || subCommand == null) {
-            debug.warning("Invalid subcommand registration attempt");
+            logger.warning("Invalid subcommand registration attempt");
             return false;
         }
         
         String lowerName = name.toLowerCase();
         if (subCommands.containsKey(lowerName)) {
-            debug.debug("Subcommand already registered: " + name);
+            logger.debug("Subcommand already registered: {}", name);
             return false;
         }
         
         subCommands.put(lowerName, subCommand);
-        debug.debug("Registered subcommand: " + name);
+        logger.debug("Registered subcommand: {}", name);
         return true;
     }
     
@@ -107,7 +108,7 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
         String[] subCommandArgs = new String[args.length - 1];
         System.arraycopy(args, 1, subCommandArgs, 0, args.length - 1);
 
-        debug.debug("Executing subcommand: " + subCommandName);
+        logger.debug("Executing subcommand: {}", subCommandName);
         return subCommand.execute(sender, subCommandArgs);
     }
 

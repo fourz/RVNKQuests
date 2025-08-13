@@ -6,7 +6,8 @@ import org.bukkit.entity.Entity;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.objective.ListenerEncounterPortal;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,12 +20,12 @@ import java.util.stream.Collectors;
  */
 public class QuestMobsSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private final List<String> VALID_OPERATIONS = Arrays.asList("kill", "list");
 
     public QuestMobsSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestMobsCommand", plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
@@ -68,7 +69,7 @@ public class QuestMobsSubCommand implements SubCommand {
                         for (Entity mob : new ArrayList<>(mobs)) {
                             if (mob != null && mob.isValid()) {
                                 String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
-                                debug.debug("Removing quest mob: " + mobName);
+                                logger.debug("Removing quest mob: {}", mobName);
                                 mob.remove();
                                 killedCount++;
                             }
@@ -76,13 +77,13 @@ public class QuestMobsSubCommand implements SubCommand {
                     }
                 }
             } catch (Exception e) {
-                debug.error("Error killing mobs for quest: " + quest.getId(), e);
+                logger.error("Error killing mobs for quest: {}", quest.getId(), e);
             }
         }
         
         if (killedCount > 0) {
             sender.sendMessage(ChatColor.GREEN + "Successfully removed " + killedCount + " quest mobs.");
-            debug.info("Admin " + sender.getName() + " removed " + killedCount + " quest mobs");
+            logger.info("Admin {} removed {} quest mobs", sender.getName(), killedCount);
         } else {
             sender.sendMessage(ChatColor.YELLOW + "No active quest mobs found to remove.");
         }
@@ -122,7 +123,7 @@ public class QuestMobsSubCommand implements SubCommand {
                     }
                 }
             } catch (Exception e) {
-                debug.error("Error listing mobs for quest: " + quest.getId(), e);
+                logger.error("Error listing mobs for quest: {}", quest.getId(), e);
             }
         }
         

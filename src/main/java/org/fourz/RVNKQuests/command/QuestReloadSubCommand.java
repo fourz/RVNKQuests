@@ -3,9 +3,9 @@ package org.fourz.RVNKQuests.command;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -16,11 +16,11 @@ import java.util.logging.Level;
  */
 public class QuestReloadSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
 
     public QuestReloadSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestReloadCommand", plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
@@ -30,7 +30,7 @@ public class QuestReloadSubCommand implements SubCommand {
         
         if (resetReload) {
             sender.sendMessage(ChatColor.RED + "Performing reset reload - resetting all quests and reloading configuration...");
-            debug.warning("Reset reload initiated by " + sender.getName() + " - all quests will be reset");
+            logger.warning("Reset reload initiated by {} - all quests will be reset", sender.getName());
         } else {
             sender.sendMessage(ChatColor.YELLOW + "Reloading RVNKQuests configuration...");
         }
@@ -53,12 +53,12 @@ public class QuestReloadSubCommand implements SubCommand {
                 resetQuests(sender);
             }
             
-            debug.info("Configuration reloaded by " + sender.getName() + (resetReload ? " with quest reset" : ""));
+            logger.info("Configuration reloaded by {} {}", sender.getName(), (resetReload ? "with quest reset" : ""));
             sender.sendMessage(ChatColor.GREEN + "Configuration reloaded successfully!");
             sender.sendMessage(ChatColor.YELLOW + "Current log level: " + 
                 ChatColor.GREEN + getLevelName(newLogLevel));
         } catch (Exception e) {
-            debug.error("Error during " + (resetReload ? "reset reload" : "reload"), e);
+            logger.error("Error during {}", (resetReload ? "reset reload" : "reload"), e);
             sender.sendMessage(ChatColor.RED + "Error reloading configuration: " + e.getMessage());
         }
         
@@ -108,9 +108,9 @@ public class QuestReloadSubCommand implements SubCommand {
             // TODO: In future development, reset player quest progress in database
             
             sender.sendMessage(ChatColor.GREEN + "All quests have been reset!");
-            debug.info("Quest reset completed by " + sender.getName());
+            logger.info("Quest reset completed by {}", sender.getName());
         } catch (Exception e) {
-            debug.error("Error resetting quests", e);
+            logger.error("Error resetting quests", e);
             sender.sendMessage(ChatColor.RED + "Error resetting quests: " + e.getMessage());
         }
     }

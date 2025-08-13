@@ -11,7 +11,8 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.trigger.ListenerLonePiglinTrigger;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 /**
  * Listener for the death of the lone piglin, used in the combat path
@@ -21,13 +22,13 @@ public class ListenerLonePiglinDeath implements Listener {
     private final Quest quest;
     private final ListenerLonePiglinTrigger piglinTrigger;
     private final ItemStack journalItem;
-    private final Debug debug;
+    private final RVNKLogger logger;
 
     public ListenerLonePiglinDeath(Quest quest, ListenerLonePiglinTrigger piglinTrigger, ItemStack journalItem) {
         this.quest = quest;
         this.piglinTrigger = piglinTrigger;
         this.journalItem = journalItem;
-        this.debug = Debug.createDebugger(quest.getPlugin(), "LonePiglinDeath", quest.getPlugin().getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
     }
 
     @EventHandler
@@ -39,12 +40,12 @@ public class ListenerLonePiglinDeath implements Listener {
             return;
         }
         
-        debug.debug("Quest piglin died");
+        logger.debug("Quest piglin died");
         Player killer = (entity instanceof org.bukkit.entity.LivingEntity) ? 
                        ((org.bukkit.entity.LivingEntity) entity).getKiller() : null;
         
         if (killer == null) {
-            debug.debug("Piglin died but no player killer found - dropping journal anyway");
+            logger.debug("Piglin died but no player killer found - dropping journal anyway");
             // Drop the journal even if there's no player killer
             if (journalItem != null) {
                 entity.getWorld().dropItemNaturally(entity.getLocation(), journalItem);
@@ -52,7 +53,7 @@ public class ListenerLonePiglinDeath implements Listener {
             return;
         }
         
-        debug.debug("Piglin killed by player: " + killer.getName());
+        logger.debug("Piglin killed by player: {}", killer.getName());
         
         // Set the player's path in the quest to combat path
         if (quest instanceof QuestPiglinFarFromHome) {

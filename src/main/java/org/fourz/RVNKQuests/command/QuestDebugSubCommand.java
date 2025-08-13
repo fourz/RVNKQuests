@@ -4,7 +4,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.Arrays;
 import java.util.List;
@@ -16,21 +17,21 @@ import java.util.stream.Collectors;
  */
 public class QuestDebugSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private static final List<String> VALID_LEVELS = Arrays.asList(
         "debug", "info", "warning", "severe", "off"
     );
 
     public QuestDebugSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestDebugCommand", plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            // Show current debug level
-            Level currentLevel = plugin.getDebugger().getLogLevel();
+            // Show current debug level from config
+            Level currentLevel = plugin.getConfigManager().getLogLevel();
             sender.sendMessage(ChatColor.YELLOW + "Current debug level: " + 
                 ChatColor.GREEN + getLevelName(currentLevel));
             sender.sendMessage(ChatColor.YELLOW + "Usage: /quest debug [level]");
@@ -58,7 +59,7 @@ public class QuestDebugSubCommand implements SubCommand {
         // Update runtime debug level
         updateLogLevel(newLevel);
         
-        debug.info("Log level changed to " + newLevel.getName() + " by " + sender.getName());
+        logger.info("Log level changed to {} by {}", newLevel.getName(), sender.getName());
         sender.sendMessage(ChatColor.GREEN + "Log level set to: " + levelArg);
         
         return true;
@@ -72,7 +73,7 @@ public class QuestDebugSubCommand implements SubCommand {
         plugin.getConfigManager().reloadConfig();
         
         // Log the change at the new level
-        debug.info("Log level changed globally to: " + newLevel.getName());
+        logger.info("Log level changed globally to: {}", newLevel.getName());
     }
     
     private Level getLevel(String levelStr) {

@@ -6,12 +6,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.reward.QuestItem;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  */
 public class QuestItemSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final Debug debug;
+    private final RVNKLogger logger;
     private static final List<String> QUEST_ITEM_IDS = Arrays.asList(
             "grotsnout_journal", "grotsnouts_last_stand"
             // Add more item IDs here as they are created
@@ -28,7 +28,7 @@ public class QuestItemSubCommand implements SubCommand {
 
     public QuestItemSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestItemCommand", Level.FINE);
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @Override
@@ -46,7 +46,7 @@ public class QuestItemSubCommand implements SubCommand {
         }
 
         String itemName = args[0].toLowerCase();
-        debug.debug("Player " + player.getName() + " requested quest item: " + itemName);
+        logger.debug("Player {} requested quest item: {}", player.getName(), itemName);
 
         ItemStack item = QuestItem.getQuestItem(itemName);
         if (item == null) {
@@ -54,7 +54,7 @@ public class QuestItemSubCommand implements SubCommand {
             return true;
         }
 
-        debug.debug("Giving item " + itemName + " to player " + player.getName());
+        logger.debug("Giving item {} to player {}", itemName, player.getName());
         player.getInventory().addItem(item);
         player.sendMessage(ChatColor.GREEN + "You received the quest item: " + itemName);
         return true;

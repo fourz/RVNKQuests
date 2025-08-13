@@ -6,7 +6,8 @@ import org.bukkit.entity.Piglin;
 import org.bukkit.event.Listener;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.RVNKLogger;
 import java.util.UUID;
 
 /**
@@ -18,7 +19,7 @@ public class ListenerLonePiglin implements Listener {
     private final String worldName;
     private final Location fixedLocation;
     private final double spawnRadius;
-    private final Debug debug;
+    private final RVNKLogger logger;
     
     private Piglin questPiglin;
     private String piglinName = "Lost Piglin";
@@ -30,9 +31,9 @@ public class ListenerLonePiglin implements Listener {
         this.worldName = worldName;
         this.fixedLocation = fixedLocation;
         this.spawnRadius = spawnRadius;
-        this.debug = Debug.createDebugger(plugin, "LonePiglin", plugin.getDebugger().getLogLevel());
+        this.logger = LogManager.getInstance(plugin, getClass());
         
-        debug.debug("Initialized with world: " + worldName + ", radius: " + spawnRadius);
+        logger.debug("Initialized with world: {}, radius: {}", worldName, spawnRadius);
     }
     
     /**
@@ -68,7 +69,7 @@ public class ListenerLonePiglin implements Listener {
      */
     public void setPiglinName(String name) {
         this.piglinName = name;
-        debug.debug("Set piglin name to: " + name);
+        logger.debug("Set piglin name to: {}", name);
         
         // Update existing piglin if it exists
         if (questPiglin != null && questPiglin.isValid()) {
@@ -85,7 +86,7 @@ public class ListenerLonePiglin implements Listener {
         this.questPiglin = piglin;
         if (piglin != null) {
             this.piglinUUID = piglin.getUniqueId();
-            debug.debug("Set quest piglin: " + piglinUUID);
+            logger.debug("Set quest piglin: {}", piglinUUID);
         }
     }
     
@@ -93,10 +94,10 @@ public class ListenerLonePiglin implements Listener {
      * Clean up resources
      */
     public void cleanup() {
-        debug.debug("Cleaning up LonePiglin listener");
+        logger.debug("Cleaning up LonePiglin listener");
         if (questPiglin != null && questPiglin.isValid()) {
             questPiglin.remove();
-            debug.debug("Removed quest piglin");
+            logger.debug("Removed quest piglin");
         }
         questPiglin = null;
         piglinUUID = null;
