@@ -6,18 +6,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * LogManager provides memory-optimized centralized logging for RVNKQuests.
+ * Production-ready logger for RVNK plugins.
  * 
- * This implementation uses a single LogManager instance per plugin and determines
- * the class name at logging time through stack trace inspection, significantly 
- * reducing memory footprint compared to per-class logger instances.
+ * Usage:
+ * private final FZLogger logger = LogManager.getInstance(plugin, getClass());
  * 
- * Key features:
- * - Single logger instance per plugin for minimal memory usage
- * - Thread-safe operation with concurrent access support
- * - Dynamic class name injection for proper log context
- * - Compatible with legacy Debug class patterns
- * - Can be swapped with Debugger for extended debugging capabilities
+ * Features:
+ * - Optimized for memory usage (single instance per plugin)
+ * - Thread-safe logging
+ * - Automatic class name detection
+ * - Debug level support
+ * 
+ * @see FZLogger for logging methods
  */
 public class LogManager implements FZLogger {
     private static final Map<String, LogManager> instances = new ConcurrentHashMap<>();
@@ -118,35 +118,11 @@ public class LogManager implements FZLogger {
     }
     
     @Override
-    public void info(String message, Throwable throwable) {
-        if (shouldLog(Level.INFO)) {
-            String className = getCallingClassName();
-            String formatted = formatMessage(className, Level.INFO, message);
-            logToPlugin(Level.INFO, formatted);
-            if (throwable != null) {
-                throwable.printStackTrace();
-            }
-        }
-    }
-    
-    @Override
     public void warning(String message) {
         if (shouldLog(Level.WARNING)) {
             String className = getCallingClassName();
             String formatted = formatMessage(className, Level.WARNING, message);
             logToPlugin(Level.WARNING, formatted);
-        }
-    }
-    
-    @Override
-    public void warning(String message, Throwable throwable) {
-        if (shouldLog(Level.WARNING)) {
-            String className = getCallingClassName();
-            String formatted = formatMessage(className, Level.WARNING, message);
-            logToPlugin(Level.WARNING, formatted);
-            if (throwable != null) {
-                throwable.printStackTrace();
-            }
         }
     }
     

@@ -7,20 +7,20 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
 /**
- * Debugger provides extended debugging capabilities for RVNKQuests development.
+ * Development logger with extended debugging features for RVNK plugins.
  * 
- * This implementation offers comprehensive debugging features including performance
- * metrics collection, detailed exception handling, timing utilities, and enhanced
- * logging capabilities. It's designed to be swapped in during development and
- * debugging phases, then replaced with LogManager for production to reduce memory usage.
+ * Usage:
+ * private final FZLogger logger = Debugger.getInstance(plugin, getClass());
  * 
- * Extended features:
- * - Performance metrics collection and aggregation
- * - Detailed exception stack trace analysis
- * - Memory usage tracking
- * - Method entry/exit tracing
- * - Configurable debug categories
- * - Statistical analysis of logged operations
+ * Features:
+ * - Performance tracking: logger.performance("operation", timeInNanos)
+ * - Method tracing: setMethodTracingEnabled(true)
+ * - Memory tracking: setMemoryTrackingEnabled(true)
+ * - Timing utilities: try (var timer = timeSection("operation")) { ... }
+ * 
+ * Switch to LogManager for production use.
+ * 
+ * @see FZLogger for basic logging methods
  */
 public class Debugger implements FZLogger {
     private static final Map<String, Debugger> instances = new ConcurrentHashMap<>();
@@ -141,39 +141,11 @@ public class Debugger implements FZLogger {
     }
     
     @Override
-    public void info(String message, Throwable throwable) {
-        if (shouldLog(Level.INFO)) {
-            String className = getCallingClassName();
-            String formatted = formatMessage(className, Level.INFO, message);
-            logToPlugin(Level.INFO, formatted);
-            
-            if (throwable != null) {
-                incrementExceptionCount(throwable.getClass().getSimpleName());
-                logDetailedException(throwable);
-            }
-        }
-    }
-    
-    @Override
     public void warning(String message) {
         if (shouldLog(Level.WARNING)) {
             String className = getCallingClassName();
             String formatted = formatMessage(className, Level.WARNING, message);
             logToPlugin(Level.WARNING, formatted);
-        }
-    }
-    
-    @Override
-    public void warning(String message, Throwable throwable) {
-        if (shouldLog(Level.WARNING)) {
-            String className = getCallingClassName();
-            String formatted = formatMessage(className, Level.WARNING, message);
-            logToPlugin(Level.WARNING, formatted);
-            
-            if (throwable != null) {
-                incrementExceptionCount(throwable.getClass().getSimpleName());
-                logDetailedException(throwable);
-            }
         }
     }
     

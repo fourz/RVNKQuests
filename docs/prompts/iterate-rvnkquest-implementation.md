@@ -100,17 +100,25 @@ Active quests requiring implementation:
 ### Logging Pattern
 
 ```java
-// Production logging (memory optimized)
+// Production logging (memory optimized) - use across all RVNK plugins
 private final FZLogger logger = LogManager.getInstance(plugin, getClass());
 
-// Development/debugging logging (extended features)
+// Development/debugging logging (extended features) - use during development
 private final FZLogger logger = Debugger.getInstance(plugin, getClass());
 
 // Use appropriate log levels
 logger.debug("Detailed state transition");
 logger.info("Quest initialized");
 logger.warning("Invalid configuration for quest");
-logger.error("Failed to save quest state", exception);
+logger.error("Failed to save quest state", exception); // Only debug() and error() have throwable variants
+
+// For info/warning with exceptions, separate the concerns:
+try {
+    processQuest();
+} catch (Exception e) {
+    logger.warning("Quest processing encountered issues");
+    logger.error("Exception details", e); // Use error() for exception logging
+}
 
 // Performance monitoring (Debugger only)
 if (logger instanceof Debugger) {

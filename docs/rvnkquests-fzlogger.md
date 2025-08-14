@@ -1,8 +1,39 @@
-# RVNKQuests FZLogger System
+# RVNK Ecosystem FZLogger System
 
 ## Overview
 
-The FZLogger system is a memory-optimized, performance-focused logging framework designed specifically for RVNKQuests. It provides two main implementations: `LogManager` for production use with minimal memory footprint, and `Debugger` for development with extended debugging capabilities.
+The FZLogger system is a memory-optimized, performance-focused logging framework designed for the entire RVNK plugin ecosystem. It provides two main implementations: `LogManager` for production use with minimal memory footprint, and `Debugger` for development with extended debugging capabilities.
+
+This system is designed to be used across all RVNK plugins (RVNKQuests, RVNKCore, RVNKTools, etc.) to provide consistent logging behavior and optimal performance characteristics throughout the ecosystem.
+
+## FZLogger API
+
+The FZLogger interface provides a clean, consistent API across all RVNK plugins:
+
+```java
+public interface FZLogger {
+    // Basic logging (all implementations)
+    void debug(String message);
+    void info(String message);
+    void warning(String message);
+    void error(String message);
+    
+    // Exception logging (debug and error only)
+    void debug(String message, Throwable throwable);
+    void error(String message, Throwable throwable);
+    
+    // Performance monitoring
+    void performance(String section, long timeInNanos);
+    
+    // Configuration
+    boolean isDebugEnabled();
+    void setDebugEnabled(boolean enabled);
+    Level getLogLevel();
+    void setLogLevel(Level level);
+}
+```
+
+**Design Note**: Only `debug()` and `error()` methods have throwable variants. For `info()` and `warning()` messages with exceptions, use `error()` for the exception details and `info()`/`warning()` for the descriptive message.
 
 ## Architecture
 
@@ -47,17 +78,22 @@ FZLogger (interface)
 import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.fourz.RVNKQuests.util.log.LogManager;
 
-public class MyQuestClass {
+public class MyPluginClass {
     private final FZLogger logger = LogManager.getInstance(plugin, getClass());
     
     public void doSomething() {
-        logger.info("Starting quest processing");
+        logger.info("Starting operation");
         
         try {
-            processQuest();
-            logger.debug("Quest processing completed successfully");
+            processOperation();
+            logger.debug("Operation completed successfully");
         } catch (Exception e) {
-            logger.error("Quest processing failed", e);
+            // Use error() for exceptions (has throwable variant)
+            logger.error("Operation failed", e);
+            
+            // Or log exception details separately
+            logger.warning("Operation encountered issues");
+            logger.debug("Exception details: " + e.getMessage());
         }
     }
 }
@@ -69,17 +105,17 @@ public class MyQuestClass {
 import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.fourz.RVNKQuests.util.log.Debugger;
 
-public class MyQuestClass {
+public class MyPluginClass {
     private final FZLogger logger = Debugger.getInstance(plugin, getClass());
     
     public void doSomething() {
-        logger.info("Starting quest processing");
+        logger.info("Starting operation");
         
         // Automatic performance monitoring (Debugger only)
         if (logger instanceof Debugger) {
             Debugger debugger = (Debugger) logger;
-            try (var timer = debugger.timeSection("quest-processing")) {
-                processQuest();
+            try (var timer = debugger.timeSection("operation-processing")) {
+                processOperation();
             }
             
             // Enhanced debugging features
@@ -88,9 +124,17 @@ public class MyQuestClass {
             // Get performance metrics
             Map<String, Long> metrics = debugger.getPerformanceMetrics();
             logger.debug("Performance metrics: " + metrics);
+            
+            // Handle exceptions with detailed analysis
+            try {
+                riskyOperation();
+            } catch (Exception e) {
+                logger.error("Operation failed with detailed analysis", e);
+                // Debugger automatically provides exception analysis
+            }
         } else {
             // Fallback for LogManager (no timing available)
-            processQuest();
+            processOperation();
         }
     }
 }
