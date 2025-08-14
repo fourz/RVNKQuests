@@ -6,8 +6,6 @@ import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.quest.QuestManager;
 import org.fourz.RVNKQuests.util.log.LogManager;
 import org.fourz.RVNKQuests.util.log.FZLogger;
-// Legacy loggers for compatibility during migration
-import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 
 import java.util.logging.Level;
@@ -27,8 +25,6 @@ import java.util.logging.Level;
 public class RVNKQuests extends JavaPlugin {
     // New logging system
     private FZLogger logger;
-    // Legacy logger for compatibility during migration  
-    private RVNKLogger legacyLogger;
     
     private ConfigManager configManager;
     private QuestManager questManager;
@@ -39,7 +35,6 @@ public class RVNKQuests extends JavaPlugin {
     public void onEnable() {
         // Initialize both new and legacy loggers
         logger = LogManager.getInstance(this, getClass());
-        legacyLogger = org.fourz.RVNKQuests.util.LogManager.getInstance(this, getClass());
         
         logger.info("Initializing RVNKQuests plugin");
         
@@ -91,7 +86,6 @@ public class RVNKQuests extends JavaPlugin {
         
         // Clean up loggers on shutdown
         LogManager.clearLoggers(this);
-        org.fourz.RVNKQuests.util.LogManager.clearLoggers(this);
     }
     
     /**
@@ -100,14 +94,6 @@ public class RVNKQuests extends JavaPlugin {
      */
     public FZLogger getFZLogger() {
         return logger;
-    }
-    
-    /**
-     * Gets the legacy RVNKLogger instance for compatibility.
-     * @return The legacy RVNKLogger instance
-     */
-    public RVNKLogger getRVNKLogger() {
-        return legacyLogger;
     }
     
     public ConfigManager getConfigManager() {
