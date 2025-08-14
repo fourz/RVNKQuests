@@ -25,7 +25,7 @@ private final Debug debug = Debug.createDebugger(plugin, "ClassName", Level.INFO
 debug.info("Message");
 
 // With:
-private final RVNKLogger logger = LogManager.getInstance(plugin, getClass());
+private final LogManager logger = LogManager.getInstance(plugin, getClass());
 logger.info("Message");
 ```
 
@@ -88,7 +88,7 @@ Active quests requiring implementation:
 ### Logging Pattern
 
 ```java
-private final RVNKLogger logger = LogManager.getInstance(plugin, getClass());
+private final LogManager logger = LogManager.getInstance(plugin, getClass());
 
 // Use appropriate log levels
 logger.debug("Detailed state transition: {} -> {}", currentState, newState);
@@ -119,7 +119,7 @@ public void advanceState(QuestState newState) {
 ```java
 public class QuestObjectiveListener implements Listener {
     private final Quest quest;
-    private final RVNKLogger logger;
+    private final LogManager logger;
     
     @EventHandler
     public void onObjectiveProgress(Event event) {

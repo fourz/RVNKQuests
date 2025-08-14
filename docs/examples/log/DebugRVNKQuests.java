@@ -1,11 +1,11 @@
-package org.fourz.RVNKQuests.util;
+package org.fourz.RVNKQuests.debug;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import java.util.logging.Level;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 
@@ -35,8 +35,8 @@ public abstract class Debug {
     private static final AtomicInteger errorCount = new AtomicInteger(0);
     
     // Performance monitoring
-    private static final Map<String, AtomicLong> operationTimers = new ConcurrentHashMap<>();
-    private static final Map<String, Long> operationStartTimes = new ConcurrentHashMap<>();
+    private static final Map<String, AtomicLong> operationTimers = new HashMap<>();
+    private static final Map<String, Long> operationStartTimes = new HashMap<>();
     
     // Operation timing thresholds (in ms)
     private static final long WARNING_THRESHOLD = 1000; // 1 second
@@ -208,7 +208,7 @@ public abstract class Debug {
         
         // Log current thread state
         Thread currentThread = Thread.currentThread();
-        severe("Current thread: " + currentThread.getName() + " (State: " + currentThread.getState() + ")");
+        severe("Current thread: " + currentThread.getName() + " (ID: " + currentThread.getId() + ", State: " + currentThread.getState() + ")");
         
         // Get stack trace for the current thread
         StackTraceElement[] stackTrace = currentThread.getStackTrace();

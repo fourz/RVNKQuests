@@ -3,14 +3,14 @@ package org.fourz.RVNKQuests.debug;
 import org.fourz.RVNKQuests.RVNKQuests;
 import java.util.logging.Level;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Centralized persistent logging manager for the RVNKQuests plugin.
+ * Centralized logging manager for the RVNKQuests plugin.
  * <p>
- * This class wraps the Debug class and provides unified logging methods for all components.
- * It ensures consistent log level and message formatting across the system, and manages
- * separate instances per class name to maintain proper logging context.
+ * This class provides unified logging methods for all components with class context,
+ * performance monitoring, and configurable log levels. It replaces the legacy Debug
+ * class with improved performance and ecosystem-wide consistency.
  * <p>
  * Usage pattern (standardized):
  * <pre>
@@ -24,38 +24,36 @@ import java.util.HashMap;
  *     logger.info("Something happened");
  *     logger.warning("A warning");
  *     logger.error("An error occurred", exception);
+ *     
+ *     // Performance monitoring
+ *     logger.startTiming("operation");
+ *     // ... perform operation ...
+ *     logger.endTiming("operation");
  * }
  * </pre>
  * <p>
- * All info, warning, and error messages should use this manager. Use the Debug class only for debug-level or trace logging.
+ * All info, warning, and error messages should use this manager.
  *
  * @author Fourz
  */
 public class LogManager {
-    private static final Map<String, LogManager> instances = new HashMap<>();
+    private static final Map<String, LogManager> instances = new ConcurrentHashMap<>();
+    
     private final RVNKQuests plugin;
     private final String className;
-    private Debug debug;
+    private volatile Level logLevel;
+    private volatile boolean debugEnabled;
+    
+    // Performance monitoring
+    private static final Map<String, Long> operationStartTimes = new ConcurrentHashMap<>();
+    private static final long WARNING_THRESHOLD = 1000; // 1 second
+    private static final long SEVERE_THRESHOLD = 5000;  // 5 seconds
 
     private LogManager(RVNKQuests plugin, String className) {
         this.plugin = plugin;
         this.className = className;
-        // Initialize debug lazily to avoid circular dependency
-        initializeDebug();
-    }
-
-    /**
-     * Initialize the Debug instance, handling potential circular dependency issues.
-     */
-    private void initializeDebug() {
-        try {
-            // Use INFO as default, ConfigManager will update this after initialization
-            Level logLevel = Level.INFO;
-            this.debug = Debug.createDebugger(plugin, className, logLevel);
-        } catch (Exception e) {
-            // Fallback for any initialization issues
-            this.debug = Debug.createDebugger(plugin, className, Level.INFO);
-        }
+        this.logLevel = Level.INFO;
+        this.debugEnabled = false;
     }
 
     /**
@@ -96,7 +94,18 @@ public class LogManager {
      * @param message The message to log
      */
     public void info(String message) {
-        debug.info(message);
+        log(Level.INFO, message);
+    }
+
+    /**
+     * Log an informational message with parameters.
+     * @param message Message template with {} placeholders
+     * @param params Parameters to substitute
+     */
+    public void info(String message, Object... params) {
+        if (shouldLog(Level.INFO)) {
+            log(Level.INFO, formatMessage(message, params));
+        }
     }
 
     /**
@@ -104,7 +113,18 @@ public class LogManager {
      * @param message The message to log
      */
     public void warning(String message) {
-        debug.warning(message);
+        log(Level.WARNING, message);
+    }
+
+    /**
+     * Log a warning message with parameters.
+     * @param message Message template with {} placeholders
+     * @param params Parameters to substitute
+     */
+    public void warning(String message, Object... params) {
+        if (shouldLog(Level.WARNING)) {
+            log(Level.WARNING, formatMessage(message, params));
+        }
     }
 
     /**
@@ -113,7 +133,29 @@ public class LogManager {
      * @param t The throwable to log
      */
     public void error(String message, Throwable t) {
-        debug.error(message, t);
+        log(Level.SEVERE, message);
+        if (t != null && shouldLog(Level.SEVERE)) {
+            t.printStackTrace();
+        }
+    }
+
+    /**
+     * Log an error message.
+     * @param message The error message
+     */
+    public void error(String message) {
+        log(Level.SEVERE, message);
+    }
+
+    /**
+     * Log an error message with parameters.
+     * @param message Message template with {} placeholders
+     * @param params Parameters to substitute
+     */
+    public void error(String message, Object... params) {
+        if (shouldLog(Level.SEVERE)) {
+            log(Level.SEVERE, formatMessage(message, params));
+        }
     }
 
     /**
@@ -121,7 +163,18 @@ public class LogManager {
      * @param message The message to log
      */
     public void debug(String message) {
-        debug.debug(message);
+        log(Level.FINE, message);
+    }
+
+    /**
+     * Log a debug message with parameters.
+     * @param message Message template with {} placeholders
+     * @param params Parameters to substitute
+     */
+    public void debug(String message, Object... params) {
+        if (shouldLog(Level.FINE)) {
+            log(Level.FINE, formatMessage(message, params));
+        }
     }
 
     /**
@@ -129,7 +182,11 @@ public class LogManager {
      * @param operationName Name of the operation to time
      */
     public void startTiming(String operationName) {
-        debug.startTiming(operationName);
+        if (debugEnabled) {
+            String key = className + "." + operationName;
+            operationStartTimes.put(key, System.currentTimeMillis());
+            debug("Starting operation: " + operationName);
+        }
     }
 
     /**
@@ -138,15 +195,28 @@ public class LogManager {
      * @return The duration in milliseconds
      */
     public long endTiming(String operationName) {
-        return debug.endTiming(operationName);
-    }
-
-    /**
-     * Optionally expose the underlying Debug instance for advanced usage.
-     * @return The underlying Debug instance
-     */
-    public Debug getDebug() {
-        return debug;
+        if (!debugEnabled) return 0;
+        
+        String key = className + "." + operationName;
+        Long startTime = operationStartTimes.remove(key);
+        
+        if (startTime == null) {
+            warning("Tried to end timing for operation that wasn't started: " + operationName);
+            return 0;
+        }
+        
+        long duration = System.currentTimeMillis() - startTime;
+        
+        // Log based on duration
+        if (duration > SEVERE_THRESHOLD) {
+            error("Operation '" + operationName + "' took " + duration + "ms - THIS IS CAUSING SERVER LAG");
+        } else if (duration > WARNING_THRESHOLD) {
+            warning("Operation '" + operationName + "' took " + duration + "ms - this may impact performance");
+        } else {
+            debug("Operation '" + operationName + "' completed in " + duration + "ms");
+        }
+        
+        return duration;
     }
 
     /**
@@ -154,9 +224,8 @@ public class LogManager {
      * @param level The new log level
      */
     public void setLogLevel(Level level) {
-        if (debug != null) {
-            debug.setLogLevel(level);
-        }
+        this.logLevel = level;
+        this.debugEnabled = (level == Level.FINE);
     }
 
     /**
@@ -164,10 +233,7 @@ public class LogManager {
      * @return The current log level
      */
     public Level getLogLevel() {
-        if (debug != null) {
-            return debug.getLogLevel();
-        }
-        return Level.INFO; // Default fallback
+        return logLevel;
     }
 
     /**
@@ -182,10 +248,61 @@ public class LogManager {
     }
 
     /**
+     * Clear all cached loggers. Used during plugin shutdown.
+     * @param plugin The plugin to clear loggers for
+     */
+    public static void clearLoggers(RVNKQuests plugin) {
+        String prefix = plugin.getName() + ":";
+        instances.entrySet().removeIf(entry -> entry.getKey().startsWith(prefix));
+    }
+
+    /**
      * Get the class name this LogManager instance is associated with.
      * @return The class name
      */
     public String getClassName() {
         return className;
+    }
+
+    /**
+     * Check if a message at the specified level should be logged.
+     */
+    private boolean shouldLog(Level messageLevel) {
+        if (logLevel == Level.OFF) {
+            return false;
+        }
+        if (messageLevel == Level.FINE) {
+            return logLevel == Level.FINE;
+        }
+        return messageLevel.intValue() >= logLevel.intValue();
+    }
+
+    /**
+     * Perform the actual logging operation.
+     */
+    private void log(Level level, String message) {
+        if (shouldLog(level)) {
+            Level actualLevel = (level == Level.FINE) ? Level.INFO : level;
+            String formattedMessage = String.format("[%s] %s%s", 
+                className,
+                (level == Level.FINE) ? "[DEBUG] " : "",
+                message);
+            plugin.getLogger().log(actualLevel, formattedMessage);
+        }
+    }
+
+    /**
+     * Format a message with parameters using SLF4J-style placeholders.
+     */
+    private String formatMessage(String message, Object... params) {
+        if (params == null || params.length == 0) {
+            return message;
+        }
+        
+        String result = message;
+        for (Object param : params) {
+            result = result.replaceFirst("\\{\\}", param != null ? param.toString() : "null");
+        }
+        return result;
     }
 }

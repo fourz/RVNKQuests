@@ -88,6 +88,10 @@ logger.startTiming("operation_name");
 // ... perform operation ...
 long duration = logger.endTiming("operation_name");
 
+// Parameterized logging (SLF4J style)
+logger.info("Quest {} advanced to state {}", questId, newState);
+logger.debug("Processing {} objectives for quest {}", objectiveCount, questId);
+
 // AVOID: Do not use Debug class for new code
 private final Debug debug = Debug.createDebugger(...); // DEPRECATED
 ```
