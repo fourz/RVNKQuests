@@ -61,14 +61,14 @@ public class QuestAncientGuardian extends AbstractQuest {
 
     @Override
     public void initialize() {
-        debugger.debug("Initializing Ancient Guardian quest");
+        logger.debug("Initializing Ancient Guardian quest");
         // Initialize the quest in NOT_STARTED state
         this.state = QuestState.NOT_STARTED;
     }
 
     @Override
     public void cleanup() {
-        debugger.debug("Cleaning up Ancient Guardian quest");
+        logger.debug("Cleaning up Ancient Guardian quest");
         // Remove any remaining entities if needed
         if (guardianListener.getGuardian() != null) {
             guardianListener.getGuardian().remove();
@@ -112,7 +112,7 @@ public class QuestAncientGuardian extends AbstractQuest {
      */
     @Override
     protected boolean onStart(Player player) {
-        debugger.debug("Starting Ancient Guardian quest for player: " + player.getName());
+        logger.debug("Starting Ancient Guardian quest for player: " + player.getName());
         
         // Send the player a quest start message
         player.sendMessage("§b[Ancient Guardian] §fYou've discovered an ancient underwater mystery!");
@@ -127,7 +127,7 @@ public class QuestAncientGuardian extends AbstractQuest {
      */
     @Override
     protected boolean onComplete(Player player) {
-        debugger.debug("Completing Ancient Guardian quest for player: " + player.getName());
+        logger.debug("Completing Ancient Guardian quest for player: " + player.getName());
         
         // Send completion message
         player.sendMessage("§b[Ancient Guardian] §fYou've defeated the ancient defenders and claimed their treasure!");
@@ -147,7 +147,7 @@ public class QuestAncientGuardian extends AbstractQuest {
     @Override
     public boolean update(Player player) {
         // This quest uses event-based progression rather than manual updates
-        debugger.debug("Update called for Ancient Guardian quest, but this quest uses event-based progression");
+        logger.debug("Update called for Ancient Guardian quest, but this quest uses event-based progression");
         return false;
     }
 

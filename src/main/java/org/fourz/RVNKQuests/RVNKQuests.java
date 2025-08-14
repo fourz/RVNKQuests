@@ -4,7 +4,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.quest.QuestManager;
-import org.fourz.RVNKQuests.util.LogManager;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
+// Legacy loggers for compatibility during migration
 import org.fourz.RVNKQuests.util.RVNKLogger;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 
@@ -23,7 +25,11 @@ import java.util.logging.Level;
  * providing a clean API for extensions or add-ons.
  */
 public class RVNKQuests extends JavaPlugin {
-    private RVNKLogger logger;
+    // New logging system
+    private FZLogger logger;
+    // Legacy logger for compatibility during migration  
+    private RVNKLogger legacyLogger;
+    
     private ConfigManager configManager;
     private QuestManager questManager;
     private CommandManager commandManager;
@@ -31,8 +37,10 @@ public class RVNKQuests extends JavaPlugin {
     
     @Override
     public void onEnable() {
-        // Initialize the logger first
+        // Initialize both new and legacy loggers
         logger = LogManager.getInstance(this, getClass());
+        legacyLogger = org.fourz.RVNKQuests.util.LogManager.getInstance(this, getClass());
+        
         logger.info("Initializing RVNKQuests plugin");
         
         try {
@@ -83,14 +91,23 @@ public class RVNKQuests extends JavaPlugin {
         
         // Clean up loggers on shutdown
         LogManager.clearLoggers(this);
+        org.fourz.RVNKQuests.util.LogManager.clearLoggers(this);
     }
     
     /**
-     * Gets the RVNKLogger instance for this plugin.
-     * @return The RVNKLogger instance
+     * Gets the FZLogger instance for this plugin.
+     * @return The FZLogger instance
+     */
+    public FZLogger getFZLogger() {
+        return logger;
+    }
+    
+    /**
+     * Gets the legacy RVNKLogger instance for compatibility.
+     * @return The legacy RVNKLogger instance
      */
     public RVNKLogger getRVNKLogger() {
-        return logger;
+        return legacyLogger;
     }
     
     public ConfigManager getConfigManager() {
@@ -124,7 +141,7 @@ public class RVNKQuests extends JavaPlugin {
      * @param level The new logging level to apply
      */
     public void updateGlobalLogLevel(Level level) {
-        logger.info("Updating global log level to: {}", level.getName());
+        logger.info("Updating global log level to: " + level.getName());
         logger.setLogLevel(level);
         
         // Update log level for all managers

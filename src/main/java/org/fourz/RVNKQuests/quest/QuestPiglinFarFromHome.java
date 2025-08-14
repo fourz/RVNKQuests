@@ -44,7 +44,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
 
     @Override
     public void initialize() {
-        debugger.debug("Initializing Piglin Far From Home quest");
+        logger.debug("Initializing Piglin Far From Home quest");
         
         // Create the listener with custom location parameters from config
         String worldName = getPlugin().getConfigManager().getQuestConfigString(
@@ -66,12 +66,12 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
         // Initialize the piglin escort listener with ListenerLonePiglinTrigger
         this.piglinEscortListener = new ListenerPiglinEscort(this, lonePiglinTrigger);
         
-        debugger.debug("Piglin Far From Home quest initialized");
+        logger.debug("Piglin Far From Home quest initialized");
     }
 
     @Override
     public void cleanup() {
-        debugger.debug("Cleaning up Piglin Far From Home quest");
+        logger.debug("Cleaning up Piglin Far From Home quest");
         
         // Clean up any remaining entities and listeners
         cleanupPortalPrevention();
@@ -178,7 +178,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
      */
     public void setPlayerPath(Player player, QuestPath path) {
         playerPaths.put(player.getUniqueId(), path);
-        debugger.debug("Player " + player.getName() + " has chosen the " + path + " path");
+        logger.debug("Player " + player.getName() + " has chosen the " + path + " path");
     }
     
     /**
@@ -218,7 +218,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
                 // IMPORTANT FIX: Keep piglin escort listener active if escort path is chosen
                 // This ensures the piglin continues to follow the player
                 if (hasActiveEscorter()) {
-                    debugger.debug("Maintaining piglin escort listener for active escort path");
+                    logger.debug("Maintaining piglin escort listener for active escort path");
                     listeners.add(piglinEscortListener);
                 }
                 break;
@@ -246,7 +246,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
     
     @Override
     protected boolean onStart(Player player) {
-        debugger.debug("Starting Piglin Far From Home quest for " + player.getName());
+        logger.debug("Starting Piglin Far From Home quest for " + player.getName());
         
         // Record the discovery in the lore database
         LoreDatabase loreDb = getPlugin().getLoreDatabase();
@@ -259,7 +259,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
                 spawnLocation.getBlockZ(),
                 "A lost piglin named " + PIGLIN_NAME + " was discovered far from the Nether."
             );
-            debugger.debug("Recorded lost piglin discovery in lore database");
+            logger.debug("Recorded lost piglin discovery in lore database");
         }
         
         return true;
@@ -267,7 +267,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
     
     @Override
     protected boolean onComplete(Player player) {
-        debugger.debug("Completing Piglin Far From Home quest for " + player.getName());
+        logger.debug("Completing Piglin Far From Home quest for " + player.getName());
         
         // Cleanup quest-specific resources
         cleanupPortalPrevention();
@@ -297,7 +297,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
                     portalLoc.getBlockZ(),
                     description
                 );
-                debugger.debug("Recorded quest completion in lore database");
+                logger.debug("Recorded quest completion in lore database");
             }
         }
         
@@ -307,7 +307,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
     @Override
     public boolean update(Player player) {
         // This quest doesn't need periodic updates, but we could implement progress tracking here
-        debugger.debug("Update requested for player: " + player.getName() + ", state: " + getCurrentState());
+        logger.debug("Update requested for player: " + player.getName() + ", state: " + getCurrentState());
         return false; // No updates performed
     }
 }

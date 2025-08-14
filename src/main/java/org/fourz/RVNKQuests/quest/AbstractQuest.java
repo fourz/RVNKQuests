@@ -2,8 +2,8 @@ package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 
 /**
@@ -15,7 +15,7 @@ public abstract class AbstractQuest implements Quest {
     protected final String questId;
     protected final String name;
     protected QuestState state;
-    protected final RVNKLogger logger;
+    protected final FZLogger logger;
     
     /**
      * Creates a new quest with the specified ID and name.
@@ -49,7 +49,7 @@ public abstract class AbstractQuest implements Quest {
 
     @Override
     public void advanceState(QuestState newState) {
-        logger.debug("Advancing quest state from {} to {}", state, newState);
+        logger.debug("Advancing quest state from " + state + " to " + newState);
         this.state = newState;
         plugin.getQuestManager().updateQuestListeners(this);
     }
@@ -78,11 +78,11 @@ public abstract class AbstractQuest implements Quest {
         }
         
         if (state != QuestState.NOT_STARTED && state != QuestState.TRIGGER_FOUND) {
-            logger.debug("Cannot start quest: Already started (current state: {})", state);
+            logger.debug("Cannot start quest: Already started (current state: " + state + ")");
             return false;
         }
         
-        logger.debug("Starting quest for player: {}", player.getName());
+        logger.debug("Starting quest for player: " + player.getName());
         boolean success = onStart(player);
         
         if (success) {
@@ -111,7 +111,7 @@ public abstract class AbstractQuest implements Quest {
             return false;
         }
         
-        logger.debug("Completing quest for player: {}", player.getName());
+        logger.debug("Completing quest for player: " + player.getName());
         boolean success = onComplete(player);
         
         if (success) {

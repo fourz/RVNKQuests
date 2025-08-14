@@ -10,8 +10,8 @@ import org.fourz.RVNKQuests.trigger.ListenerQuestPillarStart;
 import org.fourz.RVNKQuests.trigger.ListenerEventPopulated;
 import org.fourz.RVNKQuests.objective.ListenerFirstCityChoice;
 import org.fourz.RVNKQuests.objective.ListenerQuestBookPlacer;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +19,7 @@ import java.util.List;
 public class QuestFirstCityProphecy implements Quest {
     private static final String CLASS_NAME = "QuestFirstCityProphecy";
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private QuestState currentState = QuestState.NOT_STARTED;
     private Location lecternLocation;
     private ListenerProphecyDiscovery prophecyDiscovery;
