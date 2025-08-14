@@ -24,12 +24,23 @@ Key tasks to prioritize:
 private final Debug debug = Debug.createDebugger(plugin, "ClassName", Level.INFO);
 debug.info("Message");
 
-// With:
-private final LogManager logger = LogManager.getInstance(plugin, getClass());
+// With NEW FZLogger system:
+private final FZLogger logger = LogManager.getInstance(plugin, getClass());
+logger.info("Message");
+
+// Or during debugging phases:
+private final FZLogger logger = Debugger.getInstance(plugin, getClass());
 logger.info("Message");
 ```
 
+Migration approaches:
+
+1. **Memory-Optimized Production**: Use `org.fourz.RVNKQuests.util.log.LogManager` - single instance per plugin
+2. **Development/Debugging**: Use `org.fourz.RVNKQuests.util.log.Debugger` - extended capabilities
+3. **Legacy Compatibility**: Keep existing `org.fourz.RVNKQuests.util.LogManager` during transition
+
 Priority order for migration:
+
 1. Core classes (RVNKQuests.java, QuestManager.java)
 2. Quest implementations
 3. Listener classes
@@ -58,6 +69,7 @@ public class QuestService {
 ```
 
 Focus areas:
+
 1. Service detection and fallback mechanisms
 2. Database layer integration with local fallback
 3. Player service integration for quest progress tracking
@@ -88,13 +100,30 @@ Active quests requiring implementation:
 ### Logging Pattern
 
 ```java
-private final LogManager logger = LogManager.getInstance(plugin, getClass());
+// Production logging (memory optimized)
+private final FZLogger logger = LogManager.getInstance(plugin, getClass());
+
+// Development/debugging logging (extended features)
+private final FZLogger logger = Debugger.getInstance(plugin, getClass());
 
 // Use appropriate log levels
-logger.debug("Detailed state transition: {} -> {}", currentState, newState);
-logger.info("Quest {} initialized", questId);
-logger.warning("Invalid configuration for quest: {}", questId);
+logger.debug("Detailed state transition");
+logger.info("Quest initialized");
+logger.warning("Invalid configuration for quest");
 logger.error("Failed to save quest state", exception);
+
+// Performance monitoring (Debugger only)
+if (logger instanceof Debugger) {
+    Debugger debugger = (Debugger) logger;
+    try (var timer = debugger.timeSection("expensive-operation")) {
+        performExpensiveOperation();
+    } // Automatically logs performance metrics
+
+    // Enhanced debugging features
+    debugger.setPerformanceTrackingEnabled(true);
+    debugger.setMethodTracingEnabled(true);
+    debugger.logMemoryUsage();
+}
 ```
 
 ### State Management Pattern
@@ -119,7 +148,12 @@ public void advanceState(QuestState newState) {
 ```java
 public class QuestObjectiveListener implements Listener {
     private final Quest quest;
-    private final LogManager logger;
+    private final FZLogger logger;
+    
+    public QuestObjectiveListener(Quest quest) {
+        this.quest = quest;
+        this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
+    }
     
     @EventHandler
     public void onObjectiveProgress(Event event) {
@@ -127,8 +161,18 @@ public class QuestObjectiveListener implements Listener {
             return;
         }
         
-        logger.debug("Processing objective progress for quest: {}", quest.getId());
-        processObjective(event);
+        logger.debug("Processing objective progress for quest: " + quest.getId());
+        
+        // Use performance monitoring for critical paths (if using Debugger)
+        if (logger instanceof Debugger) {
+            Debugger debugger = (Debugger) logger;
+            try (var timer = debugger.timeSection("objective-processing")) {
+                processObjective(event);
+            }
+        } else {
+            // LogManager: No timing available
+            processObjective(event);
+        }
     }
 }
 ```
