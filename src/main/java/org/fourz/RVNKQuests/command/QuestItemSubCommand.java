@@ -6,8 +6,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.reward.QuestItem;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  */
 public class QuestItemSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private static final List<String> QUEST_ITEM_IDS = Arrays.asList(
             "grotsnout_journal", "grotsnouts_last_stand"
             // Add more item IDs here as they are created
@@ -46,7 +46,7 @@ public class QuestItemSubCommand implements SubCommand {
         }
 
         String itemName = args[0].toLowerCase();
-        logger.debug("Player {} requested quest item: {}", player.getName(), itemName);
+        logger.debug("Player " + player.getName() + " requested quest item: " + itemName + "");
 
         ItemStack item = QuestItem.getQuestItem(itemName);
         if (item == null) {

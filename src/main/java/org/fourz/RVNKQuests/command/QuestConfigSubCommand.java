@@ -4,8 +4,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.fourz.RVNKQuests.config.ConfigManager;
 
 
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  */
 public class QuestConfigSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private static final List<String> VALID_OPERATIONS = Arrays.asList("disable", "enable", "list");
     
     public QuestConfigSubCommand(RVNKQuests plugin) {
@@ -167,7 +167,7 @@ public class QuestConfigSubCommand implements SubCommand {
             String path = "quests." + questId + ".enable";
             plugin.getConfigManager().getConfig().set(path, enabled);
             plugin.getConfigManager().saveConfig();
-            logger.debug("Set quest {} enabled status to: {}", questId, enabled);
+            logger.debug("Set quest {} enabled status to: " + questId, enabled + "");
             return true;
         } catch (Exception e) {
             logger.error("Failed to update quest enabled status", e);

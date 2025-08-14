@@ -3,8 +3,8 @@ package org.fourz.RVNKQuests.command;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.Collections;
 import java.util.List;
@@ -16,7 +16,7 @@ import java.util.logging.Level;
  */
 public class QuestReloadSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
 
     public QuestReloadSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;

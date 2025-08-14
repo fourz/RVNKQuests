@@ -10,8 +10,8 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestLoot;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.fourz.RVNKQuests.objective.ListenerPiglinEscort;
 
 public class ListenerPiglinPortalReunion implements Listener {
@@ -19,7 +19,7 @@ public class ListenerPiglinPortalReunion implements Listener {
     private final ListenerPiglinEscort piglinEscortListener;
     private final ListenerEncounterPortal portalListener;
     private final QuestLoot specialLoot;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     
     private static final double PORTAL_PROXIMITY_THRESHOLD = 5.0;
     private boolean rewardGiven = false;

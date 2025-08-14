@@ -7,8 +7,8 @@ import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.Random;
 
@@ -17,7 +17,7 @@ import java.util.Random;
  */
 public class TriggerCommand {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private final Random random = new Random();
     private static final int AROUND_RADIUS = 40;
 
@@ -38,7 +38,7 @@ public class TriggerCommand {
         Quest quest = plugin.getQuestManager().getQuest(questId);
         
         if (quest == null) {
-            logger.warning("Quest not found: {}", questId);
+            logger.warning("Quest not found: " + questId + "");
             player.sendMessage(ChatColor.RED + "Quest not found: " + questId);
             return false;
         }
@@ -46,12 +46,9 @@ public class TriggerCommand {
         // Calculate the trigger location based on the type
         Location triggerLocation = getLocationForType(player.getLocation(), locationType);
         
-        logger.debug("Triggering quest {} for player {} at {},{},{} in world {}", 
-                    questId, player.getName(), 
-                    triggerLocation.getBlockX(), 
-                    triggerLocation.getBlockY(), 
-                    triggerLocation.getBlockZ(),
-                    triggerLocation.getWorld().getName());
+        logger.debug("Triggering quest " + questId + " for player " + player.getName() + 
+                    " at " + triggerLocation.getBlockX() + "," + triggerLocation.getBlockY() + "," + triggerLocation.getBlockZ() +
+                    " in world " + triggerLocation.getWorld().getName());
 
         // Handle quest-specific triggering
         boolean success = handleQuestTrigger(quest, player, triggerLocation);
@@ -80,7 +77,7 @@ public class TriggerCommand {
                 logger.debug("Set piglin quest spawn location and advanced state to TRIGGER_FOUND");
                 return true;
             } else {
-                logger.debug("Piglin quest already started, current state: {}", quest.getCurrentState());
+                logger.debug("Piglin quest already started, current state: " + quest.getCurrentState());
                 player.sendMessage(ChatColor.YELLOW + "Quest is already in progress (state: " + quest.getCurrentState() + ")");
                 return false;
             }
@@ -91,7 +88,7 @@ public class TriggerCommand {
                 logger.debug("Advanced generic quest state to TRIGGER_FOUND");
                 return true;
             } else {
-                logger.debug("Quest already started, current state: {}", quest.getCurrentState());
+                logger.debug("Quest already started, current state: " + quest.getCurrentState());
                 player.sendMessage(ChatColor.YELLOW + "Quest is already in progress (state: " + quest.getCurrentState() + ")");
                 return false;
             }

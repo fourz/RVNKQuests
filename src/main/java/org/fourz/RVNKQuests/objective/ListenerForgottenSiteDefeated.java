@@ -8,14 +8,14 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestLoot;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 public class ListenerForgottenSiteDefeated implements Listener {
     private final Quest quest;
     private final ListenerForgottenSite siteListener;
     private final QuestLoot questLoot;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
 
     public ListenerForgottenSiteDefeated(Quest quest, ListenerForgottenSite siteListener, QuestLoot questLoot) {
         this.quest = quest;

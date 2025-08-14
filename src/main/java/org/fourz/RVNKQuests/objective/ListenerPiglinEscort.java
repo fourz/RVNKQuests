@@ -14,8 +14,8 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.trigger.ListenerLonePiglinTrigger;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.fourz.RVNKQuests.util.EntityFollow;
 
 import java.util.HashMap;
@@ -29,7 +29,7 @@ import java.util.UUID;
 public class ListenerPiglinEscort implements Listener {
     private final Quest quest;
     private final ListenerLonePiglinTrigger piglinTrigger;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private Player activeEscorter = null;
     
     // Add cooldown to prevent double toggling

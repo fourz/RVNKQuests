@@ -6,8 +6,8 @@ import org.bukkit.entity.Entity;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.objective.ListenerEncounterPortal;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  */
 public class QuestMobsSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private final List<String> VALID_OPERATIONS = Arrays.asList("kill", "list");
 
     public QuestMobsSubCommand(RVNKQuests plugin) {
@@ -69,7 +69,7 @@ public class QuestMobsSubCommand implements SubCommand {
                         for (Entity mob : new ArrayList<>(mobs)) {
                             if (mob != null && mob.isValid()) {
                                 String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
-                                logger.debug("Removing quest mob: {}", mobName);
+                                logger.debug("Removing quest mob: " + mobName + "");
                                 mob.remove();
                                 killedCount++;
                             }
@@ -83,7 +83,7 @@ public class QuestMobsSubCommand implements SubCommand {
         
         if (killedCount > 0) {
             sender.sendMessage(ChatColor.GREEN + "Successfully removed " + killedCount + " quest mobs.");
-            logger.info("Admin {} removed {} quest mobs", sender.getName(), killedCount);
+            logger.info("Admin " + sender.getName() + " removed " + killedCount + " quest mobs");
         } else {
             sender.sendMessage(ChatColor.YELLOW + "No active quest mobs found to remove.");
         }

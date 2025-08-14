@@ -3,8 +3,8 @@ package org.fourz.RVNKQuests.lore;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,7 +23,7 @@ import java.util.logging.Level;
  */
 public class LoreDatabase {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private Connection connection;
     private String databaseType;
     private boolean initialized = false;
@@ -68,7 +68,7 @@ public class LoreDatabase {
                 initializeYaml();
             }
             initialized = true;
-            logger.info("Lore database initialized using {}", databaseType);
+            logger.info("Lore database initialized using " + databaseType + "");
         } catch (Exception e) {
             logger.error("Failed to initialize lore database", e);
             throw new RuntimeException("Failed to initialize lore database", e);
@@ -86,7 +86,7 @@ public class LoreDatabase {
         
         // Connect to the database
         String url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
-        logger.debug("Connecting to SQLite database at: {}", url);
+        logger.debug("Connecting to SQLite database at: " + url + "");
         
         connection = DriverManager.getConnection(url);
         
@@ -167,8 +167,7 @@ public class LoreDatabase {
             return false;
         }
         
-        logger.debug("Recording discovery: {} at {} ({}, {}, {}): {}", 
-            discoveryType, world, x, y, z, description);
+        logger.debug("Recording discovery: " + discoveryType + " at " + world + " (" + x + ", " + y + ", " + z + "): " + description);
         
         try {
             if ("sqlite".equalsIgnoreCase(databaseType)) {
@@ -306,7 +305,7 @@ public class LoreDatabase {
      */
     public void updateDebugLevel(Level level) {
         // LogManager handles level updates automatically
-        logger.debug("LoreDatabase log level updated to: {}", level.getName());
+        logger.debug("LoreDatabase log level updated to: " + level.getName());
     }
 
     /**

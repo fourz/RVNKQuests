@@ -6,8 +6,8 @@ import org.bukkit.entity.Piglin;
 import org.bukkit.event.Listener;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 import java.util.UUID;
 
 /**
@@ -19,7 +19,7 @@ public class ListenerLonePiglin implements Listener {
     private final String worldName;
     private final Location fixedLocation;
     private final double spawnRadius;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     
     private Piglin questPiglin;
     private String piglinName = "Lost Piglin";
@@ -33,7 +33,7 @@ public class ListenerLonePiglin implements Listener {
         this.spawnRadius = spawnRadius;
         this.logger = LogManager.getInstance(plugin, getClass());
         
-        logger.debug("Initialized with world: {}, radius: {}", worldName, spawnRadius);
+        logger.debug("Initialized with world: {}, radius: " + worldName, spawnRadius + "");
     }
     
     /**
@@ -69,7 +69,7 @@ public class ListenerLonePiglin implements Listener {
      */
     public void setPiglinName(String name) {
         this.piglinName = name;
-        logger.debug("Set piglin name to: {}", name);
+        logger.debug("Set piglin name to: " + name + "");
         
         // Update existing piglin if it exists
         if (questPiglin != null && questPiglin.isValid()) {
@@ -86,7 +86,7 @@ public class ListenerLonePiglin implements Listener {
         this.questPiglin = piglin;
         if (piglin != null) {
             this.piglinUUID = piglin.getUniqueId();
-            logger.debug("Set quest piglin: {}", piglinUUID);
+            logger.debug("Set quest piglin: " + piglinUUID + "");
         }
     }
     

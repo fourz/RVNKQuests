@@ -10,8 +10,8 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -37,7 +37,7 @@ public class EntityFollow {
     
     // Instance-specific settings
     private final JavaPlugin plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private double followDistance;
     private double maxFollowDistance;
     private double followSpeed;
@@ -224,7 +224,7 @@ public class EntityFollow {
             try {
                 followingMob.getPathfinder().stopPathfinding();
             } catch (Exception e) {
-                logger.debug("Error stopping pathfinding: {}", e.getMessage());
+                logger.debug("Error stopping pathfinding: " + e.getMessage());
             }
         }
 
@@ -371,9 +371,9 @@ public class EntityFollow {
                     result = followingMob.getPathfinder().moveTo(target, followSpeed);
                 }
                 
-                logger.debug("Updated pathfinding target, success: {}", result);
+                logger.debug("Updated pathfinding target, success: " + result + "");
             } catch (Exception e) {
-                logger.debug("Error updating navigation: {}", e.getMessage());
+                logger.debug("Error updating navigation: " + e.getMessage());
                 // Fall back to velocity-based movement for this update
                 moveTowardsTarget(target);
             }
@@ -424,7 +424,7 @@ public class EntityFollow {
         if (moveDistance < 0.01) { // Barely moved
             stuckCounter++;
             if (stuckCounter >= STUCK_THRESHOLD) {
-                logger.debug("Entity appears stuck, stuckCounter: {}", stuckCounter);
+                logger.debug("Entity appears stuck, stuckCounter: " + stuckCounter + "");
             }
         } else {
             // Reset stuck counter if we've moved
@@ -455,7 +455,7 @@ public class EntityFollow {
                 !block.isPassable() || 
                 OBSTACLE_MATERIALS.contains(block.getType())) {
                 
-                logger.debug("Detected obstacle: {} at distance {}", block.getType(), d);
+                logger.debug("Detected obstacle: " + block.getType() + " at distance " + d + "");
                 return true;
             }
             
@@ -485,7 +485,7 @@ public class EntityFollow {
                 }
                 
                     if (gapDepth > 2) { // Gap is too deep to safely cross
-                        logger.debug("Detected drop ahead with depth {}", gapDepth);
+                        logger.debug("Detected drop ahead with depth " + gapDepth + "");
                         return true;
                     }
             }

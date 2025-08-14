@@ -15,8 +15,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.fourz.RVNKQuests.util.IntervalChecker;
 
 import java.util.Random;
@@ -30,7 +30,7 @@ public class ListenerLonePiglinTrigger implements Listener {
     private static final int CHECK_FREQUENCY = 20;
 
     private final Quest quest;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private final Random random = new Random();
     private Entity spawnedPiglin = null;
     private final IntervalChecker intervalChecker;
@@ -60,7 +60,7 @@ public class ListenerLonePiglinTrigger implements Listener {
                 this.targetLocation = world.getSpawnLocation().clone();
             } else {
                 this.targetLocation = null;
-                logger.warning("Target world '{}' not found. Piglin may not spawn correctly.", worldName);
+                logger.warning("Target world '" + worldName + "' not found. Piglin may not spawn correctly.");
             }
         }
 
@@ -103,11 +103,11 @@ public class ListenerLonePiglinTrigger implements Listener {
         // Check if player is within the required distance of world spawn
         double distance = location.distance(targetLocation);
         if (distance > spawnRadius) {
-            logger.debug("Player too far from spawn: {} blocks (max: {})", distance, spawnRadius);
+            logger.debug("Player too far from spawn: {} blocks (max: " + distance, spawnRadius + ")");
             return false;
         }
 
-        logger.debug("All spawn conditions met at location: {}", location);
+        logger.debug("All spawn conditions met at location: " + location + "");
         return true;
     }
 
@@ -142,7 +142,7 @@ public class ListenerLonePiglinTrigger implements Listener {
             ((QuestPiglinFarFromHome) quest).setSpawnLocation(spawnLoc.clone());
         }
 
-        logger.debug("Piglin spawned successfully at: {}", spawnLoc);
+        logger.debug("Piglin spawned successfully at: " + spawnLoc + "");
 
         // Advance quest state
         quest.advanceState(QuestState.TRIGGER_FOUND);

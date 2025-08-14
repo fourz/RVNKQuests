@@ -3,8 +3,8 @@ package org.fourz.RVNKQuests.config;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +25,7 @@ import java.util.logging.Level;
  */
 public class ConfigManager {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private FileConfiguration config;
     private File configFile;
     private Map<String, Boolean> questEnableStatus = new HashMap<>();
@@ -61,7 +61,7 @@ public class ConfigManager {
         }
 
         config = YamlConfiguration.loadConfiguration(configFile);
-        logger.info("Configuration loaded from: {}", configFile.getAbsolutePath());
+        logger.info("Configuration loaded from: " + configFile.getAbsolutePath());
     }
 
     /**
@@ -102,7 +102,7 @@ public class ConfigManager {
         logger.debug("Saving configuration to disk");
         try {
             config.save(configFile);
-            logger.debug("Configuration saved to: {}", configFile.getAbsolutePath());
+            logger.debug("Configuration saved to: " + configFile.getAbsolutePath());
             return true;
         } catch (IOException e) {
             logger.error("Failed to save configuration", e);
@@ -116,7 +116,7 @@ public class ConfigManager {
      * @param value The value to set
      */
     public void setConfigValue(String path, Object value) {
-        logger.debug("Setting config value: {}", path);
+        logger.debug("Setting config value: " + path + "");
         config.set(path, value);
     }
     
@@ -140,7 +140,7 @@ public class ConfigManager {
         String fullPath = KEY_QUESTS_PREFIX + questId + KEY_ENABLE_SUFFIX;
         setConfigValue(fullPath, enabled);
         questEnableStatus.put(questId, enabled);
-        logger.debug("Quest {} set to {}", questId, (enabled ? "enabled" : "disabled"));
+        logger.debug("Quest " + questId + " set to " + (enabled ? "enabled" : "disabled"));
     }
     
     /**
@@ -190,7 +190,7 @@ public class ConfigManager {
             case "OFF":
                 return Level.OFF;
             default:
-                logger.warning("Unknown log level in config: {}, defaulting to INFO", logLevelStr);
+                logger.warning("Unknown log level in config: " + logLevelStr + ", defaulting to INFO");
                 return Level.INFO;
         }
     }
@@ -201,7 +201,7 @@ public class ConfigManager {
      */
     public void updateDebugLevel(Level level) {
         logger.setLogLevel(level);
-        logger.debug("ConfigManager log level updated to: {}", level.getName());
+        logger.debug("ConfigManager log level updated to: " + level.getName());
     }
     
     /**
@@ -215,7 +215,7 @@ public class ConfigManager {
             for (String questId : config.getConfigurationSection("quests").getKeys(false)) {
                 boolean enabled = config.getBoolean(KEY_QUESTS_PREFIX + questId + KEY_ENABLE_SUFFIX, true);
                 questEnableStatus.put(questId, enabled);
-                logger.debug("Quest {} is {}", questId, (enabled ? "enabled" : "disabled"));
+                logger.debug("Quest " + questId + " is " + (enabled ? "enabled" : "disabled"));
             }
         }
     }

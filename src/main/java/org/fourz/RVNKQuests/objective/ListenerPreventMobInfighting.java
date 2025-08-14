@@ -7,15 +7,15 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 /**
  * Prevents quest mobs from targeting each other during encounters
  */
 public class ListenerPreventMobInfighting implements Listener {
     private final JavaPlugin plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private boolean isRegistered = true;
 
     public ListenerPreventMobInfighting(JavaPlugin plugin) {

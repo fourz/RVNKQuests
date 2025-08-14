@@ -4,8 +4,8 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +24,7 @@ import java.util.logging.Level;
  */
 public class CommandManager {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private final Map<String, CommandExecutor> commands = new HashMap<>();
 
     public CommandManager(RVNKQuests plugin) {
@@ -80,9 +80,9 @@ public class CommandManager {
             Class<?> cmdClass = Class.forName("org.fourz.RVNKQuests.command." + className);
             SubCommand cmd = (SubCommand) cmdClass.getConstructor(RVNKQuests.class).newInstance(plugin);
             questCommand.registerSubCommand(name, cmd);
-            logger.debug("Registered optional command: {}", name);
+            logger.debug("Registered optional command: " + name + "");
         } catch (ClassNotFoundException e) {
-            logger.debug("Optional command not available: {}", name);
+            logger.debug("Optional command not available: " + name + "");
         } catch (Exception e) {
             logger.warning("Failed to register command: {} - {}", name, e.getMessage());
         }
@@ -95,11 +95,11 @@ public class CommandManager {
      * @param executor The command executor implementation
      */
     private void registerCommand(String commandName, CommandExecutor executor) {
-        logger.debug("Registering command: {}", commandName);
+        logger.debug("Registering command: " + commandName + "");
         PluginCommand command = plugin.getCommand(commandName);
         
         if (command == null) {
-            logger.warning("Failed to register command: {} (not found in plugin.yml)", commandName);
+            logger.warning("Failed to register command: " + commandName + " (not found in plugin.yml)");
             return;
         }
         
@@ -107,11 +107,11 @@ public class CommandManager {
         
         if (executor instanceof TabCompleter) {
             command.setTabCompleter((TabCompleter) executor);
-            logger.debug("Tab completer registered for command: {}", commandName);
+            logger.debug("Tab completer registered for command: " + commandName + "");
         }
         
         commands.put(commandName, executor);
-        logger.debug("Command registered: {}", commandName);
+        logger.debug("Command registered: " + commandName + "");
     }
 
     /**

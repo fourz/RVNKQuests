@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class QuestFirstCityProphecy implements Quest {
-    private static final String CLASS_NAME = "QuestFirstCityProphecy";
     private final RVNKQuests plugin;
     private final FZLogger logger;
     private QuestState currentState = QuestState.NOT_STARTED;
@@ -82,7 +81,7 @@ public class QuestFirstCityProphecy implements Quest {
 
     @Override
     public void advanceState(QuestState newState) {
-        logger.debug("Advancing quest state from {} to {}", currentState, newState);
+        logger.debug("Advancing quest state from " + currentState + " to " + newState);
         this.currentState = newState;
         plugin.getQuestManager().updateQuestListeners(this);
     }
@@ -98,12 +97,12 @@ public class QuestFirstCityProphecy implements Quest {
     }
 
     public boolean isValidSettlementLocation(Location loc) {
-        logger.debug("Checking settlement location validity at: {}", loc);
+        logger.debug("Checking settlement location validity at: " + loc);
         World world = loc.getWorld();
         int highestY = world.getHighestBlockYAt(loc);
         
         if (highestY < 100) {
-            logger.debug("Location rejected: Height {} is too low", highestY);
+            logger.debug("Location rejected: Height " + highestY + " is too low");
             return false;
         }
         

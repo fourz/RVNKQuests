@@ -5,8 +5,8 @@ import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.bukkit.event.Listener;
 
 import java.util.Collections;
@@ -17,7 +17,7 @@ import java.util.List;
  */
 public class QuestValidateSubCommand implements SubCommand {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
 
     public QuestValidateSubCommand(RVNKQuests plugin) {
         this.plugin = plugin;
@@ -100,7 +100,7 @@ public class QuestValidateSubCommand implements SubCommand {
             try {
                 List<Listener> listeners = quest.createListenersForState(state);
                 if (listeners == null) {
-                    logger.warning("{} returned null listeners for state: {}", quest.getId(), state);
+                    logger.warning("" + quest.getId() + " returned null listeners for state: " + state + "");
                     valid = false;
                 }
             } catch (Exception e) {

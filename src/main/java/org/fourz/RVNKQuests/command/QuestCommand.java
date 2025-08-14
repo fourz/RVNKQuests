@@ -6,8 +6,8 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.LogManager;
-import org.fourz.RVNKQuests.util.RVNKLogger;
+import org.fourz.RVNKQuests.util.log.LogManager;
+import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,7 +20,7 @@ import java.util.Map;
  */
 public class QuestCommand implements CommandExecutor, TabCompleter {
     private final RVNKQuests plugin;
-    private final RVNKLogger logger;
+    private final FZLogger logger;
     private final Map<String, SubCommand> subCommands = new HashMap<>();
 
     public QuestCommand(RVNKQuests plugin) {
@@ -64,12 +64,12 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
         
         String lowerName = name.toLowerCase();
         if (subCommands.containsKey(lowerName)) {
-            logger.debug("Subcommand already registered: {}", name);
+            logger.debug("Subcommand already registered: " + name + "");
             return false;
         }
         
         subCommands.put(lowerName, subCommand);
-        logger.debug("Registered subcommand: {}", name);
+        logger.debug("Registered subcommand: " + name + "");
         return true;
     }
     
@@ -108,7 +108,7 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
         String[] subCommandArgs = new String[args.length - 1];
         System.arraycopy(args, 1, subCommandArgs, 0, args.length - 1);
 
-        logger.debug("Executing subcommand: {}", subCommandName);
+        logger.debug("Executing subcommand: " + subCommandName + "");
         return subCommand.execute(sender, subCommandArgs);
     }
 
