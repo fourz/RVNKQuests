@@ -30,7 +30,7 @@ public class QuestReloadSubCommand implements SubCommand {
         
         if (resetReload) {
             sender.sendMessage(ChatColor.RED + "Performing reset reload - resetting all quests and reloading configuration...");
-            logger.warning("Reset reload initiated by {} - all quests will be reset", sender.getName());
+            logger.warning("Reset reload initiated by " + sender.getName() + " - all quests will be reset");
         } else {
             sender.sendMessage(ChatColor.YELLOW + "Reloading RVNKQuests configuration...");
         }
@@ -53,12 +53,12 @@ public class QuestReloadSubCommand implements SubCommand {
                 resetQuests(sender);
             }
             
-            logger.info("Configuration reloaded by {} {}", sender.getName(), (resetReload ? "with quest reset" : ""));
+            logger.info("Configuration reloaded by " + sender.getName() + " " + (resetReload ? "with quest reset" : ""));
             sender.sendMessage(ChatColor.GREEN + "Configuration reloaded successfully!");
             sender.sendMessage(ChatColor.YELLOW + "Current log level: " + 
                 ChatColor.GREEN + getLevelName(newLogLevel));
         } catch (Exception e) {
-            logger.error("Error during {}", (resetReload ? "reset reload" : "reload"), e);
+            logger.error("Error during " + (resetReload ? "reset reload" : "reload"), e);
             sender.sendMessage(ChatColor.RED + "Error reloading configuration: " + e.getMessage());
         }
         
@@ -108,7 +108,7 @@ public class QuestReloadSubCommand implements SubCommand {
             // TODO: In future development, reset player quest progress in database
             
             sender.sendMessage(ChatColor.GREEN + "All quests have been reset!");
-            logger.info("Quest reset completed by {}", sender.getName());
+            logger.info("Quest reset completed by " + sender.getName());
         } catch (Exception e) {
             logger.error("Error resetting quests", e);
             sender.sendMessage(ChatColor.RED + "Error resetting quests: " + e.getMessage());

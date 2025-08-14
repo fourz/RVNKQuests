@@ -66,7 +66,7 @@ public class ListenerPiglinEscort implements Listener {
             return;
         }
         
-        logger.debug("Player {} interacted with quest piglin", player.getName());
+    logger.debug("Player " + player.getName() + " interacted with quest piglin");
         
         // Check cooldown to prevent double toggling
         UUID playerUUID = player.getUniqueId();
@@ -74,7 +74,7 @@ public class ListenerPiglinEscort implements Listener {
         long lastTime = lastInteractionTime.getOrDefault(playerUUID, 0L);
         
         if (currentTime - lastTime < INTERACTION_COOLDOWN) {
-            logger.debug("Interaction cooldown active for player {}, ignoring event", player.getName());
+            logger.debug("Interaction cooldown active for player " + player.getName() + ", ignoring event");
             event.setCancelled(true);
             return;
         }
@@ -212,7 +212,7 @@ public class ListenerPiglinEscort implements Listener {
             activeEscorter.sendMessage(ChatColor.RED + "Someone else is now escorting the piglin.");
         }
         activeEscorter = player;
-        logger.debug("Set active escorter to: {}", (player != null ? player.getName() : "null"));
+    logger.debug("Set active escorter to: " + (player != null ? player.getName() : "null"));
     }
     
     /**

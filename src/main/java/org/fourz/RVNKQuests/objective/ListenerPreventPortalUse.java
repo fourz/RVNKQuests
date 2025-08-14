@@ -30,7 +30,7 @@ public class ListenerPreventPortalUse implements Listener {
         Entity entity = event.getEntity();
         
         if (entity.hasMetadata(ListenerEncounterPortal.QUEST_MOB_METADATA)) {
-            logger.debug("Prevented quest mob from using portal: {}", entity.getCustomName());
+            logger.debug("Prevented quest mob from using portal: " + entity.getCustomName());
             event.setCancelled(true);
             
             // Move the entity away from the portal slightly

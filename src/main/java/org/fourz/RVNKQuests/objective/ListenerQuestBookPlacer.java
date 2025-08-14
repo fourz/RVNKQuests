@@ -1,8 +1,6 @@
 package org.fourz.RVNKQuests.objective;
 
 import org.bukkit.*;
-import org.bukkit.block.Block;
-import org.bukkit.block.Lectern;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -10,11 +8,11 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.quest.Quest;
+// import org.fourz.RVNKQuests.quest.Quest; // not used
 import org.fourz.RVNKQuests.util.log.LogManager;
 import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.bukkit.block.Block;
-import org.bukkit.block.Lectern;
+// import org.bukkit.block.Lectern; // duplicate/unused
 //import org.fourz.RVNKQuests.util.NMSUtil;
 
 import java.util.ArrayList;
@@ -23,7 +21,6 @@ import java.util.List;
 // Listener for placing the event book in the prophecy lectern when a player moves near it
 
 public class ListenerQuestBookPlacer implements Listener {
-    private static final String CLASS_NAME = "ListenerQuestBookPlacer";
     private final RVNKQuests plugin;
     private final FZLogger logger;
     private final Location lecternLocation;

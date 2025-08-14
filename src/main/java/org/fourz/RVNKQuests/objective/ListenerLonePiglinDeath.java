@@ -53,7 +53,7 @@ public class ListenerLonePiglinDeath implements Listener {
             return;
         }
         
-        logger.debug("Piglin killed by player: {}", killer.getName());
+    logger.debug("Piglin killed by player: " + killer.getName());
         
         // Set the player's path in the quest to combat path
         if (quest instanceof QuestPiglinFarFromHome) {

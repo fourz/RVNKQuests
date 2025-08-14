@@ -14,10 +14,15 @@ import java.util.UUID;
  * Listener that handles the spawning and tracking of a lone piglin in the overworld
  */
 public class ListenerLonePiglin implements Listener {
+    @SuppressWarnings("unused")
     private final Quest quest;
+    @SuppressWarnings("unused")
     private final RVNKQuests plugin;
+    @SuppressWarnings("unused")
     private final String worldName;
+    @SuppressWarnings("unused")
     private final Location fixedLocation;
+    @SuppressWarnings("unused")
     private final double spawnRadius;
     private final FZLogger logger;
     
@@ -33,7 +38,7 @@ public class ListenerLonePiglin implements Listener {
         this.spawnRadius = spawnRadius;
         this.logger = LogManager.getInstance(plugin, getClass());
         
-        logger.debug("Initialized with world: {}, radius: " + worldName, spawnRadius + "");
+    logger.debug("Initialized with world: " + worldName + ", radius: " + spawnRadius);
     }
     
     /**
@@ -69,7 +74,7 @@ public class ListenerLonePiglin implements Listener {
      */
     public void setPiglinName(String name) {
         this.piglinName = name;
-        logger.debug("Set piglin name to: " + name + "");
+    logger.debug("Set piglin name to: " + name);
         
         // Update existing piglin if it exists
         if (questPiglin != null && questPiglin.isValid()) {
@@ -86,7 +91,7 @@ public class ListenerLonePiglin implements Listener {
         this.questPiglin = piglin;
         if (piglin != null) {
             this.piglinUUID = piglin.getUniqueId();
-            logger.debug("Set quest piglin: " + piglinUUID + "");
+            logger.debug("Set quest piglin: " + piglinUUID);
         }
     }
     

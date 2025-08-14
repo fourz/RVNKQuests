@@ -69,7 +69,7 @@ public class QuestMobsSubCommand implements SubCommand {
                         for (Entity mob : new ArrayList<>(mobs)) {
                             if (mob != null && mob.isValid()) {
                                 String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
-                                logger.debug("Removing quest mob: " + mobName + "");
+                                        logger.debug("Removing quest mob: " + mobName);
                                 mob.remove();
                                 killedCount++;
                             }
@@ -77,7 +77,7 @@ public class QuestMobsSubCommand implements SubCommand {
                     }
                 }
             } catch (Exception e) {
-                logger.error("Error killing mobs for quest: {}", quest.getId(), e);
+                logger.error("Error killing mobs for quest: " + quest.getId(), e);
             }
         }
         
@@ -123,7 +123,7 @@ public class QuestMobsSubCommand implements SubCommand {
                     }
                 }
             } catch (Exception e) {
-                logger.error("Error listing mobs for quest: {}", quest.getId(), e);
+                logger.error("Error listing mobs for quest: " + quest.getId(), e);
             }
         }
         

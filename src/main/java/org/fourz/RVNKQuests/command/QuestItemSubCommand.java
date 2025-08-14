@@ -46,7 +46,7 @@ public class QuestItemSubCommand implements SubCommand {
         }
 
         String itemName = args[0].toLowerCase();
-        logger.debug("Player " + player.getName() + " requested quest item: " + itemName + "");
+    logger.debug("Player " + player.getName() + " requested quest item: " + itemName);
 
         ItemStack item = QuestItem.getQuestItem(itemName);
         if (item == null) {
@@ -54,7 +54,7 @@ public class QuestItemSubCommand implements SubCommand {
             return true;
         }
 
-        logger.debug("Giving item {} to player {}", itemName, player.getName());
+    logger.debug("Giving item " + itemName + " to player " + player.getName());
         player.getInventory().addItem(item);
         player.sendMessage(ChatColor.GREEN + "You received the quest item: " + itemName);
         return true;

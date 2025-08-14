@@ -29,7 +29,7 @@ public class ListenerEncounterPortalDefeated implements Listener {
         String mobName = entity.getCustomName();
         
         if (mobName != null && portalListener.getSpawnedMobNames().contains(mobName)) {
-            logger.debug("Quest mob died: {} (Type: {})", mobName, event.getEntityType());
+            logger.debug("Quest mob died: " + mobName + " (Type: " + event.getEntityType() + ")");
 
             portalListener.removeMob(mobName);
 

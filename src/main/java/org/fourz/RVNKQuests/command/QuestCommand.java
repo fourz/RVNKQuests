@@ -33,7 +33,7 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
      * Registers the core subcommands that are always available
      */
     private void registerCoreCommands() {
-        logger.debug("Registering core subcommands");
+    logger.debug("Registering core subcommands");
         
         // Create and register each subcommand directly
         registerSubCommand("item", new QuestItemSubCommand(plugin));
@@ -64,12 +64,12 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
         
         String lowerName = name.toLowerCase();
         if (subCommands.containsKey(lowerName)) {
-            logger.debug("Subcommand already registered: " + name + "");
+            logger.debug("Subcommand already registered: " + name);
             return false;
         }
         
         subCommands.put(lowerName, subCommand);
-        logger.debug("Registered subcommand: " + name + "");
+    logger.debug("Registered subcommand: " + name);
         return true;
     }
     
@@ -108,7 +108,7 @@ public class QuestCommand implements CommandExecutor, TabCompleter {
         String[] subCommandArgs = new String[args.length - 1];
         System.arraycopy(args, 1, subCommandArgs, 0, args.length - 1);
 
-        logger.debug("Executing subcommand: " + subCommandName + "");
+    logger.debug("Executing subcommand: " + subCommandName);
         return subCommand.execute(sender, subCommandArgs);
     }
 

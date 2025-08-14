@@ -29,7 +29,7 @@ public class ListenerForgottenSiteDefeated implements Listener {
         if (!(event.getEntity() instanceof Drowned)) return;
         
         if (siteListener.getDefenders().contains(event.getEntity())) {
-            logger.debug("Defender drowned killed: {}", event.getEntity().getCustomName());
+            logger.debug("Defender drowned killed: " + event.getEntity().getCustomName());
             siteListener.getDefenders().remove(event.getEntity());
             
             if (siteListener.getDefenders().isEmpty()) {

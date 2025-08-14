@@ -46,7 +46,7 @@ public class QuestTriggerSubCommand implements SubCommand {
         String questId = args[0].toLowerCase();
         String location = args.length > 1 ? args[1].toLowerCase() : "here";
 
-        logger.debug("Player {} attempting to trigger quest: " + player.getName() + " at " + questId, location + "");
+    logger.debug("Player " + player.getName() + " attempting to trigger quest: " + questId + " location: " + location);
 
         // Validate location parameter
         if (!location.equals("here") && !location.equals("around")) {

@@ -64,7 +64,7 @@ public class ListenerLonePiglinTrigger implements Listener {
             }
         }
 
-        logger.debug("Initialized with target world: {} | location: {} | radius: {}", targetWorld, (targetLocation != null ? targetLocation.toString() : "N/A"), spawnRadius);
+    logger.debug("Initialized with target world: " + targetWorld + " | location: " + (targetLocation != null ? targetLocation.toString() : "N/A") + " | radius: " + spawnRadius);
     }
 
     @EventHandler
@@ -87,7 +87,7 @@ public class ListenerLonePiglinTrigger implements Listener {
             return;
         }
 
-        logger.debug("Checking for piglin spawn conditions near player: {}", player.getName());
+    logger.debug("Checking for piglin spawn conditions near player: " + player.getName());
         if (shouldSpawnPiglin(currentLoc)) {
             spawnLonePiglin(currentLoc);
         }
@@ -103,7 +103,7 @@ public class ListenerLonePiglinTrigger implements Listener {
         // Check if player is within the required distance of world spawn
         double distance = location.distance(targetLocation);
         if (distance > spawnRadius) {
-            logger.debug("Player too far from spawn: {} blocks (max: " + distance, spawnRadius + ")");
+            logger.debug("Player too far from spawn: " + distance + " blocks (max: " + spawnRadius + ")");
             return false;
         }
 

@@ -6,7 +6,7 @@ import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.util.log.LogManager;
 import org.fourz.RVNKQuests.util.log.FZLogger;
-import org.fourz.RVNKQuests.config.ConfigManager;
+// import org.fourz.RVNKQuests.config.ConfigManager; // not used here
 
 
 import java.util.ArrayList;
@@ -167,7 +167,7 @@ public class QuestConfigSubCommand implements SubCommand {
             String path = "quests." + questId + ".enable";
             plugin.getConfigManager().getConfig().set(path, enabled);
             plugin.getConfigManager().saveConfig();
-            logger.debug("Set quest {} enabled status to: " + questId, enabled + "");
+            logger.debug("Set quest " + questId + " enabled status to: " + enabled);
             return true;
         } catch (Exception e) {
             logger.error("Failed to update quest enabled status", e);

@@ -33,7 +33,7 @@ public class CommandManager {
         try {
             registerCommands();
         } catch (Exception e) {
-            logger.error("Failed to register commands", e);
+        logger.error("Failed to register commands", e);
         }
     }
 
@@ -42,8 +42,8 @@ public class CommandManager {
      * @param level New log level
      */
     public void updateDebugLevel(Level level) {
-        logger.setLogLevel(level);
-        logger.debug("CommandManager log level updated to: {}", level.getName());
+    logger.setLogLevel(level);
+    logger.debug("CommandManager log level updated to: " + level.getName());
     }
 
     /**
@@ -80,11 +80,11 @@ public class CommandManager {
             Class<?> cmdClass = Class.forName("org.fourz.RVNKQuests.command." + className);
             SubCommand cmd = (SubCommand) cmdClass.getConstructor(RVNKQuests.class).newInstance(plugin);
             questCommand.registerSubCommand(name, cmd);
-            logger.debug("Registered optional command: " + name + "");
+            logger.debug("Registered optional command: " + name);
         } catch (ClassNotFoundException e) {
-            logger.debug("Optional command not available: " + name + "");
+            logger.debug("Optional command not available: " + name);
         } catch (Exception e) {
-            logger.warning("Failed to register command: {} - {}", name, e.getMessage());
+            logger.warning("Failed to register command: " + name + " - " + e.getMessage());
         }
     }
 
@@ -95,7 +95,7 @@ public class CommandManager {
      * @param executor The command executor implementation
      */
     private void registerCommand(String commandName, CommandExecutor executor) {
-        logger.debug("Registering command: " + commandName + "");
+    logger.debug("Registering command: " + commandName);
         PluginCommand command = plugin.getCommand(commandName);
         
         if (command == null) {
@@ -107,11 +107,11 @@ public class CommandManager {
         
         if (executor instanceof TabCompleter) {
             command.setTabCompleter((TabCompleter) executor);
-            logger.debug("Tab completer registered for command: " + commandName + "");
+            logger.debug("Tab completer registered for command: " + commandName);
         }
         
         commands.put(commandName, executor);
-        logger.debug("Command registered: " + commandName + "");
+    logger.debug("Command registered: " + commandName);
     }
 
     /**

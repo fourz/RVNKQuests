@@ -61,7 +61,7 @@ public class ListenerForgottenSite implements Listener {
             return;
         }
 
-        logger.debug("Player found underwater ruin at: " + playerLoc + "");
+    logger.debug("Player found underwater ruin at: " + playerLoc);
         spawnDefenders(playerLoc);
         spawned = true;
         
@@ -79,7 +79,7 @@ public class ListenerForgottenSite implements Listener {
     }
 
     private boolean isNearUnderwaterStructure(Location loc) {
-        logger.debug("Checking for underwater structures around: " + loc + "");
+    logger.debug("Checking for underwater structures around: " + loc);
         
         for (int x = -TRIGGER_DISTANCE; x <= TRIGGER_DISTANCE; x+= 4) {
             for (int y = -TRIGGER_DISTANCE; y <= TRIGGER_DISTANCE; y += 4) {
@@ -87,7 +87,7 @@ public class ListenerForgottenSite implements Listener {
                     Location checkLoc = loc.clone().add(x, y, z);
                     Material type = checkLoc.getBlock().getType();
                     if (ruinMaterials.contains(type)) {
-                        logger.debug("Found structure material: {} at " + type, checkLoc + "");
+                        logger.debug("Found structure material: " + type + " at " + checkLoc);
                         return true;
                     }
                 }
@@ -97,7 +97,7 @@ public class ListenerForgottenSite implements Listener {
     }
 
     private void spawnDefenders(Location center) {
-        logger.debug("Spawning underwater defenders at: " + center + "");
+    logger.debug("Spawning underwater defenders at: " + center);
         
         // Find a suitable underwater location
         Location spawnCenter = findSuitableLocation(center);
@@ -121,7 +121,7 @@ public class ListenerForgottenSite implements Listener {
             }
             
             defenders.add(drowned);
-            logger.debug("Spawned defender at: " + spawnLoc + "");
+            logger.debug("Spawned defender at: " + spawnLoc);
         }
         
         quest.getPlugin().getServer().broadcastMessage(

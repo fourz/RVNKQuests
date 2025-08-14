@@ -14,6 +14,7 @@ import org.fourz.RVNKQuests.util.log.FZLogger;
  * Prevents quest mobs from targeting each other during encounters
  */
 public class ListenerPreventMobInfighting implements Listener {
+    @SuppressWarnings("unused")
     private final JavaPlugin plugin;
     private final FZLogger logger;
     private boolean isRegistered = true;
@@ -34,8 +35,7 @@ public class ListenerPreventMobInfighting implements Listener {
 
         // Check if both entities are quest mobs
         if (isQuestMob(source) && isQuestMob(target)) {
-            logger.debug("Prevented quest mob {} from targeting quest mob {}", 
-                        source.getCustomName(), target.getCustomName());
+            logger.debug("Prevented quest mob " + source.getCustomName() + " from targeting quest mob " + target.getCustomName());
             event.setCancelled(true);
         }
     }

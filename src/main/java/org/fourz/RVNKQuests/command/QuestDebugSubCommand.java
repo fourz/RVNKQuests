@@ -59,7 +59,7 @@ public class QuestDebugSubCommand implements SubCommand {
         // Update runtime debug level
         updateLogLevel(newLevel);
         
-        logger.info("Log level changed to {} by {}", newLevel.getName(), sender.getName());
+    logger.info("Log level changed to " + newLevel.getName() + " by " + sender.getName());
         sender.sendMessage(ChatColor.GREEN + "Log level set to: " + levelArg);
         
         return true;
@@ -73,7 +73,7 @@ public class QuestDebugSubCommand implements SubCommand {
         plugin.getConfigManager().reloadConfig();
         
         // Log the change at the new level
-        logger.info("Log level changed globally to: {}", newLevel.getName());
+    logger.info("Log level changed globally to: " + newLevel.getName());
     }
     
     private Level getLevel(String levelStr) {

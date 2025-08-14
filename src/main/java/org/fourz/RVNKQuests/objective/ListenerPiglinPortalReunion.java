@@ -1,7 +1,7 @@
 package org.fourz.RVNKQuests.objective;
 
 import org.bukkit.Location;
-import org.bukkit.entity.Entity;
+// import org.bukkit.entity.Entity; // not used
 import org.bukkit.entity.Piglin;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -12,7 +12,7 @@ import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestLoot;
 import org.fourz.RVNKQuests.util.log.LogManager;
 import org.fourz.RVNKQuests.util.log.FZLogger;
-import org.fourz.RVNKQuests.objective.ListenerPiglinEscort;
+// import org.fourz.RVNKQuests.objective.ListenerPiglinEscort; // not used
 
 public class ListenerPiglinPortalReunion implements Listener {
     private final Quest quest;
@@ -62,7 +62,7 @@ public class ListenerPiglinPortalReunion implements Listener {
         
         // Check if the piglin is close to the portal
         if (piglin.getLocation().distance(portalLocation) <= PORTAL_PROXIMITY_THRESHOLD) {
-            logger.debug("Piglin has reached the portal with player: {}", player.getName());
+            logger.debug("Piglin has reached the portal with player: " + player.getName());
             
             // Give special reward
             giveSpecialReward(player);
@@ -80,7 +80,7 @@ public class ListenerPiglinPortalReunion implements Listener {
      * Give the special reward for reuniting the piglin with the portal
      */
     private void giveSpecialReward(Player player) {
-        logger.debug("Giving special reward to player: {}", player.getName());
+    logger.debug("Giving special reward to player: " + player.getName());
         
         // Add all special loot items to player's inventory
         specialLoot.generateLoot().forEach(item -> {

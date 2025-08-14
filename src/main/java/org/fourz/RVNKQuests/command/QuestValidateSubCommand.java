@@ -37,7 +37,7 @@ public class QuestValidateSubCommand implements SubCommand {
                 sender.sendMessage(ChatColor.RED + "Some quests failed validation. Check the server logs for details.");
             }
             
-            logger.info("Quest validation performed by {} - Result: {}", sender.getName(), (allValid ? "Valid" : "Invalid"));
+            logger.info("Quest validation performed by " + sender.getName() + " - Result: " + (allValid ? "Valid" : "Invalid"));
         } catch (Exception e) {
             logger.error("Error during quest validation", e);
             sender.sendMessage(ChatColor.RED + "Error validating quests: " + e.getMessage());
@@ -69,7 +69,7 @@ public class QuestValidateSubCommand implements SubCommand {
                     allValid = false;
                 }
             } catch (Exception e) {
-                logger.error("Exception validating quest: {}", quest.getId(), e);
+                logger.error("Exception validating quest: " + quest.getId(), e);
                 sender.sendMessage(ChatColor.RED + "[ERROR] " + 
                     ChatColor.YELLOW + quest.getName() + 
                     ChatColor.GRAY + " (" + quest.getId() + "): " + e.getMessage());
@@ -81,7 +81,7 @@ public class QuestValidateSubCommand implements SubCommand {
     }
     
     private boolean validateQuest(Quest quest) {
-        logger.debug("Validating quest: {}", quest.getId());
+    logger.debug("Validating quest: " + quest.getId());
         boolean valid = true;
         
         // Basic validation
@@ -91,7 +91,7 @@ public class QuestValidateSubCommand implements SubCommand {
         }
         
         if (quest.getName() == null || quest.getName().isEmpty()) {
-            logger.warning("Quest has null or empty name: {}", quest.getId());
+            logger.warning("Quest has null or empty name: " + quest.getId());
             valid = false;
         }
         
@@ -104,12 +104,12 @@ public class QuestValidateSubCommand implements SubCommand {
                     valid = false;
                 }
             } catch (Exception e) {
-                logger.error("Error creating listeners for quest {} state {}", quest.getId(), state, e);
+                logger.error("Error creating listeners for quest " + quest.getId() + " state " + state, e);
                 valid = false;
             }
         }
         
-        logger.debug("Quest validation result for {}: {}", quest.getId(), (valid ? "Valid" : "Invalid"));
+    logger.debug("Quest validation result for " + quest.getId() + ": " + (valid ? "Valid" : "Invalid"));
         return valid;
     }
 

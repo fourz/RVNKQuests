@@ -47,7 +47,7 @@ public class ListenerEncounterPortal implements Listener {
         this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
         this.moveChecker = new IntervalChecker(5, 5.0); // Check every 5 ticks, minimum 5.0 blocks moved
         
-        logger.debug("Initialized with mob config: " + mobsToSpawn.toString());
+    logger.debug("Initialized with mob config: " + mobsToSpawn.toString());
     }
 
     @EventHandler
@@ -78,7 +78,7 @@ public class ListenerEncounterPortal implements Listener {
             final Location portalLoc = portalLocation.clone();
             final String worldName = portalLoc.getWorld().getName();
             
-                logger.debug("Starting dramatic lightning sequence in world: " + worldName + "");
+                logger.debug("Starting dramatic lightning sequence in world: " + worldName);
             
             EnvironmentEffects.startDramaticLightningSequence(
                 quest.getPlugin(),

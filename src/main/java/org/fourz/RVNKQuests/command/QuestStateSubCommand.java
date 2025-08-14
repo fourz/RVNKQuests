@@ -36,7 +36,7 @@ public class QuestStateSubCommand implements SubCommand {
         String questId = args[0].toLowerCase();
         String stateStr = args[1].toUpperCase();
         
-        logger.debug("Attempting to change quest state: {} to " + questId, stateStr + "");
+    logger.debug("Attempting to change quest state: " + stateStr + " for " + questId);
 
         Quest quest = plugin.getQuestManager().getQuest(questId);
         if (quest == null) {
@@ -56,7 +56,7 @@ public class QuestStateSubCommand implements SubCommand {
             return true;
         }
 
-        logger.debug("Changing quest {} state from {} to " + questId, currentState, newState + "");
+    logger.debug("Changing quest " + questId + " state from " + currentState + " to " + newState);
         quest.advanceState(newState);
         sender.sendMessage(ChatColor.GREEN + "Changed quest state for " + questId + " from " + 
                 currentState + " to " + newState);
