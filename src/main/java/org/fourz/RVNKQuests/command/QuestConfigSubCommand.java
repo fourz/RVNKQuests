@@ -4,32 +4,27 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
 // import org.fourz.RVNKQuests.config.ConfigManager; // not used here
 
-
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Handles the /quest config command for modifying the plugin configuration
+ * Handles the /quest config command for modifying the plugin configuration.
+ * Extends BaseSubCommand to provide standardized subcommand functionality.
  */
-public class QuestConfigSubCommand implements SubCommand {
-    private final RVNKQuests plugin;
-    private final FZLogger logger;
+public class QuestConfigSubCommand extends BaseSubCommand {
     private static final List<String> VALID_OPERATIONS = Arrays.asList("disable", "enable", "list");
     
     public QuestConfigSubCommand(RVNKQuests plugin) {
-        this.plugin = plugin;
-        this.logger = LogManager.getInstance(plugin, getClass());
+        super(plugin, "config", "Modify quest configuration (enable/disable quests)", 
+              "/quest config <operation> [quest_id|all]", "rvnkquests.admin", false);
     }
 
     @Override
-    public boolean execute(CommandSender sender, String[] args) {
+    protected boolean executeSubCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
             sender.sendMessage(ChatColor.RED + "Please specify an operation: " + String.join(", ", VALID_OPERATIONS));
             return true;
@@ -51,6 +46,31 @@ public class QuestConfigSubCommand implements SubCommand {
             default:
                 return true;
         }
+    }
+
+    @Override
+    protected List<String> getTabCompletionOptions(CommandSender sender, String[] args) {
+        if (args.length == 1) {
+            String partial = args[0].toLowerCase();
+            return VALID_OPERATIONS.stream()
+                .filter(op -> op.startsWith(partial))
+                .collect(Collectors.toList());
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable"))) {
+            String partial = args[1].toLowerCase();
+            List<String> options = plugin.getQuestManager().getQuestIds().stream()
+                .filter(id -> id.startsWith(partial))
+                .collect(Collectors.toList());
+            if ("all".startsWith(partial)) {
+                options.add("all");
+            }
+            return options;
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
+    public boolean hasPermission(CommandSender sender) {
+        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
     }
     
     private boolean handleDisable(CommandSender sender, String[] args) {
@@ -177,38 +197,5 @@ public class QuestConfigSubCommand implements SubCommand {
     
     private boolean isQuestEnabled(String questId) {
         return plugin.getConfigManager().getConfig().getBoolean("quests." + questId + ".enable", true);
-    }
-
-    @Override
-    public String getDescription() {
-        return "Configure quests (enable/disable)";
-    }
-
-    @Override
-    public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
-    }
-
-    @Override
-    public List<String> getTabCompletions(CommandSender sender, String[] args) {
-        if (args.length == 1) {
-            String partial = args[0].toLowerCase();
-            return VALID_OPERATIONS.stream()
-                    .filter(op -> op.startsWith(partial))
-                    .collect(Collectors.toList());
-        } else if (args.length == 2) {
-            String operation = args[0].toLowerCase();
-            if ("disable".equals(operation) || "enable".equals(operation)) {
-                String partial = args[1].toLowerCase();
-                List<String> options = new ArrayList<>(plugin.getQuestManager().getQuestIds());
-                options.add("all");
-                
-                return options.stream()
-                        .filter(q -> q.startsWith(partial))
-                        .collect(Collectors.toList());
-            }
-        }
-        
-        return Collections.emptyList();
     }
 }

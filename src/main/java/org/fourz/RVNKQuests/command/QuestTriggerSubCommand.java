@@ -1,56 +1,46 @@
 package org.fourz.RVNKQuests.command;
 
-import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.trigger.TriggerCommand;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Subcommand for triggering quests through commands
+ * Subcommand for triggering quests through commands.
+ * Extends BaseSubCommand to provide standardized subcommand functionality.
  * Usage: /quest trigger <quest_id> [location]
  * Where location is: here (default) or around (random within 40 blocks)
  */
-public class QuestTriggerSubCommand implements SubCommand {
-    private final RVNKQuests plugin;
-    private final FZLogger logger;
+public class QuestTriggerSubCommand extends BaseSubCommand {
     private final TriggerCommand triggerCommand;
 
     public QuestTriggerSubCommand(RVNKQuests plugin) {
-        this.plugin = plugin;
-        this.logger = LogManager.getInstance(plugin, getClass());
+        super(plugin, "trigger", "Manually triggers a quest at your location", 
+              "/quest trigger <quest_id> [location]", "rvnkquests.command.trigger", true);
         this.triggerCommand = new TriggerCommand(plugin);
     }
 
     @Override
-    public boolean execute(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
-            return true;
-        }
+    protected boolean executeSubCommand(CommandSender sender, String[] args) {
+        Player player = (Player) sender; // Safe cast due to playerOnly = true
 
-        Player player = (Player) sender;
-
-        if (args.length < 1) {
-            player.sendMessage(ChatColor.RED + "Usage: /quest trigger <quest_id> [location]");
-            player.sendMessage(ChatColor.GRAY + "Where location is: 'here' (default) or 'around' (random within 40 blocks)");
+        if (!validateArgs(sender, args, 1)) {
+            sendInfoMessage(sender, "Where location is: 'here' (default) or 'around' (random within 40 blocks)");
             return true;
         }
 
         String questId = args[0].toLowerCase();
         String location = args.length > 1 ? args[1].toLowerCase() : "here";
 
-    logger.debug("Player " + player.getName() + " attempting to trigger quest: " + questId + " location: " + location);
+        logger.debug("Player " + player.getName() + " attempting to trigger quest: " + questId + " location: " + location);
 
         // Validate location parameter
         if (!location.equals("here") && !location.equals("around")) {
-            player.sendMessage(ChatColor.RED + "Invalid location. Use 'here' or 'around'.");
+            sendErrorMessage(sender, "Invalid location. Use 'here' or 'around'.");
             return true;
         }
 
@@ -58,24 +48,14 @@ public class QuestTriggerSubCommand implements SubCommand {
         boolean success = triggerCommand.triggerQuest(player, questId, location);
 
         if (!success) {
-            player.sendMessage(ChatColor.RED + "Could not trigger quest: " + questId);
+            sendErrorMessage(sender, "Could not trigger quest: " + questId);
         }
 
         return true;
     }
 
     @Override
-    public String getDescription() {
-        return "Manually triggers a quest at your location";
-    }
-
-    @Override
-    public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.command.trigger") || sender.isOp();
-    }
-
-    @Override
-    public List<String> getTabCompletions(CommandSender sender, String[] args) {
+    protected List<String> getTabCompletionOptions(CommandSender sender, String[] args) {
         if (args.length == 1) {
             String partial = args[0].toLowerCase();
             return plugin.getQuestManager().getQuestIds().stream()
@@ -90,6 +70,6 @@ public class QuestTriggerSubCommand implements SubCommand {
                     .filter(loc -> loc.startsWith(partial))
                     .collect(Collectors.toList());
         }
-        return new ArrayList<>();
+        return super.getTabCompletionOptions(sender, args);
     }
 }

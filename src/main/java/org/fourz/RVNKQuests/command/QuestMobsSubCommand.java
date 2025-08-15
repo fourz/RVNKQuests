@@ -6,8 +6,6 @@ import org.bukkit.entity.Entity;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.objective.ListenerEncounterPortal;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,30 +14,29 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Handles the /quest mobs command to manage quest mobs
+ * Handles the /quest mobs command to manage quest mobs.
+ * Extends BaseSubCommand to provide standardized subcommand functionality.
  */
-public class QuestMobsSubCommand implements SubCommand {
-    private final RVNKQuests plugin;
-    private final FZLogger logger;
+public class QuestMobsSubCommand extends BaseSubCommand {
     private final List<String> VALID_OPERATIONS = Arrays.asList("kill", "list");
 
     public QuestMobsSubCommand(RVNKQuests plugin) {
-        this.plugin = plugin;
-        this.logger = LogManager.getInstance(plugin, getClass());
+        super(plugin, "mobs", "Manage quest mobs (kill, list)", 
+              "/quest mobs <operation>", "rvnkquests.admin", false);
     }
 
     @Override
-    public boolean execute(CommandSender sender, String[] args) {
+    protected boolean executeSubCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(ChatColor.RED + "Please specify an operation: kill, list");
+            sendErrorMessage(sender, "Please specify an operation: kill, list");
             return true;
         }
         
         String operation = args[0].toLowerCase();
         
         if (!VALID_OPERATIONS.contains(operation)) {
-            sender.sendMessage(ChatColor.RED + "Unknown operation: " + operation);
-            sender.sendMessage(ChatColor.RED + "Valid operations: " + String.join(", ", VALID_OPERATIONS));
+            sendErrorMessage(sender, "Unknown operation: " + operation);
+            sendErrorMessage(sender, "Valid operations: " + String.join(", ", VALID_OPERATIONS));
             return true;
         }
 
@@ -50,6 +47,22 @@ public class QuestMobsSubCommand implements SubCommand {
         }
         
         return true;
+    }
+
+    @Override
+    protected List<String> getTabCompletionOptions(CommandSender sender, String[] args) {
+        if (args.length == 1) {
+            String partial = args[0].toLowerCase();
+            return VALID_OPERATIONS.stream()
+                .filter(op -> op.startsWith(partial))
+                .collect(Collectors.toList());
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
+    public boolean hasPermission(CommandSender sender) {
+        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
     }
     
     /**
@@ -69,7 +82,7 @@ public class QuestMobsSubCommand implements SubCommand {
                         for (Entity mob : new ArrayList<>(mobs)) {
                             if (mob != null && mob.isValid()) {
                                 String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
-                                        logger.debug("Removing quest mob: " + mobName);
+                                logger.debug("Removing quest mob: " + mobName);
                                 mob.remove();
                                 killedCount++;
                             }
@@ -82,10 +95,10 @@ public class QuestMobsSubCommand implements SubCommand {
         }
         
         if (killedCount > 0) {
-            sender.sendMessage(ChatColor.GREEN + "Successfully removed " + killedCount + " quest mobs.");
+            sendSuccessMessage(sender, "Successfully removed " + killedCount + " quest mobs.");
             logger.info("Admin " + sender.getName() + " removed " + killedCount + " quest mobs");
         } else {
-            sender.sendMessage(ChatColor.YELLOW + "No active quest mobs found to remove.");
+            sendInfoMessage(sender, "No active quest mobs found to remove.");
         }
         
         return true;
@@ -128,9 +141,9 @@ public class QuestMobsSubCommand implements SubCommand {
         }
         
         if (totalCount == 0) {
-            sender.sendMessage(ChatColor.YELLOW + "No active quest mobs found.");
+            sendInfoMessage(sender, "No active quest mobs found.");
         } else {
-            sender.sendMessage(ChatColor.GREEN + "Total quest mobs: " + totalCount);
+            sendSuccessMessage(sender, "Total quest mobs: " + totalCount);
         }
         
         return true;
@@ -166,26 +179,5 @@ public class QuestMobsSubCommand implements SubCommand {
             loc.getBlockX(),
             loc.getBlockY(),
             loc.getBlockZ());
-    }
-
-    @Override
-    public String getDescription() {
-        return "Manage quest mobs (kill, list)";
-    }
-
-    @Override
-    public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
-    }
-
-    @Override
-    public List<String> getTabCompletions(CommandSender sender, String[] args) {
-        if (args.length == 1) {
-            String partial = args[0].toLowerCase();
-            return VALID_OPERATIONS.stream()
-                .filter(op -> op.startsWith(partial))
-                .collect(Collectors.toList());
-        }
-        return Collections.emptyList();
     }
 }

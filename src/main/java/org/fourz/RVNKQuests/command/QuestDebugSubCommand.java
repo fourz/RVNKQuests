@@ -4,8 +4,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
 
 import java.util.Arrays;
 import java.util.List;
@@ -13,22 +11,21 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
- * Handles the /quest debug command which can change the log level at runtime
+ * Handles the /quest debug command which can change the log level at runtime.
+ * Extends BaseSubCommand to provide standardized subcommand functionality.
  */
-public class QuestDebugSubCommand implements SubCommand {
-    private final RVNKQuests plugin;
-    private final FZLogger logger;
+public class QuestDebugSubCommand extends BaseSubCommand {
     private static final List<String> VALID_LEVELS = Arrays.asList(
         "debug", "info", "warning", "severe", "off"
     );
 
     public QuestDebugSubCommand(RVNKQuests plugin) {
-        this.plugin = plugin;
-        this.logger = LogManager.getInstance(plugin, getClass());
+        super(plugin, "debug", "View or change the plugin's debug level", 
+              "/quest debug [level]", "rvnkquests.admin", false);
     }
 
     @Override
-    public boolean execute(CommandSender sender, String[] args) {
+    protected boolean executeSubCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
             // Show current debug level from config
             Level currentLevel = plugin.getConfigManager().getLogLevel();
@@ -42,9 +39,8 @@ public class QuestDebugSubCommand implements SubCommand {
 
         String levelArg = args[0].toLowerCase();
         if (!VALID_LEVELS.contains(levelArg)) {
-            sender.sendMessage(ChatColor.RED + "Invalid log level: " + levelArg);
-            sender.sendMessage(ChatColor.YELLOW + "Valid levels: " + 
-                String.join(", ", VALID_LEVELS));
+            sendErrorMessage(sender, "Invalid log level: " + levelArg);
+            sendInfoMessage(sender, "Valid levels: " + String.join(", ", VALID_LEVELS));
             return true;
         }
 
@@ -59,10 +55,26 @@ public class QuestDebugSubCommand implements SubCommand {
         // Update runtime debug level
         updateLogLevel(newLevel);
         
-    logger.info("Log level changed to " + newLevel.getName() + " by " + sender.getName());
-        sender.sendMessage(ChatColor.GREEN + "Log level set to: " + levelArg);
+        logger.info("Log level changed to " + newLevel.getName() + " by " + sender.getName());
+        sendSuccessMessage(sender, "Log level set to: " + levelArg);
         
         return true;
+    }
+
+    @Override
+    protected List<String> getTabCompletionOptions(CommandSender sender, String[] args) {
+        if (args.length == 1) {
+            String partial = args[0].toLowerCase();
+            return VALID_LEVELS.stream()
+                .filter(level -> level.startsWith(partial))
+                .collect(Collectors.toList());
+        }
+        return super.getTabCompletionOptions(sender, args);
+    }
+
+    @Override
+    public boolean hasPermission(CommandSender sender) {
+        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
     }
 
     private void updateLogLevel(Level newLevel) {
@@ -73,7 +85,7 @@ public class QuestDebugSubCommand implements SubCommand {
         plugin.getConfigManager().reloadConfig();
         
         // Log the change at the new level
-    logger.info("Log level changed globally to: " + newLevel.getName());
+        logger.info("Log level changed globally to: " + newLevel.getName());
     }
     
     private Level getLevel(String levelStr) {
@@ -104,26 +116,5 @@ public class QuestDebugSubCommand implements SubCommand {
             return "OFF";
         }
         return level.getName();
-    }
-
-    @Override
-    public String getDescription() {
-        return "View or change the plugin's debug level";
-    }
-
-    @Override
-    public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
-    }
-
-    @Override
-    public List<String> getTabCompletions(CommandSender sender, String[] args) {
-        if (args.length == 1) {
-            String partial = args[0].toLowerCase();
-            return VALID_LEVELS.stream()
-                .filter(level -> level.startsWith(partial))
-                .collect(Collectors.toList());
-        }
-        return null;
     }
 }

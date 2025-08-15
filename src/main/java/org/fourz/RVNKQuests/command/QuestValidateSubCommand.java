@@ -5,45 +5,52 @@ import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
 import org.bukkit.event.Listener;
 
 import java.util.Collections;
 import java.util.List;
 
 /**
- * Handles the /quest validate command to validate quest configurations
+ * Handles the /quest validate command to validate quest configurations.
+ * Extends BaseSubCommand to provide standardized subcommand functionality.
  */
-public class QuestValidateSubCommand implements SubCommand {
-    private final RVNKQuests plugin;
-    private final FZLogger logger;
+public class QuestValidateSubCommand extends BaseSubCommand {
 
     public QuestValidateSubCommand(RVNKQuests plugin) {
-        this.plugin = plugin;
-        this.logger = LogManager.getInstance(plugin, getClass());
+        super(plugin, "validate", "Validate all quest configurations", 
+              "/quest validate", "rvnkquests.admin", false);
     }
 
     @Override
-    public boolean execute(CommandSender sender, String[] args) {
-        sender.sendMessage(ChatColor.YELLOW + "Validating all quests...");
+    protected boolean executeSubCommand(CommandSender sender, String[] args) {
+        sendInfoMessage(sender, "Validating all quests...");
         
         try {
             boolean allValid = validateAllQuests(sender);
             
             if (allValid) {
-                sender.sendMessage(ChatColor.GREEN + "All quests validated successfully!");
+                sendSuccessMessage(sender, "All quests validated successfully!");
             } else {
-                sender.sendMessage(ChatColor.RED + "Some quests failed validation. Check the server logs for details.");
+                sendErrorMessage(sender, "Some quests failed validation. Check the server logs for details.");
             }
             
             logger.info("Quest validation performed by " + sender.getName() + " - Result: " + (allValid ? "Valid" : "Invalid"));
         } catch (Exception e) {
             logger.error("Error during quest validation", e);
-            sender.sendMessage(ChatColor.RED + "Error validating quests: " + e.getMessage());
+            sendErrorMessage(sender, "Error validating quests: " + e.getMessage());
         }
         
         return true;
+    }
+
+    @Override
+    protected List<String> getTabCompletionOptions(CommandSender sender, String[] args) {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public boolean hasPermission(CommandSender sender) {
+        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
     }
     
     private boolean validateAllQuests(CommandSender sender) {
@@ -111,20 +118,5 @@ public class QuestValidateSubCommand implements SubCommand {
         
     logger.debug("Quest validation result for " + quest.getId() + ": " + (valid ? "Valid" : "Invalid"));
         return valid;
-    }
-
-    @Override
-    public String getDescription() {
-        return "Validate all quest configurations";
-    }
-
-    @Override
-    public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
-    }
-
-    @Override
-    public List<String> getTabCompletions(CommandSender sender, String[] args) {
-        return Collections.emptyList();
     }
 }

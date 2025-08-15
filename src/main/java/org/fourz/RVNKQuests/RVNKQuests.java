@@ -47,7 +47,8 @@ public class RVNKQuests extends JavaPlugin {
             
             // Initialize managers in correct dependency order
             questManager = new QuestManager(this);
-            commandManager = new CommandManager(this);
+            commandManager = CommandManager.getInstance(this);
+            commandManager.initialize();
             
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
@@ -137,10 +138,6 @@ public class RVNKQuests extends JavaPlugin {
         
         if (questManager != null) {
             questManager.updateDebugLevel(level);
-        }
-        
-        if (commandManager != null) {
-            commandManager.updateDebugLevel(level);
         }
         
         if (loreDatabase != null) {
