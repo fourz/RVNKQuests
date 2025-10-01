@@ -70,43 +70,30 @@ RVNKQuests/
 
 ## Development Workflow 
 
-### VS Code Tasks and Development Environment
+*See comprehensive workflow documentation: [VS Code Development Tasks](shared/derek/.github/instruction-sets/core/.github/copilot-instructions.vscode-tasks.md)*
 
-*See detailed workflow documentation: [VS Code Development Tasks](copilot-instructions.vscode-tasks.md)*
-
-RVNKQuests includes optimized development workflow integration using RVNKDev MCP server:
+RVNKQuests includes optimized development workflow integration:
 
 **Primary Development Tasks:**
 - **Build Plugin**: `mvn clean package`
-- **Deploy to RVNK Test**: Use RVNKDev MCP batch file operations to deploy plugin JAR
-- **Server Management**: Use RVNKDev MCP tools for server control (start/stop/restart)
-- **Plugin Reload**: Use RVNKDev MCP console commands to reload plugins
+- **Build & Deploy**: Complete sequence with validation
+- **Copy to Server**: Deploy to development server  
+- **Restart Server**: Full server restart with monitoring
 
-**Quest-Specific Development via RVNKDev MCP:**
-- **Server Console**: Monitor and send commands to RVNK Test server
-- **File Management**: Clean up old plugin files and deploy new builds
-- **Quest Testing**: Execute quest commands directly via MCP console tools
-- **Log Monitoring**: Real-time server console output for debugging
+**Quest-Specific Development:**
+- **Query Console - Plugin Messages**: Filter for RVNKQuests log entries
+- **Send Server Command**: Execute quest commands for testing
+- **Clean Database**: Reset quest progress for testing
 
-**RVNKDev MCP Tools:**
-- `mcp_rvnkdev-minec_server_status`: Check RVNK Test server status
-- `mcp_rvnkdev-minec_restart_server`: Restart RVNK Test server
-- `mcp_rvnkdev-minec_send_console_command`: Execute commands on server
-- `mcp_rvnkdev-minec_batch_file_operations`: Deploy plugin files
-- `mcp_rvnkdev-minec_delete_file`: Clean up old plugin files
-
-**Default Target Server:** RVNK Test (unless otherwise specified)
+**Key Bindings:**
+- `Ctrl+Shift+-`: Build and copy to local development server
+- `Ctrl+Shift+/`: Restart development server
+- `Ctrl+Shift++`: Deploy to test server
 
 ## Testing Guide
 
-For testing and debugging quests using RVNKDev MCP tools:
+For testing and debugging quests:
 
-**Server Management:**
-- Use `mcp_rvnkdev-minec_server_status` to check RVNK Test server status
-- Use `mcp_rvnkdev-minec_restart_server` to restart server after plugin deployment
-- Use `mcp_rvnkdev-minec_send_console_command` for direct command execution
-
-**Quest Testing Commands (via MCP console):**
 ```bash
 # Test quest triggering
 /quest trigger piglin_far_from_home around
@@ -120,11 +107,6 @@ For testing and debugging quests using RVNKDev MCP tools:
 # Reload configuration
 /quest reload
 ```
-
-**Plugin Deployment:**
-- Use `mcp_rvnkdev-minec_batch_file_operations` to deploy built JAR to RVNK Test
-- Use `mcp_rvnkdev-minec_delete_file` to clean up old plugin files
-- Use console command `reload` via MCP to reload plugins without restart
 
 ## Documentation and Reference Structure
 

@@ -15,11 +15,14 @@ mvn clean package
 
 ### Development Environment
 
-RVNKQuests includes VS Code tasks for streamlined development:
+RVNKQuests uses RVNKDev MCP server for streamlined development workflow:
 
 - **Build Plugin**: `Ctrl+Shift+P` → "Tasks: Run Task" → "Build Plugin"
-- **Deploy to Dev Server**: `Ctrl+Shift+P` → "Tasks: Run Task" → "Copy to Server"
-- **Restart Dev Server**: `Ctrl+Shift+P` → "Tasks: Run Task" → "Restart Server"
+- **Deploy to RVNK Test**: Use RVNKDev MCP batch file operations
+- **Server Management**: Use RVNKDev MCP tools for restart/reload operations
+- **Console Access**: Direct server console monitoring and command execution
+
+For detailed workflow documentation, see [Development Workflow - MCP Integration](docs/development-workflow-mcp.md).
 
 ## Commands
 
