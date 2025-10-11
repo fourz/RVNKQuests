@@ -1,163 +1,145 @@
-# RVNKQuests Copilot Instructions
+# GitHub Copilot Instructions for RVNKQuests
 
-These guidelines should be followed when modifying or creating code for RVNKQuests, a dynamic narrative quest system for Bukkit/Spigot servers. RVNKQuests is part of the RVNK plugin ecosystem and follows ecosystem-wide standards.
+This is the main index file for GitHub Copilot instructions. It provides contextual access to specialized instruction modules based on the current development context.
 
-## Core RVNK Ecosystem Standards
+## 📁 Project Structure & Navigation
 
-*See comprehensive framework: [RVNK Plugin Ecosystem Guidelines](shared/derek/.github/instruction-sets/core/.github/copilot-instructions.md)*
+**CRITICAL for AI Context**: Always validate your working directory and project structure before executing commands.
 
-RVNKQuests follows all RVNK ecosystem standards including:
-
-- **Command Framework**: Use CommandManager with BaseCommand/BaseSubCommand pat+terns
-- **Service Architecture**: ServiceRegistry pattern for dependency injection
-- **Asynchronous Operations**: CompletableFuture for database and I/O operations 
-- **Logging Standards**: RVNKLogger via LogManager for all logging operations
-- **Resource Management**: Proper lifecycle management and cleanup patterns
-- **Error Handling**: Meaningful error messages with proper exception handling
-
-## Plugin Overview
-
-RVNKQuests is a narrative-driven quest system that creates immersive, event-based adventures for Minecraft servers. It features:
-
-- **Dynamic Quest System**: Event-triggered quests that adapt to player actions and server events
-- **State-Based Quest Management**: Sophisticated quest state tracking with listener management 
-- **Narrative Integration**: Optional lore database for rich storytelling
-- **Server Event Integration**: Quests that respond to natural server events and player interactions
-- **Command Framework**: Comprehensive admin tools for quest management and debugging
-
-## Architecture Overview
-
-RVNKQuests follows a manager-based architecture with clear separation of concerns:
+### Absolute Project Paths (Windows)
 
 ```
-RVNKQuests/
-├── quest/                # Core quest system
-│   ├── Quest.java        # Quest interface
-│   ├── QuestManager.java # Central quest coordination
-│   ├── QuestState.java   # State enumeration
-│   └── [Quest Implementations]
-├── command/             # Command system
-├── config/              # Configuration management
-├── lore/                # Optional narrative database
-├── objective/           # Quest objective listeners
-├── trigger/             # Quest trigger handlers
-├── reward/              # Quest rewards system
-└── util/                # Utilities and helpers
+c:\tools\RVNKQuests\                                # PROJECT_ROOT
+├── .github\                                        # AI guidance and workflows
+│   ├── copilot-instructions.md                   # This file
+│   ├── copilot-instructions.*.md                 # Core modules (always loaded)
+│   └── supplemental\                             # Contextual modules (load as needed)
+├── README.md                                      # Project overview
+├── ROADMAP.md                                     # Current status (PRIMARY REFERENCE)
+├── docs\                                          # Documentation
+├── src\                                           # MAIN DEVELOPMENT DIRECTORY
+│   ├── main\java\rvnk\rvnkquests\               # Source code
+│   │   └── RVNKQuests.java                       # Application entry point
+│   └── main\resources\                           # Configuration files
+├── pom.xml                                        # Maven configuration
+├── target\                                        # Build output
+├── metamake\                                      # Project management framework
+└── BuildTools\                                    # Spigot build tools
 ```
 
-## Core Development Guidelines
+### Navigation Commands (Always Use These)
 
-### Quest System Architecture
-*See detailed patterns: [Quest Development Guidelines](copilot-instructions.quest.md)*
+```powershell
+# Navigate to project root (from anywhere)
+Set-Location "c:\tools\RVNKQuests"
 
-### Event-Driven Design
-*See detailed patterns: [Event-Driven Quest Design](copilot-instructions.events.md)*
+# Navigate to main development directory
+Set-Location "c:\tools\RVNKQuests\src\main\java\rvnk\rvnkquests"
 
-### Lore Integration
-*See detailed patterns: [Lore Integration Guidelines](copilot-instructions.lore.md)*
-
-### Command Framework
-*See detailed instructions: [Command Framework Guidelines](shared/derek/.github/instruction-sets/core/.github/copilot-instructions.commands.md)*
-
-### Logging Standards
-*See detailed instructions: [Logging Standards](shared/derek/.github/instruction-sets/core/.github/copilot-instructions.logging.md)*
-
-### RVNKCore Integration
-*See detailed patterns: [RVNKCore Integration Guidelines](copilot-instructions.rvnkcore.md)*
-
-### Migration and Compatibility
-*See detailed guidelines: [Migration and Compatibility](copilot-instructions.migration.md)*
-
-## Development Workflow 
-
-### VS Code Tasks and Development Environment
-
-*See detailed workflow documentation: [VS Code Development Tasks](copilot-instructions.vscode-tasks.md)*
-
-RVNKQuests includes optimized development workflow integration using RVNKDev MCP server:
-
-**Primary Development Tasks:**
-- **Build Plugin**: `mvn clean package`
-- **Deploy to RVNK Test**: Use RVNKDev MCP batch file operations to deploy plugin JAR
-- **Server Management**: Use RVNKDev MCP tools for server control (start/stop/restart)
-- **Plugin Reload**: Use RVNKDev MCP console commands to reload plugins
-
-**Quest-Specific Development via RVNKDev MCP:**
-- **Server Console**: Monitor and send commands to RVNK Test server
-- **File Management**: Clean up old plugin files and deploy new builds
-- **Quest Testing**: Execute quest commands directly via MCP console tools
-- **Log Monitoring**: Real-time server console output for debugging
-
-**RVNKDev MCP Tools:**
-- `mcp_rvnkdev-minec_server_status`: Check RVNK Test server status
-- `mcp_rvnkdev-minec_restart_server`: Restart RVNK Test server
-- `mcp_rvnkdev-minec_send_console_command`: Execute commands on server
-- `mcp_rvnkdev-minec_batch_file_operations`: Deploy plugin files
-- `mcp_rvnkdev-minec_delete_file`: Clean up old plugin files
-
-**Default Target Server:** RVNK Test (unless otherwise specified)
-
-## Testing Guide
-
-For testing and debugging quests using RVNKDev MCP tools:
-
-**Server Management:**
-- Use `mcp_rvnkdev-minec_server_status` to check RVNK Test server status
-- Use `mcp_rvnkdev-minec_restart_server` to restart server after plugin deployment
-- Use `mcp_rvnkdev-minec_send_console_command` for direct command execution
-
-**Quest Testing Commands (via MCP console):**
-```bash
-# Test quest triggering
-/quest trigger piglin_far_from_home around
-
-# Check quest states
-/quest debug piglin_far_from_home
-
-# Manually advance quest state (debugging)
-/quest state piglin_far_from_home QUEST_ACTIVE
-
-# Reload configuration
-/quest reload
+# Navigate to source code directory
+Set-Location "c:\tools\RVNKQuests\src"
 ```
 
-**Plugin Deployment:**
-- Use `mcp_rvnkdev-minec_batch_file_operations` to deploy built JAR to RVNK Test
-- Use `mcp_rvnkdev-minec_delete_file` to clean up old plugin files
-- Use console command `reload` via MCP to reload plugins without restart
+### Path Validation Before Commands
 
-## Documentation and Reference Structure
+```powershell
+# Verify current location before operations
+Get-Location
+Get-ChildItem  # Confirm expected files exist
 
-### Primary Documentation Files
+# Test for specific files before referencing
+Test-Path "pom.xml"
+Test-Path "src\main\java\rvnk\rvnkquests\RVNKQuests.java"
+```
 
-- **README.md**: Main project description, features overview, and quest catalog
-- **ROADMAP.md**: Current implementation status, development priorities, and timelines
-- **docs/**: Comprehensive technical documentation and guides
+## Minimal Core Modules (Always Included)
 
-### Reference Documentation
+Keep the core instruction set intentionally small — these files provide essential, project-wide patterns and safety rules that should be loaded for every session.
 
-The following documentation should be referenced only when relevant to specific prompts:
+The minimal set included by default:
 
-#### Quest Development and Implementation
-- `docs/Abstract Quest Implementation.md` - Quest system architecture patterns
-- `docs/RVNKQuests Ideas.md` - Quest concepts and implementation strategies
-- `docs/implementation/` - Detailed implementation guides
+- **[Bukkit/Spigot Framework Usage](copilot-instructions.bukkit.md)** — core framework patterns and plugin setup
+- **[Common Patterns](copilot-instructions.patterns.md)** — reusable code patterns and best practices
+- **[Security Requirements](copilot-instructions.security.md)** — production safety, credential handling, and security checks
+- **[Documentation Standards](copilot-instructions.documentation.md)** — documentation placement and ROADMAP maintenance
+- **[Git Workflow](copilot-instructions.versioning.md)** — commit/branching standards and release hygiene
 
-#### Configuration and Integration
-- `docs/config.yml` - Configuration schema and examples
-- `docs/RVNKQuests Lore Integration.md` - Lore system integration
-- `docs/api-reference/` - API documentation
+**Notes**:
+- Keep quest-specific, operation-specific, and deployment guides in supplemental modules
+- Load supplemental modules only when contextually relevant to current work
 
-#### Development and Testing
-- `docs/RVNKQuests Code Review Plan.md` - Code quality guidelines
-- `docs/tests/` - Testing documentation and test cases
-- `docs/plans/` - Development plans
+## Supplementary Instruction Modules (Included as Needed)
 
-### Documentation Usage Guidelines
+The following instruction files are stored in **`.github\supplemental\`** and should be **included only when contextually relevant** to reduce token usage:
 
-- **README.md contains project overview** and current quest catalog
-- **ROADMAP.md contains implementation status** and timelines
-- **Reference docs for specific technical details** as needed
-- **Quest development guides for implementation patterns** 
+**Quest Development**:
+- **[Quest System Architecture](supplemental/copilot-instructions.quest.md)** - Core quest implementation patterns
+- **[Event-Driven Design](supplemental/copilot-instructions.events.md)** - Event listener and trigger patterns
+- **[Quest Objectives](supplemental/copilot-instructions.objective.md)** - Objective and reward systems
+- **[Quest Triggers](supplemental/copilot-instructions.trigger.md)** - Quest trigger implementations
 
-This comprehensive set of standards ensures consistency with the RVNK plugin ecosystem while maintaining RVNKQuests' unique quest-driven architecture and narrative focus.
+**Narrative and Lore**:
+- **[Lore Integration](supplemental/copilot-instructions.lore.md)** - Narrative database integration
+- **[Reward Systems](supplemental/copilot-instructions.reward.md)** - Quest reward implementations
+
+**System Integration**:
+- **[RVNKCore Integration](supplemental/copilot-instructions.rvnkcore.md)** - Optional core service integration
+- **[Migration and Compatibility](supplemental/copilot-instructions.migration.md)** - Legacy system migration patterns
+
+**Development Environment**:
+- **[VS Code Tasks and MCP](supplemental/copilot-instructions.vscode-tasks.md)** - Development workflow integration
+- **[Testing Framework](supplemental/copilot-instructions.tests.md)** - Testing patterns and validation
+
+**Complete Guide**: See **[copilot-instructions.supplemental.md](copilot-instructions.supplemental.md)** for comprehensive usage guidelines
+
+## Contextual Usage Guidelines
+
+**CRITICAL**: Only include specific supplementary instruction modules relevant to your current development context.
+
+### Module Selection Strategy
+
+**Always Include (Primary Modules)**:
+- Load primary modules for every development session
+- These contain essential patterns, security requirements, and core framework guidance
+- Total: ~2,500 lines optimized for consistent usage
+
+**Include Selectively (Supplementary Modules)**:
+- Choose only supplementary modules relevant to current work
+- Each module is ~200-400 lines focused on specific functionality
+- Reduces context by 60-80% compared to loading all modules
+
+## Quick Reference
+
+For implementation patterns and examples, refer to the relevant primary instruction files:
+
+- **Plugin Setup**: See [Bukkit/Spigot Framework Usage](copilot-instructions.bukkit.md)
+- **Code Patterns**: See [Common Patterns](copilot-instructions.patterns.md)
+- **Security Guidelines**: See [Security Requirements](copilot-instructions.security.md)
+- **Documentation Standards**: See [Documentation Standards](copilot-instructions.documentation.md)
+- **Git Workflow**: See [Git Workflow](copilot-instructions.versioning.md)
+
+For supplementary modules, include only when working on specific functionality:
+
+- **Quest Development**: See [supplemental/copilot-instructions.quest.md](supplemental/copilot-instructions.quest.md)
+- **Event Systems**: See [supplemental/copilot-instructions.events.md](supplemental/copilot-instructions.events.md)
+- **Testing Framework**: See [supplemental/copilot-instructions.tests.md](supplemental/copilot-instructions.tests.md)
+- **VS Code Integration**: See [supplemental/copilot-instructions.vscode-tasks.md](supplemental/copilot-instructions.vscode-tasks.md)
+
+## Project Status and Current State
+
+**All project status, current achievements, roadmap, and development progress information is maintained in `ROADMAP.md`.**
+
+For current project status, development milestones, and implementation progress, refer to:
+- **[ROADMAP.md](../ROADMAP.md)** - Primary source for all project status and development timeline
+- **[docs/milestones/](../docs/milestones/)** - Detailed completion documentation
+
+## Key Development Reminders
+
+- **Module Selection**: Include only relevant supplemental modules to optimize token usage
+- **File Creation**: Be selective - only suggest new files when explicitly requested or clearly necessary
+- **Status Updates**: Update `ROADMAP.md` for any project milestone or status changes
+- **Documentation**: Follow standards in `copilot-instructions.documentation.md`
+- **Security**: Always follow production safety guidelines in `copilot-instructions.security.md`
+- **Git Workflow**: Use conventional commit format as specified in `copilot-instructions.versioning.md`
+
+Keep this index file minimal and focused on module organization. Detailed implementation guidance belongs in specialized files.
