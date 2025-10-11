@@ -1,12 +1,12 @@
 # RVNKQuests VS Code Development Tasks and MCP Integration
 
-## Development Workflow Overview
+## Development Workflow Overview - MCP Server Integration
 
-RVNKQuests uses a hybrid development workflow combining VS Code tasks and RVNKDev MCP tools for efficient plugin development and testing.
+RVNKQuests development workflow is **fully integrated with RVNKDev MCP server** for automated plugin deployment, server management, and testing operations.
 
-### VS Code Tasks Structure
+### MCP-Integrated VS Code Tasks Structure
 
-The following tasks are available in the workspace:
+**Updated Tasks (October 11, 2025)** - All server operations now use RVNKDev MCP tools:
 
 ```json
 {
@@ -16,26 +16,62 @@ The following tasks are available in the workspace:
             "type": "shell",
             "command": "mvn clean package",
             "group": {"kind": "build", "isDefault": true},
-            "detail": "Compiles and packages the Spigot plugin using Maven."
+            "detail": "Compiles and packages RVNKQuests plugin using Maven."
         },
         {
-            "label": "Copy to Server",
-            "type": "shell", 
-            "command": "powershell -ExecutionPolicy Bypass -File ./.vscode/copyto-server-DEV.ps1",
+            "label": "Deploy to Test Server",
             "dependsOn": "Build Plugin",
-            "detail": "Copies the built plugin JAR to the server plugins folder."
+            "detail": "Deploys RVNKQuests JAR to RVNK Test server (b2bc4d7e) using MCP batch file operations."
         },
         {
-            "label": "Restart Server",
-            "dependsOn": "Copy to Server",
-            "detail": "RESTARTS after copying fresh build to DEV server."
+            "label": "Restart Test Server",
+            "dependsOn": "Deploy to Test Server",
+            "detail": "Restarts RVNK Test server (b2bc4d7e) using MCP restart_server tool."
         },
         {
-            "label": "Reload Server", 
-            "dependsOn": "Copy to Server",
-            "detail": "Reloads plugins after copying fresh build to DEV server."
+            "label": "Reload Plugins",
+            "dependsOn": "Deploy to Test Server",
+            "detail": "Reloads plugins on RVNK Test server using MCP send_console_command tool (reload)."
+        },
+        {
+            "label": "Complete Deploy & Restart",
+            "dependsOn": ["Clean Server Files", "Restart Test Server"],
+            "detail": "Full deployment: Clean → Deploy → Restart RVNK Test server via MCP tools."
+        },
+        {
+            "label": "Complete Deploy & Reload", 
+            "dependsOn": ["Clean Server Files", "Reload Plugins"],
+            "detail": "Fast deployment: Clean → Deploy → Reload plugins via MCP tools."
         }
     ]
+}
+```
+
+### MCP Server Configuration
+
+**Target Server**: RVNK Test Server  
+**Server ID**: `b2bc4d7e` (SparkedHost)  
+**MCP Provider**: RVNKDev MCP Server  
+**Configuration File**: `.vscode/rvnkdev-config.json`
+
+```json
+{
+    "servers": {
+        "rvnk-test": {
+            "id": "b2bc4d7e",
+            "name": "RVNK Test Server", 
+            "provider": "sparkedhost",
+            "isDefault": true
+        }
+    },
+    "deployment": {
+        "pluginPath": "target/RVNKQuests-1.0-SNAPSHOT.jar",
+        "serverPluginFolder": "/plugins/",
+        "cleanupFiles": [
+            "/plugins/RVNKQuests-*.jar",
+            "/plugins/RVNKQuests/"
+        ]
+    }
 }
 ```
 
@@ -55,12 +91,12 @@ public class DevelopmentWorkflow {
         // Step 2: Build plugin (Ctrl+Shift+P -> "Tasks: Run Task" -> "Build Plugin")
         // This runs: mvn clean package
         
-        // Step 3: Deploy to server ("Copy to Server" task)
-        // This copies JAR to server plugins folder
+        // Step 3: Deploy to server ("Deploy to Test Server" task)
+        // This copies JAR to server plugins folder via MCP
         
         // Step 4: Choose reload method:
-        // - "Reload Server" for plugin reloads (faster)
-        // - "Restart Server" for full restart (more reliable)
+        // - "Reload Plugins" for plugin reloads (faster)
+        // - "Restart Test Server" for full restart (more reliable)
     }
 }
 ```
@@ -70,20 +106,20 @@ public class DevelopmentWorkflow {
 ```java
 public class TaskChainExamples {
     
-    // Clean & Reload: ServerCleanup -> Copy to Server -> Reload Server
+    // Clean & Reload: ServerCleanup -> Deploy to Test Server -> Reload Plugins
     public void quickTestCycle() {
-        // Use "Clean&Reload Server" task for rapid testing
-        // - Cleans old plugin files
-        // - Copies new build
-        // - Reloads plugins without full restart
+        // Use "Complete Deploy & Reload" task for rapid testing
+        // - Cleans old plugin files via MCP
+        // - Deploys new build via MCP batch operations
+        // - Reloads plugins without full restart via MCP console
     }
     
-    // Clean & Restart: ServerCleanup -> Copy to Server -> Restart Server  
+    // Clean & Restart: ServerCleanup -> Deploy to Test Server -> Restart Test Server  
     public void fullTestCycle() {
-        // Use "Clean&Restart Server" task for comprehensive testing
-        // - Cleans old plugin files
-        // - Copies new build
-        // - Performs full server restart
+        // Use "Complete Deploy & Restart" task for comprehensive testing
+        // - Cleans old plugin files via MCP
+        // - Deploys new build via MCP batch operations
+        // - Performs full server restart via MCP
     }
 }
 ```
@@ -92,7 +128,7 @@ public class TaskChainExamples {
 
 ### MCP Tools Available
 
-RVNKDev MCP server provides additional development tools that complement VS Code tasks:
+RVNKDev MCP server provides development tools that replace legacy PowerShell scripts:
 
 ```java
 public class MCPToolsReference {
@@ -139,8 +175,8 @@ public class VSCodeTaskUseCase {
         // 3. Automated task dependencies
         buildThenDeploy(); // Task chains with dependsOn
         
-        // 4. PowerShell script execution
-        runDeploymentScript(); // .vscode/*.ps1 files
+        // 4. Maven build operations
+        runMavenBuild(); // Local Maven execution
     }
 }
 ```
@@ -332,75 +368,40 @@ public class DebuggingWorkflow {
 }
 ```
 
-## PowerShell Scripts Integration
+## MCP Integration Benefits
 
-### VS Code Task Scripts
-
-The VS Code tasks utilize PowerShell scripts in `.vscode/` folder:
-
-```powershell
-# .vscode/copyto-server-DEV.ps1
-param(
-    [string]$PluginName = "RVNKQuests",
-    [string]$SourcePath = "target",
-    [string]$ServerPath = "C:\minecraft-servers\rvnk-test\plugins"
-)
-
-# Copy built JAR to server plugins folder
-$jarFile = Get-ChildItem "$SourcePath\$PluginName*.jar" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-
-if ($jarFile) {
-    Copy-Item $jarFile.FullName -Destination $ServerPath -Force
-    Write-Host "Deployed $($jarFile.Name) to $ServerPath"
-} else {
-    Write-Error "No JAR file found in $SourcePath"
-    exit 1
-}
-```
-
-```powershell
-# .vscode/restart-server-DEV.ps1
-param(
-    [string]$ServerPath = "C:\minecraft-servers\rvnk-test"
-)
-
-# Stop server gracefully
-Stop-Process -Name "java" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-
-# Start server
-Set-Location $ServerPath
-Start-Process -FilePath "java" -ArgumentList "-jar spigot-1.21.4.jar nogui" -NoNewWindow
-```
-
-### MCP Integration with PowerShell
+### Advantages Over Legacy PowerShell Scripts
 
 ```java
-public class MCPPowerShellIntegration {
+public class MCPAdvantages {
     
-    public void hybridScriptExecution() {
-        // 1. Use VS Code task for local PowerShell operations
-        runVSCodeTask("Build Plugin"); // Executes local PowerShell
+    public void legacyVsMCPComparison() {
+        // Legacy PowerShell Approach:
+        // - Local file system copying
+        // - Manual server restart scripts
+        // - Limited remote monitoring
+        // - Error-prone file synchronization
         
-        // 2. Use MCP for remote server operations  
-        deployViaMCP(); // Remote file operations
-        
-        // 3. Combine for complete workflow
-        executeHybridWorkflow();
+        // MCP Approach:
+        // - Direct server API integration
+        // - Reliable batch file operations
+        // - Real-time console access
+        // - Automated deployment workflows
+        // - Production-safe operations
+        // - Cross-platform compatibility
     }
     
-    private void executeHybridWorkflow() {
-        // Local: Build with PowerShell via VS Code task
-        // Remote: Deploy with MCP batch operations
-        // Remote: Test with MCP console commands
-        // Local: Monitor with MCP console output (displayed locally)
+    public void mcpBenefits() {
+        // 1. Reliability: Direct API calls vs file system operations
+        // 2. Monitoring: Real-time server status and logs
+        // 3. Automation: Batch operations with proper error handling
+        // 4. Safety: Production-safe tool validation
+        // 5. Integration: Seamless VS Code + MCP workflow
     }
 }
 ```
 
-## Performance and Efficiency
-
-### Task Optimization
+### Performance and Efficiency
 
 ```java
 public class TaskOptimization {
@@ -416,7 +417,7 @@ public class TaskOptimization {
     
     public void optimizeForReliability() {
         // Reliable cycle:
-        // 1. "Clean&Restart Server" (VS Code task chain)
+        // 1. "Complete Deploy & Restart" (VS Code task chain)
         // 2. MCP server status verification
         // 3. MCP console testing with full state reset
         
@@ -459,7 +460,7 @@ public class DevelopmentBestPractices {
     
     // 1. Use VS Code tasks for local operations
     public void useVSCodeForLocal() {
-        // Building, local file operations, script execution
+        // Building, Maven operations, local file management
         runTask("Build Plugin");
     }
     
@@ -472,16 +473,41 @@ public class DevelopmentBestPractices {
     
     // 3. Establish consistent naming
     public void consistentNaming() {
-        // Tasks: "Build Plugin", "Copy to Server", etc.
+        // Tasks: "Build Plugin", "Deploy to Test Server", etc.
         // MCP Operations: batch_file_operations, send_console_command
-        // Scripts: copyto-server-DEV.ps1, restart-server-DEV.ps1
+        // Configuration: rvnkdev-config.json structure
     }
     
     // 4. Automate common workflows
     public void automateWorkflows() {
-        // Task chains: "Clean&Restart Server"
+        // Task chains: "Complete Deploy & Restart"
         // MCP batches: Multi-file deployment operations
         // Combined: Hybrid development cycles
+    }
+}
+```
+
+### Migration from Legacy Scripts
+
+```java
+public class LegacyMigration {
+    
+    public void migrationBenefits() {
+        // Before (Legacy PowerShell):
+        // - copyto-server-DEV.ps1 → Manual file copying
+        // - restart-server-DEV.ps1 → Local server restart scripts
+        // - reload-server-DEV.ps1 → Limited remote control
+        
+        // After (MCP Integration):
+        // - mcp_rvnkdev-minec_batch_file_operations → Reliable deployment
+        // - mcp_rvnkdev-minec_restart_server → Direct server management
+        // - mcp_rvnkdev-minec_send_console_command → Full console control
+    }
+    
+    public void backupStrategy() {
+        // Legacy scripts preserved in: shared-backup/vscode-tasks-pre-mcp/
+        // Available for rollback if needed
+        // MCP configuration documented in: .vscode/rvnkdev-config.json
     }
 }
 ```
