@@ -2,6 +2,22 @@
 
 This is the main index file for GitHub Copilot instructions. It provides contextual access to specialized instruction modules based on the current development context.
 
+---
+
+## ⚠️ CRITICAL: ARCHON-FIRST WORKFLOW
+
+**BEFORE doing ANYTHING else on task-related work:**
+
+1. **CHECK** if Archon MCP server is available
+2. **USE** Archon task management as PRIMARY system
+3. **FOLLOW** task-driven development workflow (see [Archon Integration](copilot-instructions.archon.md))
+
+**This rule overrides ALL other instructions for task management and project planning.**
+
+See **[copilot-instructions.archon.md](copilot-instructions.archon.md)** for complete workflow and **[../../CLAUDE.md](../../CLAUDE.md)** for quick reference.
+
+---
+
 ## 📁 Project Structure & Navigation
 
 **CRITICAL for AI Context**: Always validate your working directory and project structure before executing commands.
@@ -58,6 +74,7 @@ Keep the core instruction set intentionally small — these files provide essent
 
 The minimal set included by default:
 
+- **[Archon Integration](copilot-instructions.archon.md)** — **PRIMARY** task management, RAG knowledge base, and task-driven development workflow
 - **[Bukkit/Spigot Framework Usage](copilot-instructions.bukkit.md)** — core framework patterns and plugin setup
 - **[Common Patterns](copilot-instructions.patterns.md)** — reusable code patterns and best practices
 - **[Security Requirements](copilot-instructions.security.md)** — production safety, credential handling, and security checks
@@ -109,6 +126,8 @@ The following instruction files are stored in **`.github\supplemental\`** and sh
 - Reduces context by 60-80% compared to loading all modules
 
 ## Quick Reference
+
+**ARCHON FIRST**: See [copilot-instructions.archon.md](copilot-instructions.archon.md) - Comprehensive Archon guide and task-driven development workflow
 
 For implementation patterns and examples, refer to the relevant primary instruction files:
 

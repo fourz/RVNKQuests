@@ -1,8 +1,91 @@
 # RVNKQuests Development Roadmap
 
-**Last Updated**: August 12, 2025
+**Last Updated**: November 1, 2025
 
 This document outlines the planned features and improvements for the RVNKQuests plugin, a dynamic narrative quest system for Bukkit/Spigot servers.
+
+**Key Integration**: Archon MCP server for task management and knowledge base. See **[CLAUDE.md](CLAUDE.md)** for AI assistant instructions.
+
+---
+
+## Active Initiatives
+
+### Initiative 1: Archon Integration ⭐ CURRENT PRIORITY
+
+**Timeline**: November 2025
+**Status**: In Progress (Phase 2: Project Setup)
+**Tracker**: Archon Task Board (when initialized)
+
+Implement Archon MCP server integration for task-driven development. This establishes the primary workflow for all future RVNKQuests development.
+
+**Progress**:
+- ✅ CLAUDE.md created (central AI documentation hub)
+- ✅ copilot-instructions.archon.md created (comprehensive workflow guide)
+- ✅ Core instruction files updated with Archon-first rule
+- ✅ Claude agents README updated with Archon references
+- 🔄 Archon project initialization in external system
+- 🔄 Knowledge base source configuration
+- 📋 Task board population and validation
+
+**Next Steps**:
+1. Initialize Archon project (external system)
+2. Configure knowledge base sources
+3. Populate task board with migration/refactor tasks
+4. Validate workflow end-to-end with first task
+
+**Documentation**:
+- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) - Full phased plan
+- [CLAUDE.md](CLAUDE.md) - Quick reference and overview
+- [.github/copilot-instructions.archon.md](.github/copilot-instructions.archon.md) - Comprehensive Archon guide
+- [metamake/projects/1-archon-integration/README.md](metamake/projects/1-archon-integration/README.md) - Project details
+
+---
+
+### Initiative 2: Core Refactoring
+
+**Timeline**: December 2025 - January 2026
+**Status**: Planning (Starts after Archon Integration)
+**Tracker**: Archon Task Board
+
+Modernize RVNKQuests core systems with focus on command framework improvements, quest state machine robustness, and test coverage expansion.
+
+**Objectives**:
+- Implement consistent command patterns across all commands
+- Add state transition validation to quest state machine
+- Expand test coverage to 70%+ for core systems
+- Improve error messages and user feedback
+
+**Estimated Effort**: 200-270 hours (~1-1.5 months)
+
+**Documentation**:
+- [metamake/projects/2-core-refactoring/README.md](metamake/projects/2-core-refactoring/README.md) - Project details
+
+---
+
+### Initiative 3: RVNKCore Migration
+
+**Timeline**: Q1-Q2 2026 (After Archon + Core Refactoring)
+**Status**: Planned
+**Tracker**: Archon Task Board
+
+Migrate RVNKQuests to RVNKCore unified architecture. Enables code sharing with RVNKLore, RVNKWorlds, and BarterShops plugins.
+
+**Key Objectives**:
+- Integrate RVNKCore services via ServiceRegistry
+- Implement repository pattern for all data access
+- Create public API for quest data access
+- Enable cross-plugin integration
+
+**Estimated Effort**: 310-440 hours (~2-2.5 months)
+
+**Dependencies**: RVNKCore availability + PROJECT 1 & 2 completion
+
+**Reference**: [to-rvnkcore.json](shared/derek/metamake/projects/archon-doc-sync/output/migration/to-rvnkcore.json)
+
+**Documentation**:
+- [metamake/projects/3-rvnkcore-migration/README.md](metamake/projects/3-rvnkcore-migration/README.md) - Project details
+
+---
 
 ## Current Status
 
