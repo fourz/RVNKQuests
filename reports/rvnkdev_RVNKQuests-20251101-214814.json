@@ -1,0 +1,222 @@
+{
+  "report_id": "rvnkdev_RVNKQuests-20251101-214814",
+  "project_name": "RVNKQuests MCP Integration",
+  "project_version": "1.0-SNAPSHOT",
+  "mcp_server_version": "2.0.6",
+  "generated_at": "2025-11-01T21:48:14.841428",
+  "test_session": "20251101-214814",
+  "test_suites": [
+    {
+      "completed_at": "2025-11-01T21:48:14.845709",
+      "started_at": "2025-11-01T21:48:14.841428",
+      "summary": {
+        "success_rate": 66.67,
+        "passed": 2,
+        "skipped": 0,
+        "errors": 0,
+        "total_tests": 3,
+        "failed": 1
+      },
+      "total_duration_ms": 2.114,
+      "environment": "rvnkdev_vscode_mcp",
+      "name": "MCP Tool Discovery (18 Tools)",
+      "metadata": {
+        "mcp_server_version": "2.0.6",
+        "providers": [
+          "sparkedhost",
+          "mcss"
+        ],
+        "vscode_integration": true
+      },
+      "test_cases": [
+        {
+          "duration_ms": 150.0,
+          "name": "list_available_tools",
+          "metadata": {
+            "categories": 6,
+            "production_safe_tools": 10,
+            "total_tools": 18
+          },
+          "status": "pass",
+          "error_message": null,
+          "stack_trace": null
+        },
+        {
+          "duration_ms": 200.0,
+          "name": "generate_tool_dashboard",
+          "metadata": {
+            "tool_counts_accurate": true,
+            "server_info_retrieved": true
+          },
+          "status": "pass",
+          "error_message": null,
+          "stack_trace": null
+        },
+        {
+          "duration_ms": 0.0,
+          "name": "diagnose_provider_status",
+          "metadata": {
+            "user_cancellation_required": true,
+            "recommendation": "Add timeout constraints to provider diagnostic calls",
+            "blocking_issue": true
+          },
+          "status": "fail",
+          "error_message": "Tool causes session hang/freeze - BLOCKING ISSUE",
+          "stack_trace": null
+        }
+      ]
+    },
+    {
+      "completed_at": "2025-11-01T21:48:14.850016",
+      "started_at": "2025-11-01T21:48:14.846715",
+      "summary": {
+        "success_rate": 33.33,
+        "passed": 1,
+        "skipped": 0,
+        "errors": 0,
+        "total_tests": 3,
+        "failed": 2
+      },
+      "total_duration_ms": 3.3428,
+      "environment": "rvnkdev_vscode_mcp",
+      "name": "Server Operations (RVNK Test)",
+      "metadata": {
+        "server_name": "RVNK Test",
+        "provider": "sparkedhost",
+        "test_server_id": "b2bc4d7e"
+      },
+      "test_cases": [
+        {
+          "duration_ms": 180.0,
+          "name": "server_status",
+          "metadata": {
+            "uptime_hours": 1155,
+            "server_status": "up",
+            "memory_usage_percent": 60.2,
+            "players_online": 0
+          },
+          "status": "pass",
+          "error_message": null,
+          "stack_trace": null
+        },
+        {
+          "duration_ms": 120.0,
+          "name": "send_console_command",
+          "metadata": {
+            "command_sent": "/lp track list",
+            "provider_response": "HTTP 204",
+            "console_output_available": false,
+            "blocking_issue": true
+          },
+          "status": "fail",
+          "error_message": "Send command failed: HTTP 204 - No content returned",
+          "stack_trace": null
+        },
+        {
+          "duration_ms": 90.0,
+          "name": "get_console_output",
+          "metadata": {
+            "provider_limitation": true,
+            "recommendation": "Use file-based log reads as fallback",
+            "console_method": "unavailable"
+          },
+          "status": "fail",
+          "error_message": "No console access method available",
+          "stack_trace": null
+        }
+      ]
+    },
+    {
+      "completed_at": "2025-11-01T21:48:14.854148",
+      "started_at": "2025-11-01T21:48:14.851408",
+      "summary": {
+        "success_rate": 100.0,
+        "passed": 2,
+        "skipped": 0,
+        "errors": 0,
+        "total_tests": 2,
+        "failed": 0
+      },
+      "total_duration_ms": 2.6625,
+      "environment": "rvnkdev_vscode_mcp",
+      "name": "File Operations (Production Safe)",
+      "metadata": {
+        "production_safe": true,
+        "test_server_id": "b2bc4d7e"
+      },
+      "test_cases": [
+        {
+          "duration_ms": 200.0,
+          "name": "list_files",
+          "metadata": {
+            "path_tested": "/plugins/LuckPerms",
+            "files_found": true
+          },
+          "status": "pass",
+          "error_message": null,
+          "stack_trace": null
+        },
+        {
+          "duration_ms": 250.0,
+          "name": "read_file",
+          "metadata": {
+            "read_successful": true,
+            "files_tested": [
+              "/usercache.json",
+              "/ops.json",
+              "/plugins/LuckPerms/config.yml"
+            ]
+          },
+          "status": "pass",
+          "error_message": null,
+          "stack_trace": null
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "environment": "rvnkdev_vscode_mcp",
+    "mcp_config": "c:\\tools\\RVNKQuests\\.vscode\\mcp.json",
+    "providers_tested": [
+      "sparkedhost",
+      "mcss"
+    ],
+    "project_root": "c:\\tools\\RVNKQuests",
+    "test_runner": "PowerShell MCP Test Generator"
+  },
+  "summary": {
+    "errors": 0.0,
+    "skipped": 0.0,
+    "failed": 3.0,
+    "success_rate": 62.5,
+    "total_tests": 8.0,
+    "passed": 5.0,
+    "total_suites": 3
+  },
+  "known_issues": [
+    {
+      "title": "diagnose_provider_status causes session hang",
+      "recommendation": "Add timeout constraints to provider diagnostic calls",
+      "issue_id": "MCP-001",
+      "description": "Tool call to diagnose_provider_status freezes test/chat session indefinitely",
+      "status": "open",
+      "severity": "BLOCKING"
+    },
+    {
+      "title": "Console output retrieval unavailable",
+      "recommendation": "Implement file-based log reads as fallback",
+      "issue_id": "MCP-002",
+      "description": "SparkedHost provider returns 'No console access method available'",
+      "status": "open",
+      "severity": "HIGH"
+    },
+    {
+      "title": "send_console_command returns HTTP 204",
+      "recommendation": "Test with MCSS provider or use file-based verification",
+      "issue_id": "MCP-003",
+      "description": "Commands accepted but no content returned; cannot verify execution",
+      "status": "open",
+      "severity": "MEDIUM"
+    }
+  ]
+}
