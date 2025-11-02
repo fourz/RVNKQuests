@@ -1,0 +1,111 @@
+{
+  "name": "Java Minecraft Plugin Development",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  
+  // Configure tool-specific properties
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Essential Java extensions
+        "vscjava.vscode-java-pack",
+        "vscjava.vscode-java-debug",
+        "vscjava.vscode-java-test",
+        "vscjava.vscode-maven",
+        "vscjava.vscode-gradle",
+        
+        // Code quality and formatting
+        "redhat.java",
+        "sonarsource.sonarlint-vscode",
+        
+        // Minecraft/Spigot specific extensions
+        "vscjava.vscode-java-dependency",
+        
+        // YAML support for plugin.yml
+        "redhat.vscode-yaml",
+        
+        // Git integration
+        "eamodio.gitlens",
+        
+        // Additional helpful extensions
+        "usernamehw.errorlens",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      
+      "settings": {
+        // Java settings
+        "java.configuration.runtimes": [
+          {
+            "name": "JavaSE-21",
+            "path": "/usr/lib/jvm/temurin-21-jdk-amd64",
+            "default": true
+          }
+        ],
+        "java.jdt.ls.java.home": "/usr/lib/jvm/temurin-21-jdk-amd64",
+        
+        // Maven settings
+        "maven.executable.path": "/usr/bin/mvn",
+        "maven.terminal.useJavaHome": true,
+        
+        // Gradle settings
+        "java.import.gradle.enabled": true,
+        "java.import.gradle.wrapper.enabled": true,
+        
+        // YAML settings for plugin.yml
+        "yaml.schemas": {
+          "https://json.schemastore.org/bukkit-plugin.json": "plugin.yml",
+          "https://json.schemastore.org/paper-plugin.json": "paper-plugin.yml"
+        },
+        
+        // Code formatting
+        "java.format.settings.url": "https://raw.githubusercontent.com/google/styleguide/gh-pages/eclipse-java-google-style.xml",
+        "java.format.settings.profile": "GoogleStyle",
+        
+        // Editor settings
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": "explicit"
+        },
+        
+        // Terminal settings
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+
+  // Use 'postCreateCommand' to run commands after the container is created
+  "postCreateCommand": "java -version && mvn -version && gradle -version",
+  
+  // Comment out to connect as root instead
+  "remoteUser": "vscode",
+  
+  // Set container-specific environment variables
+  "containerEnv": {
+    "MAVEN_OPTS": "-Xmx512m",
+    "GRADLE_OPTS": "-Xmx512m",
+    "JAVA_TOOL_OPTIONS": "-Dfile.encoding=UTF-8"
+  },
+  
+  // Mount local Maven/Gradle caches for better performance
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.m2,target=/home/vscode/.m2,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.gradle,target=/home/vscode/.gradle,type=bind,consistency=cached"
+  ],
+  
+  // Features to add to the container
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true,
+      "username": "vscode",
+      "userUid": "1000",
+      "userGid": "1000"
+    }
+  }
+}
