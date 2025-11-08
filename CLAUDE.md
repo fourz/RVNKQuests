@@ -348,6 +348,7 @@ Based on your current task, load relevant files:
 - **Working on events?** Load `.github/supplemental/copilot-instructions.events.md`
 - **Working on migrations?** Load `.github/supplemental/copilot-instructions.migration.md`
 - **Working on lore integration?** Load `.github/supplemental/copilot-instructions.lore.md`
+- **Testing MCP Server or RVNKQuests integration?** Use **test-orchestrator** agent (`.claude/agents/test-orchestrator.md`)
 
 ---
 
@@ -384,6 +385,7 @@ Based on your current task, load relevant files:
 - **Migration & Compatibility**: See [.github/supplemental/copilot-instructions.migration.md](.github/supplemental/copilot-instructions.migration.md)
 - **RVNKCore Integration**: See [.github/supplemental/copilot-instructions.rvnkcore.md](.github/supplemental/copilot-instructions.rvnkcore.md)
 - **Testing**: See [.github/supplemental/copilot-instructions.tests.md](.github/supplemental/copilot-instructions.tests.md)
+- **Test Orchestration**: See [.github/supplemental/copilot-instructions.test-orchestrator.md](.github/supplemental/copilot-instructions.test-orchestrator.md)
 - **VS Code Tasks**: See [.github/supplemental/copilot-instructions.vscode-tasks.md](.github/supplemental/copilot-instructions.vscode-tasks.md)
 
 ### Project Status
@@ -404,6 +406,7 @@ For specialized development tasks, use the appropriate agent from `.claude/agent
 - **[code-reviewer.md](.claude/agents/code-reviewer.md)** - Code review & quality standards
 - **[code-archaeologist.md](.claude/agents/code-archaeologist.md)** - Legacy code analysis & refactoring
 - **[test-engineer.md](.claude/agents/test-engineer.md)** - Testing & quality assurance
+- **[test-orchestrator.md](.claude/agents/test-orchestrator.md)** - RvnkDev MCP Server & RVNKQuests integration testing
 - **[build-engineer.md](.claude/agents/build-engineer.md)** - Build system optimization
 - **[git-workflow-manager.md](.claude/agents/git-workflow-manager.md)** - Version control & release management
 - **[documentation-specialist.md](.claude/agents/documentation-specialist.md)** - Technical documentation

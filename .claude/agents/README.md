@@ -59,6 +59,7 @@ Each agent file defines a specific role with:
 
 - **[security-engineer.md](security-engineer.md)** — Credential management, production safety, and secure coding
 - **[test-engineer.md](test-engineer.md)** — Test implementation, validation, and quality assurance ✨ **PROJECT-SPECIFIC**
+- **[test-orchestrator.md](test-orchestrator.md)** — RvnkDev FastMCP Server and RVNKQuests integration testing ✨ **PROJECT-SPECIFIC**
 - **[technical-writer.md](technical-writer.md)** — Code documentation, API references, and inline comments
 
 ### 📋 Planning & Architecture Agents
@@ -78,6 +79,7 @@ GitHub Copilot does not yet support Claude's native agent format. For Copilot us
 **Project-specific agents** (marked with ✨):
 - `fastmcp-developer.md` → `.github/copilot-instructions.fastmcp.md`
 - `test-engineer.md` → `.github/supplemental/copilot-instructions.tests.md`
+- `test-orchestrator.md` → `.github/supplemental/copilot-instructions.test-orchestrator.md`
 - `project-architect.md` → `.github/supplemental/copilot-instructions.metamake.md`
 
 **General development agents**:
@@ -108,6 +110,7 @@ GitHub Copilot does not yet support Claude's native agent format. For Copilot us
 | Administer Minecraft servers | **minecraft-rvnk-admin** |
 | Implement security | **security-engineer** |
 | Write tests | **test-engineer** |
+| Run test suites and analyze results | **test-orchestrator** |
 | Plan complex projects | **project-architect** |
 
 ### By Language/Framework
@@ -144,9 +147,19 @@ Use when:
 Use when:
 - Writing unit or integration tests
 - Validating test coverage
-- Running test suites
+- Designing test scenarios
 - Debugging test failures
-- Working with PROJECT_10 test tracking
+- Working with test frameworks
+
+#### Test Orchestrator
+Use when:
+- Running comprehensive test suites
+- Analyzing test results and trends
+- Detecting regressions
+- Pre-deployment validation
+- Cross-environment testing
+- Generating test reports
+- Working with RvnkDev FastMCP Server or RVNKQuests integration
 
 #### Project Architect
 Use when:
