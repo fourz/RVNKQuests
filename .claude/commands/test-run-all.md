@@ -16,7 +16,7 @@ Executes the complete test suite pipeline:
 - ✅ BW_SESSION environment variable set (Bitwarden)
 - ✅ 5 credential services available in Bitwarden vault
 - ✅ Network connectivity to SparkedHost and MCSS APIs
-- ✅ UV package manager installed (for test environment)
+- ✅ pip package manager available (standard with Python)
 
 ## Usage
 

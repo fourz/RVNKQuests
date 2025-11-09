@@ -367,8 +367,8 @@ python tests/test_runner.py  # Auto-detects providers
 
 **Package Installation**:
 
-- [ ] Build successful (`uv build`)
-- [ ] Development install works (`uv pip install -e .`)
+- [ ] Build successful (`python setup.py build` or `pip install build`)
+- [ ] Development install works (`pip install -e .`)
 - [ ] Import verification passes
 
 **Provider Initialization**:
