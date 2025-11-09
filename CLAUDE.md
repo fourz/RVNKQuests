@@ -337,18 +337,22 @@ Claude will automatically load appropriate context based on your task.
 6. Git Workflow (conventional commits)
 ```
 
-### 3. Load Relevant Instruction Files
+### 3. Select Your Tools
 
-Based on your current task, load relevant files:
+**For Claude Code users:**
+- Select appropriate agent based on task (see [.claude/agents/README.md](.claude/agents/README.md))
+- Agents provide specialized guidance and capabilities for your specific work
 
-- **Working on quest framework?** Load `.github/supplemental/copilot-instructions.quest.md`
-- **Working on objectives?** Load `.github/supplemental/copilot-instructions.objective.md`
-- **Working on rewards?** Load `.github/supplemental/copilot-instructions.reward.md`
-- **Working on triggers?** Load `.github/supplemental/copilot-instructions.trigger.md`
-- **Working on events?** Load `.github/supplemental/copilot-instructions.events.md`
-- **Working on migrations?** Load `.github/supplemental/copilot-instructions.migration.md`
-- **Working on lore integration?** Load `.github/supplemental/copilot-instructions.lore.md`
-- **Testing MCP Server or RVNKQuests integration?** Use **test-orchestrator** agent (`.claude/agents/test-orchestrator.md`)
+**For GitHub Copilot users:**
+- Load relevant Copilot instruction files based on your task:
+  - **Working on quest framework?** Load `.github/supplemental/copilot-instructions.quest.md`
+  - **Working on objectives?** Load `.github/supplemental/copilot-instructions.objective.md`
+  - **Working on rewards?** Load `.github/supplemental/copilot-instructions.reward.md`
+  - **Working on triggers?** Load `.github/supplemental/copilot-instructions.trigger.md`
+  - **Working on events?** Load `.github/supplemental/copilot-instructions.events.md`
+  - **Working on lore integration?** Load `.github/supplemental/copilot-instructions.lore.md`
+  - **Testing MCP Server or RVNKQuests integration?** Load `.github/supplemental/copilot-instructions.test-orchestrator.md`
+- See [.github/copilot-instructions.md](.github/copilot-instructions.md) for complete navigation hub
 
 ---
 
@@ -400,21 +404,33 @@ For current project status, development milestones, and implementation progress,
 
 ### Claude Agents
 
-For specialized development tasks, use the appropriate agent from `.claude/agents/`:
+For specialized development tasks, refer to the agent directory:
 
-- **[java-architect.md](.claude/agents/java-architect.md)** - Enterprise Java architecture & patterns
-- **[code-reviewer.md](.claude/agents/code-reviewer.md)** - Code review & quality standards
-- **[code-archaeologist.md](.claude/agents/code-archaeologist.md)** - Legacy code analysis & refactoring
-- **[test-engineer.md](.claude/agents/test-engineer.md)** - Testing & quality assurance
-- **[test-orchestrator.md](.claude/agents/test-orchestrator.md)** - RvnkDev MCP Server & RVNKQuests integration testing
-- **[build-engineer.md](.claude/agents/build-engineer.md)** - Build system optimization
-- **[git-workflow-manager.md](.claude/agents/git-workflow-manager.md)** - Version control & release management
-- **[documentation-specialist.md](.claude/agents/documentation-specialist.md)** - Technical documentation
-- **[minecraft-rvnk-admin.md](.claude/agents/minecraft-rvnk-admin.md)** - Minecraft server admin
-- **[project-architect.md](.claude/agents/project-architect.md)** - Complex project planning
-- **[sql-pro.md](.claude/agents/sql-pro.md)** - Database design & optimization
+**[.claude/agents/README.md](.claude/agents/README.md)** provides:
+- Complete directory of 28+ agents organized by category
+- Quick Selection Guide (by task type and language)
+- Detailed Agent Selection Guidelines for RVNKQuests work
+- GitHub Copilot instruction file mappings
 
-See [.claude/agents/README.md](.claude/agents/README.md) for complete agent directory and selection guidance.
+### Test Agent & Commands
+
+**Testing RvnkDev MCP Server and RVNKQuests Integration:**
+
+**Claude Code Users:**
+- **Agent**: `.claude/agents/test-orchestrator-enhanced.md` - Comprehensive testing orchestration
+- **Commands**:
+  - `/test-run-suite` - Execute test suites with options
+  - `/test-analyze-results` - Analyze and compare test results
+
+**GitHub Copilot Users:**
+- **Instructions**: `.github/supplemental/copilot-instructions.test-orchestrator.md`
+- **Ask Copilot**: "Run comprehensive test suite for RvnkDev with regression analysis"
+
+**Test Infrastructure:**
+- Location: `metamake/projects/10-test-suite-tracking/`
+- Test Suites: Core Tools (21), Provider Integration (6), Security (4)
+- Report Format: JSON and Markdown with historical tracking
+- Environments: rvnkdev_local, rvnkquests_integration, alternative installations
 
 ---
 
@@ -469,8 +485,10 @@ See [.claude/agents/README.md](.claude/agents/README.md) for complete agent dire
 
 1. **Use Archon**: Search knowledge base for context
 2. **Ask Claude**: Direct questions for guidance
-3. **Review Docs**: Check ROADMAP.md, README.md, IMPLEMENTATION_PLAN.md
-4. **Check Agents**: Review relevant Claude agents
+3. **Select Tool**: Use appropriate agent (Claude Code) or instruction file (Copilot)
+   - See [.claude/agents/README.md](.claude/agents/README.md) for agent selection
+   - See [.github/copilot-instructions.md](.github/copilot-instructions.md) for Copilot navigation
+4. **Review Docs**: Check ROADMAP.md, README.md, IMPLEMENTATION_PLAN.md
 5. **Check Patterns**: Look at similar completed work in `src/`
 
 ---
