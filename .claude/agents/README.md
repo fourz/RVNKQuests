@@ -60,6 +60,7 @@ Each agent file defines a specific role with:
 - **[security-engineer.md](security-engineer.md)** — Credential management, production safety, and secure coding
 - **[test-engineer.md](test-engineer.md)** — Test implementation, validation, and quality assurance ✨ **PROJECT-SPECIFIC**
 - **[test-orchestrator.md](test-orchestrator.md)** — RvnkDev FastMCP Server and RVNKQuests integration testing ✨ **PROJECT-SPECIFIC**
+- **[test-orchestrator-enhanced.md](test-orchestrator-enhanced.md)** — Enhanced test orchestrator with full Claude skills integration, multi-environment coordination, and Archon task management ✨ **PROJECT-SPECIFIC (NEW)**
 - **[technical-writer.md](technical-writer.md)** — Code documentation, API references, and inline comments
 
 ### 📋 Planning & Architecture Agents
@@ -110,7 +111,7 @@ GitHub Copilot does not yet support Claude's native agent format. For Copilot us
 | Administer Minecraft servers | **minecraft-rvnk-admin** |
 | Implement security | **security-engineer** |
 | Write tests | **test-engineer** |
-| Run test suites and analyze results | **test-orchestrator** |
+| Run test suites and analyze results | **test-orchestrator**, **test-orchestrator-enhanced** |
 | Plan complex projects | **project-architect** |
 
 ### By Language/Framework
@@ -160,6 +161,15 @@ Use when:
 - Cross-environment testing
 - Generating test reports
 - Working with RvnkDev FastMCP Server or RVNKQuests integration
+
+#### Test Orchestrator (Enhanced)
+Use when:
+- Need full Claude skills integration (code analysis, data processing, AI-driven insights)
+- Running multi-environment test orchestration (rvnkdev-local, rvnkquests-integration)
+- Managing complex test workflows with Archon task automation
+- Generating comprehensive reports with regression detection and trend analysis
+- Coordinating cross-environment testing with intelligent recommendations
+- Integrating with Archon MCP for automated task creation and tracking
 
 #### Project Architect
 Use when:

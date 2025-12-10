@@ -195,7 +195,7 @@ Before marking project/phase complete:
 
 ### Key Documents
 
-- **[IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)** - Full implementation overview (7 phases)
+- **[IMPLEMENTATION_PLAN.md](../docs/plans/IMPLEMENTATION_PLAN.md)** - Full implementation overview (7 phases)
 - **[ROADMAP.md](../ROADMAP.md)** - Project status and milestones
 - **[CLAUDE.md](../CLAUDE.md)** - AI assistant instructions and quick reference
 - **[.github/copilot-instructions.archon.md](../.github/copilot-instructions.archon.md)** - Comprehensive Archon guide
@@ -213,7 +213,7 @@ Before marking project/phase complete:
 ### For Project Leads
 
 1. Review project README in specific project directory
-2. Review [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) for context
+2. Review [IMPLEMENTATION_PLAN.md](../docs/plans/IMPLEMENTATION_PLAN.md) for context
 3. Check [ROADMAP.md](../ROADMAP.md) for overall status
 4. Prepare team for phase kickoff
 5. Create or review Archon tasks

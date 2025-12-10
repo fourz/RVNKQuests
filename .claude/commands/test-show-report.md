@@ -57,21 +57,37 @@ TOTAL: 25/25 tests passed
 
 **Latest JSON Report:**
 ```
-reports/rvnkdev-LATEST.json
+../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/rvnkdev-LATEST.json
 ```
 
 **Latest Markdown Report:**
 ```
-reports/rvnkdev-LATEST.md
+../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/rvnkdev-LATEST.md
 ```
 
 **Historical Tracking:**
 ```
-reports/response_history.json
+../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/response_history.json
 ```
+
+## Test Infrastructure Location
+
+- **Reports**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/`
+- **Report Schema**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/test-suites/test_report_schema.py`
 
 ## Related Commands
 
 - **Test: Run All Suites** - Generate new test report
 - **Test: Compare Reports** - View trend analysis
 - **Test: Detect Regressions** - Check for failures
+
+---
+
+**Last Updated**: December 6, 2025
+**Agent**: Test Orchestrator (Enhanced)
+**Version**: 2.0
+
+For comprehensive documentation, see:
+- **Test Orchestrator Agent**: `.claude/agents/test-orchestrator-enhanced.md`
+- **Test Suite Tracking**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/COPILOT-INSTRUCTIONS.md`
+- **Deployment Guide**: `../../rvnkdev-mcp-server/docs/RVNKQUESTS_DEPLOYMENT_GUIDE.md`

@@ -17,6 +17,7 @@ Executes the complete test suite pipeline:
 - ✅ 5 credential services available in Bitwarden vault
 - ✅ Network connectivity to SparkedHost and MCSS APIs
 - ✅ pip package manager available (standard with Python)
+- ✅ Test infrastructure location: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/`
 
 ## Usage
 
@@ -34,9 +35,9 @@ This will:
 ## Output
 
 **Report Files:**
-- `reports/rvnkdev-YYYYMMDD-HHMMSS.json` - Structured test data
-- `reports/rvnkdev-YYYYMMDD-HHMMSS.md` - Human-readable report
-- `reports/response_history.json` - Historical tracking (auto-updated)
+- `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/rvnkdev-YYYYMMDD-HHMMSS.json` - Structured test data
+- `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/rvnkdev-YYYYMMDD-HHMMSS.md` - Human-readable report
+- `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/response_history.json` - Historical tracking (auto-updated)
 
 **Console Output:**
 - Test execution progress
@@ -81,3 +82,14 @@ This will:
 - **Test: Show Last Report** - Display latest test report
 - **Test: Compare Reports** - Trend analysis
 - **Test: Detect Regressions** - Regression check
+
+---
+
+**Last Updated**: December 6, 2025
+**Agent**: Test Orchestrator (Enhanced)
+**Version**: 2.0
+
+For comprehensive documentation, see:
+- **Test Orchestrator Agent**: `.claude/agents/test-orchestrator-enhanced.md`
+- **Test Suite Tracking**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/COPILOT-INSTRUCTIONS.md`
+- **Deployment Guide**: `../../rvnkdev-mcp-server/docs/RVNKQUESTS_DEPLOYMENT_GUIDE.md`

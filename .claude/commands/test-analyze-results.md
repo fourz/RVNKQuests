@@ -219,29 +219,31 @@ Overall Security Status: ✅ COMPLIANT
 
 ### Analysis Engine
 
-**Location**: `metamake/projects/10-test-suite-tracking/test-suites/test_report_schema.py`
+**Location**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/test-suites/test_report_schema.py`
 
 **Components**:
-- `TestReport` — Individual test execution report
-- `ResponseTracker` — Historical tracking and trend analysis
-- `RegressionDetector` — Automatic regression detection
-- `TrendAnalyzer` — Performance trend analysis
+- `TestReport` — Complete test execution report with metadata
+- `TestSuite` — Grouped test cases with environment classification
+- `TestCase` — Individual test result with status and metrics
+- `ResponseTracker` — Historical tracking with regression detection
+- `RegressionDetector` — Automatic regression detection (5% threshold)
+- `TrendAnalyzer` — Performance trend analysis over time
 
 ### Report Sources
 
 **JSON Reports**:
-- Location: `metamake/projects/10-test-suite-tracking/reports/*.json`
+- Location: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/*.json`
 - Format: Machine-readable with full metadata
 - Retention: All reports kept for historical analysis
 
 **Markdown Reports**:
-- Location: `metamake/projects/10-test-suite-tracking/reports/*.md`
-- Format: Human-readable with status indicators
+- Location: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/*.md`
+- Format: Human-readable with emoji status indicators (✅ ❌)
 - Use: Documentation and sharing
 
 **Response History**:
-- Location: `metamake/projects/10-test-suite-tracking/reports/response_history.json`
-- Format: Compressed historical data
+- Location: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/response_history.json`
+- Format: Compressed historical data with baseline tracking
 - Purpose: Trend analysis and regression detection
 
 ### Regression Threshold
@@ -375,10 +377,11 @@ Analyze provider integration results with detailed format
 
 ---
 
-**Last Updated**: November 8, 2025
-**Agent**: Test Orchestrator
+**Last Updated**: December 6, 2025
+**Agent**: Test Orchestrator (Enhanced)
 **Version**: 2.0
 
 For comprehensive documentation, see:
-- `shared/derek/repos/rvnkdev-mcp-server/docs/RVNKQUESTS_DEPLOYMENT_GUIDE.md`
-- `shared/derek/repos/rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/COPILOT-INSTRUCTIONS.md`
+- **Test Orchestrator Agent**: `.claude/agents/test-orchestrator-enhanced.md`
+- **Test Suite Tracking**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/COPILOT-INSTRUCTIONS.md`
+- **Deployment Guide**: `../../rvnkdev-mcp-server/docs/RVNKQUESTS_DEPLOYMENT_GUIDE.md`

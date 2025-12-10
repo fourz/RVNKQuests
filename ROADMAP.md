@@ -34,7 +34,7 @@ Implement Archon MCP server integration for task-driven development. This establ
 4. Validate workflow end-to-end with first task
 
 **Documentation**:
-- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) - Full phased plan
+- [IMPLEMENTATION_PLAN.md](docs/plans/IMPLEMENTATION_PLAN.md) - Full phased plan
 - [CLAUDE.md](CLAUDE.md) - Quick reference and overview
 - [.github/copilot-instructions.archon.md](.github/copilot-instructions.archon.md) - Comprehensive Archon guide
 - [metamake/projects/1-archon-integration/README.md](metamake/projects/1-archon-integration/README.md) - Project details

@@ -63,6 +63,23 @@ Total: 25/25 tests passed (100%)
 - SparkedHost: Cloud hosting provider
 - MCSS: Minecraft Server Hosting Service
 
+## Test Infrastructure Location
+
+- **Test Suite**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/test-suites/`
+- **Runner**: `run_rvnkdev_tests.py`
+- **Reports**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/reports/`
+
+---
+
+**Last Updated**: December 6, 2025
+**Agent**: Test Orchestrator (Enhanced)
+**Version**: 2.0
+
+For comprehensive documentation, see:
+- **Test Orchestrator Agent**: `.claude/agents/test-orchestrator-enhanced.md`
+- **Test Suite Tracking**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/COPILOT-INSTRUCTIONS.md`
+- **Deployment Guide**: `../../rvnkdev-mcp-server/docs/RVNKQUESTS_DEPLOYMENT_GUIDE.md`
+
 ## Related Commands
 
 - **Test: Run All Suites** - Run both local and integration tests

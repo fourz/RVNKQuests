@@ -138,7 +138,7 @@ See `tasks/` directory for individual task definitions.
 - **[CLAUDE.md](../../CLAUDE.md)** - Central AI documentation (created)
 - **[.github/copilot-instructions.archon.md](.github/copilot-instructions.archon.md)** - Comprehensive Archon guide (created)
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - Updated with Archon-first rule (created)
-- **[IMPLEMENTATION_PLAN.md](../../IMPLEMENTATION_PLAN.md)** - Full phased implementation plan
+- **[IMPLEMENTATION_PLAN.md](../../docs/plans/IMPLEMENTATION_PLAN.md)** - Full phased implementation plan
 - **[ROADMAP.md](../../ROADMAP.md)** - Project status and milestones
 
 ## Status Updates

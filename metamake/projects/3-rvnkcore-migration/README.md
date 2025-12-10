@@ -201,7 +201,7 @@ Reference: `shared/derek/metamake/projects/archon-doc-sync/output/migration/to-r
 
 ## References
 
-- **[IMPLEMENTATION_PLAN.md](../../IMPLEMENTATION_PLAN.md)** - Full implementation overview
+- **[IMPLEMENTATION_PLAN.md](../../docs/plans/IMPLEMENTATION_PLAN.md)** - Full implementation overview
 - **[ROADMAP.md](../../ROADMAP.md)** - Project status and milestones
 - **[to-rvnkcore.json](shared/derek/metamake/projects/archon-doc-sync/output/migration/to-rvnkcore.json)** - RVNKCore migration guide (reference)
 - **[.github/supplemental/copilot-instructions.rvnkcore.md](.github/supplemental/copilot-instructions.rvnkcore.md)** - RVNKCore patterns

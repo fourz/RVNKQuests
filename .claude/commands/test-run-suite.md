@@ -124,12 +124,13 @@ Run rvnkdev-local core-tools with compare and verbose options
 
 The command integrates with the test infrastructure:
 
-**Location**: `metamake/projects/10-test-suite-tracking/test-suites/`
+**Location**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/test-suites/`
 
 **Runners**:
-- `run_rvnkdev_tests.py` — Local development tests
-- `run_rvnkquests_tests.py` — Integration tests
-- `test_report_schema.py` — Report generation and tracking
+- `run_rvnkdev_tests.py` — Local development tests (21 core tools, 3 test suites)
+- `run_rvnkquests_tests.py` — Integration tests (VS Code MCP validation)
+- `run_alternative_installation_tests.py` — Platform-specific installation testing
+- `test_report_schema.py` — Report generation and response tracking
 
 ### Report Generation
 
@@ -250,10 +251,11 @@ The command integrates with the test infrastructure:
 
 ---
 
-**Last Updated**: November 8, 2025
-**Agent**: Test Orchestrator
+**Last Updated**: December 6, 2025
+**Agent**: Test Orchestrator (Enhanced)
 **Version**: 2.0
 
 For comprehensive documentation, see:
-- `shared/derek/repos/rvnkdev-mcp-server/docs/RVNKQUESTS_DEPLOYMENT_GUIDE.md`
-- `shared/derek/repos/rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/COPILOT-INSTRUCTIONS.md`
+- **Test Orchestrator Agent**: `.claude/agents/test-orchestrator-enhanced.md`
+- **Test Suite Tracking**: `../../rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/COPILOT-INSTRUCTIONS.md`
+- **Deployment Guide**: `../../rvnkdev-mcp-server/docs/RVNKQUESTS_DEPLOYMENT_GUIDE.md`
