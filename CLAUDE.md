@@ -217,9 +217,18 @@ RVNKCore (planned extraction from RVNKTools)
 - Claude Code (extended AI assistance)
 
 **Testing Infrastructure:**
-- Test Suite Tracking: `shared/derek/repos/rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/`
-- Test Report Schema & Response History
-- Multi-environment test orchestration (dev/prod modes)
+- **Pytest Suite** (RECOMMENDED): `test-suites/run_rvnkdev_pytest.py` - ✅ PRODUCTION READY
+- **System-Level Tests** (LEGACY): `test-suites/run_rvnkdev_tests.py` - 11 comprehensive tests
+- **Performance Benchmarking** (perf-01): `scripts/benchmark_startup.py` - ✅ PRODUCTION READY (integrated Dec 8, 2025)
+- **Operational Testing** (Manual): 31 working tests across 6 scripts
+- **Test Suite Tracking**: `shared/derek/repos/rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/`
+- **Four Complementary Approaches**:
+  1. Pytest (RECOMMENDED) - Primary validation
+  2. System-Level (LEGACY) - Backwards compatibility
+  3. Performance Benchmarking (NEW) - Startup time ≤ 12s target
+  4. Operational Tests (Manual) - Real-world scenarios
+- **Deployment Modes**: `dev` (`.vscode/rvnkdev.json`) and `prod` (VS Code `mcp.json`)
+- **Report Locations**: `reports/dev/` and `reports/prod/` with JSON and Markdown output
 
 ### Complete Language Enumeration
 

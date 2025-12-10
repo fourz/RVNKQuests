@@ -176,43 +176,65 @@ The Test Orchestrator is a specialized testing system for:
 
 ## Common Test Commands
 
-### Run All Tests
+### Run Pytest Suite (RECOMMENDED)
 
-**Copilot:**
-```copilot
-@copilot Run comprehensive test suite for RvnkDev with regression analysis
+**Development Environment:**
+```bash
+python run_rvnkdev_pytest.py --deployment-mode dev --verbose
 ```
 
-**Claude:**
-```
-/test-run-suite rvnkdev-local all-suites verbose compare
+**Production Environment:**
+```bash
+python run_rvnkdev_pytest.py --deployment-mode prod --verbose
 ```
 
 **What it does:**
-- Executes all test suites (Core Tools, Providers, Security)
+- Automatically loads credentials (no interactive prompts)
+- Runs all test suites with pytest
 - Generates JSON and Markdown reports
-- Compares with historical baseline
-- Alerts on regressions
-- Saves results to `reports/` directory
-- Creates Archon tasks if issues found
+- 10-minute timeout protection
+- Reports saved to `reports/dev/` or `reports/prod/`
+- Pass-through pytest arguments supported
 
 **Expected output:**
 ```
-Test Execution Results
-═══════════════════════════════════════════════════════
-Core MCP Tools: 21/21 ✅ (125.4ms avg)
-Provider Integration: 6/6 ✅ (234.2ms avg)
-Security Validation: 4/4 ✅ (89.1ms avg)
-
-Total: 25/25 tests passed (100%)
-Duration: 45.2 seconds
-Regressions: None detected
+[INFO] Deployment mode: dev
+[INFO] Starting pytest: pytest tests/ --tb=short -v --json-report
+[INFO] Output directory: metamake/projects/10-test-suite-tracking/reports/dev
+[OK] Test results saved to reports/dev/pytest-rvnkdev-dev-YYYYMMDD-HHMMSS.json
 ```
 
-### Run Local Tests Only
+### Run Performance Benchmarking
 
-```copilot
-@copilot Run local development tests for RvnkDev FastMCP Server
+```bash
+python scripts/benchmark_startup.py --deployment-mode dev --iterations 3
+```
+
+**Validates:**
+- Startup time from process start to server initialization
+- Improvement percentage from 27s baseline
+- Target achievement (≤ 12 seconds)
+- Standard deviation across iterations
+
+**Expected output:**
+```
+Startup Performance Results
+═════════════════════════════════════════════
+Deployment: dev
+Run 1: 8.234s
+Run 2: 8.412s
+Run 3: 8.156s
+
+Average: 8.267s
+Improvement: 69.4% (from 27s baseline)
+Target: ≤ 12s ✅ ACHIEVED
+Std Dev: 0.128s
+```
+
+### Run System-Level Tests (LEGACY)
+
+```bash
+python run_rvnkdev_tests.py
 ```
 
 **Validates:**
@@ -220,16 +242,34 @@ Regressions: None detected
 - Provider authentication (SparkedHost, MCSS)
 - Security restrictions (production servers)
 
-### Test Specific Component
+### Run Operational Tests
 
-```copilot
-@copilot Test provider integration for RvnkDev
+**File Operations** (SFTP integration):
+```bash
+cd rvnkdev-fastmcp-server/working_tests
+python test_file_operations.py
+```
+
+**Server Management** (Multi-provider server control):
+```bash
+python test_server_management.py
+```
+
+**Individual Tools** (Tool validation):
+```bash
+python test_individual_tools.py
+```
+
+**Database Operations** (MySQL integration):
+```bash
+python test_database_operations.py
 ```
 
 **Tests:**
 - Credential management
 - Provider authentication
-- Provider operation execution
+- Real-world tool execution
+- Cross-provider operations
 - Resource cleanup
 
 ### Show Test Results
@@ -283,26 +323,52 @@ Human-readable format with:
 
 ## Understanding Test Results
 
-### Success Criteria
+### Success Criteria by Testing Approach
 
-**All Green (100% Success):**
+**Pytest Suite (Primary):**
 ```
-✅ Core Tools: 1/1 passed
-✅ Provider Integration: 4/4 passed
-✅ Security: 4/4 passed
-Overall: 25/25 tests passed (100%)
+✅ Core Tools: All tests passed
+✅ Provider Integration: Credential loading automatic
+✅ Security: Production restrictions enforced
+Overall: 100% success rate (deployment mode: dev/prod)
+Duration: 45-60 seconds for full suite
 ```
 
-**Expected for v2.0.5:** 100% success rate across all suites
+**System-Level Tests (Legacy):**
+```
+✅ Core MCP Tools: 1/1 passed
+✅ Provider Integration: 6/6 passed
+✅ Security & Permissions: 4/4 passed
+Overall: 11/11 tests passed (100%)
+```
 
-### Common Failures
+**Performance Benchmarking:**
+```
+✅ Startup Time: 8-9 seconds
+✅ Target Achievement: ≤ 12 seconds PASSED
+✅ Improvement: 69-70% from baseline
+Standard Deviation: <0.2 seconds
+```
 
-| Failure | Cause | Solution |
-|---------|-------|----------|
-| BW_SESSION expired | Bitwarden session timeout | Run `bw unlock` |
-| Provider auth failed | Invalid credentials | Check Bitwarden vault |
-| Network timeout | Provider offline | Check API status |
-| Import errors | Missing dependencies | Run `pip install -r requirements.txt` |
+**Operational Tests:**
+```
+✅ File Operations: 3/3 passed
+✅ Server Management: 6/6 passed
+✅ Individual Tools: 10/10 passed
+✅ Database Operations: 10/10 passed
+Total: 31/31 tests passed (100%)
+```
+
+### Common Failures & Solutions
+
+| Failure | Framework | Cause | Solution |
+|---------|-----------|-------|----------|
+| BW_SESSION expired | Pytest/System | Bitwarden timeout | Run `bw unlock` |
+| Provider auth failed | All | Invalid credentials | Check Bitwarden vault |
+| Network timeout | Operational | Provider offline | Check API status |
+| Import errors | All | Missing dependencies | Run `pip install -r requirements.txt` |
+| Startup timeout | Benchmarking | Process hang | Check for resource issues |
+| Connection refused | Operational | Server not running | Start MCP server first |
 
 ## Integration with Development Workflow
 
@@ -316,56 +382,141 @@ Before releasing a new version:
 
 **Checklist:**
 - ✅ Run full test suite
-- ✅ Compare with previous release
-- ✅ Verify no regressions
-- ✅ Check security rules
-- ✅ Generate release report
+- ✅ Pytest suite: 100% pass rate (dev and prod modes)
+- ✅ Performance: Startup ≤ 12 seconds consistently
+- ✅ System tests: All 11 tests passing
+- ✅ Operational tests: All 31 tests passing
+- ✅ Regression analysis: No degradation from previous release
+- ✅ Security rules enforced in production mode
+- ✅ Generate comprehensive release report
+
+### Run Operational Tests
+
+**File Operations** (SFTP integration):
+```bash
+cd rvnkdev-fastmcp-server/working_tests
+python test_file_operations.py
+```
+
+**Server Management** (Multi-provider server control):
+```bash
+python test_server_management.py
+```
+
+**Individual Tools** (Tool validation):
+```bash
+python test_individual_tools.py
+```
+
+**Database Operations** (MySQL integration):
+```bash
+python test_database_operations.py
+```
 
 ### RVNKQuests Integration Testing
 
-After deploying to RVNKQuests:
+After deploying to RVNKQuests, run all four testing approaches:
 
-```copilot
-@copilot Test MCP server integration in RVNKQuests environment
+**Step 1: Pytest Suite (Primary validation)**
+```bash
+python run_rvnkdev_pytest.py --deployment-mode dev --verbose
+python run_rvnkdev_pytest.py --deployment-mode prod --verbose
 ```
 
-**Validates:**
-- Server discoverable in VS Code
-- All 19 tools executable
-- Workflows functioning
-- Error handling correct
+**Step 2: Performance Benchmarking (Verify startup performance)**
+```bash
+python scripts/benchmark_startup.py --deployment-mode dev --iterations 5
+python scripts/benchmark_startup.py --deployment-mode prod --iterations 5
+```
+
+**Step 3: System-Level Tests (Legacy validation for backwards compatibility)**
+```bash
+python run_rvnkdev_tests.py
+```
+
+**Step 4: Operational Tests (Real-world scenarios)**
+```bash
+python working_tests/test_file_operations.py
+python working_tests/test_server_management.py
+python working_tests/test_individual_tools.py
+python working_tests/test_database_operations.py
+```
 
 ### Regression Detection
 
-To detect performance or functionality degradation:
+To detect performance or functionality degradation across frameworks:
 
-```copilot
-@copilot Analyze test history and identify any regressions in the last 10 runs
+**Pytest Regression Analysis:**
+```bash
+python run_rvnkdev_pytest.py --deployment-mode dev --compare-baseline
+```
+Compares test results with historical baseline and alerts on failures.
+
+**Performance Regression:**
+```bash
+python scripts/benchmark_startup.py --deployment-mode dev --iterations 5 --compare-baseline
+```
+Tracks startup time degradation and alerts if exceeding target (≤ 12s).
+
+**System Test Regression:**
+```bash
+python run_rvnkdev_tests.py  # Compare with previous run's success rate
 ```
 
-**Output:**
-- Success rate trends
-- Performance metrics
-- Identified regressions
-- Recommendations
+**Output Includes:**
+- Success rate trends across all frameworks
+- Performance metrics (startup time degradation)
+- Identified regressions and test failures
+- Actionable recommendations per framework
+- Historical comparison with previous releases
 
 ## Test Infrastructure
 
 ### Test Suite Tracking Project
 
-**Reference Documentation**: `shared/derek/repos/rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/COPILOT-INSTRUCTIONS.md`
+**Reference Documentation**: `shared/derek/repos/rvnkdev-mcp-server/metamake/projects/10-test-suite-tracking/`
 
-Comprehensive test suite tracking system documentation including:
-- Test report schema and structure
-- Deployment modes (dev/prod with credential sources)
-- Test environment configurations
-- Response history tracking
-- Report generation patterns
+Comprehensive test suite tracking system with **four complementary testing approaches**:
+
+### Four Test Framework Approaches
+
+#### 1. **Pytest Test Suite** (RECOMMENDED - Primary)
+- **Location**: `test-suites/run_rvnkdev_pytest.py`
+- **Status**: ✅ PRODUCTION READY
+- **Deployment Modes**: `dev` (`.vscode/rvnkdev.json`) and `prod` (VS Code `mcp.json`)
+- **Features**: Automatic credential loading, deployment-specific reports, 10-minute timeout
+- **Reports**: JSON + Markdown generation in `reports/dev/` or `reports/prod/`
+- **Use Case**: Pre-commit testing, feature validation, integration testing
+- **Command**: `python run_rvnkdev_pytest.py --deployment-mode dev --verbose`
+
+#### 2. **System-Level Testing** (LEGACY - Manual Tests)
+- **Location**: `test-suites/run_rvnkdev_tests.py`
+- **Status**: LEGACY (replaced by pytest framework)
+- **Test Count**: 11 comprehensive system tests
+- **Categories**: Core MCP Tools (1), Provider Integration (6), Security (4)
+- **Success Rate**: 100% (after v2.1.1 initialization fix)
+- **Purpose**: Validate multi-provider architecture and production-ready deployment
+
+#### 3. **Performance Benchmarking** (perf-01)
+- **Location**: `../../scripts/benchmark_startup.py`
+- **Status**: ✅ PRODUCTION READY (integrated Dec 8, 2025)
+- **Metrics**: Startup time from process start to "Server initialized"
+- **Deployment Modes**: `dev` and `prod`
+- **Target**: ≤ 12 seconds (55-63% improvement from 27s baseline)
+- **Output**: Startup time, improvement %, standard deviation across iterations
+- **Task**: perf-01 in Archon (50fd7a75-0a41-4547-abeb-73b16e66d93b)
+
+#### 4. **Operational Testing** (Working Tests)
+- **Location**: `../../rvnkdev-fastmcp-server/working_tests/`
+- **Test Count**: 31 operational tests across 6 test scripts
+- **Categories**: File Operations (3), Server Management (6), Individual Tools (10), Database (10), Write Operations (1), Sequential Moves (2)
+- **Purpose**: Individual tool functionality validation across real server environments
+- **Focus**: Real-world usage scenarios and integration testing
 
 **Key Resources**:
 - Test Report Schema: `test_report_schema.py`
-- RvnkDev Pytest Runner: `run_rvnkdev_pytest.py` (recommended)
-- Test Environment Docs: See tracking project COPILOT-INSTRUCTIONS.md
+- Copilot Instructions: `COPILOT-INSTRUCTIONS.md` (full documentation)
+- README & ROADMAP: Project overview and implementation phases
 
 ### Test Files Location
 
