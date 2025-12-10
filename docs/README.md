@@ -8,6 +8,59 @@
 
 This directory contains all project documentation organized by purpose:
 
+### 📊 [status/](./status/) - Project Status & Completion Reports
+
+Project status tracking, completion documentation, and progress reports.
+
+**Key Documents**:
+- **PHASE_1_COMPLETION_SNAPSHOT.md** - Phase 1 progress (38% complete, 5/13 tasks)
+- **PHASE_1_FINAL_SUMMARY.md** - Phase 1 deliverables (500+ KB documentation)
+- **PHASE_2_READINESS_SUMMARY.md** - Phase 2 task queue and blockers
+
+**Purpose**: Track project progress, current status, and completion metrics
+
+---
+
+### 📋 [plans/](./plans/) - Implementation Plans & Strategy
+
+Strategic planning documents, implementation roadmaps, and cleanup strategies.
+
+**Key Documents**:
+- **IMPLEMENTATION_PLAN.md** - 7-phase Archon integration strategy
+- **ARCHON_INTEGRATION_SUMMARY.md** - Integration implementation status
+- **INSTRUCTION_FILES_CLEANUP_GUIDE.md** - Redundancy reduction strategy (40-50% → <15%)
+- **CLEANUP_EDITS_SUMMARY.md** - Quick reference for cleanup tasks
+- **PRP.md** - Product requirements and strategic goals
+
+**Purpose**: Plan major initiatives, understand strategy, track implementations
+
+---
+
+### 🧪 [tests/](./tests/) - Test Orchestration & Infrastructure
+
+Test system documentation, testing infrastructure, and MCP testing resources.
+
+**Key Documents**:
+- **TEST_ORCHESTRATION_GUIDE.md** - Complete test system documentation (525 lines)
+- **TEST_AGENT_IMPLEMENTATION_SUMMARY.md** - Test agent and command infrastructure (475 lines)
+- **copilot-instructions.test-orchestrator.md** - Copilot testing guidance with MCP references
+
+**Purpose**: Understand testing infrastructure, run tests, analyze results
+
+---
+
+### 🔧 [fixes/](./fixes/) - Cleanup & Improvements
+
+Cleanup recommendations, improvement tracking, and code quality enhancements.
+
+**Key Documents**:
+- **INSTRUCTION_FILES_CLEANUP_GUIDE.md** - Comprehensive cleanup strategy
+- **CLEANUP_EDITS_SUMMARY.md** - Quick reference for targeted edits
+
+**Purpose**: Track and implement improvements, manage code quality
+
+---
+
 ### 🎯 [standards/](./standards/) - Standards & Conventions
 
 Developer standards, naming conventions, and project guidelines.
@@ -51,14 +104,14 @@ System architecture analysis, design patterns, and technical specifications.
 
 ---
 
-### 📊 [reports/](./reports/) - Reports & Status
+### 📊 [reports/](./reports/) - Legacy Reports & Validation
 
-Project status reports, completion reports, and validation documentation.
+Legacy project reports, completion documentation, and validation records.
 
 **Key Documents**:
 
 **Status Reports**:
-- **ARCHON_PROJECT_STATUS_BRIEF.md** - Current project status and priorities (updated Nov 2)
+- **ARCHON_PROJECT_STATUS_BRIEF.md** - Current project status and priorities
 - **ARCHON_VALIDATION_STATUS.md** - Task execution validation report
 - **ARCHON_EXECUTION_SUMMARY.md** - Initial project execution summary
 
@@ -71,7 +124,7 @@ Project status reports, completion reports, and validation documentation.
 - **APPROVAL_CHECKLIST_DOC02_DOC03.md** - Review checklist for documentation tasks
 - **COMPLETION_REVIEW_DOC02_DOC03.md** - Detailed review assessment
 
-**Purpose**: Track project progress, validate work quality, document decisions
+**Purpose**: Archive of status reports and validation documentation
 
 ---
 
@@ -83,20 +136,33 @@ Project status reports, completion reports, and validation documentation.
 2. **Full onboarding** (15 min): Read [guide/ARCHON_TRAINING_GUIDE.md](./guide/ARCHON_TRAINING_GUIDE.md)
 3. **Understanding agents**: Read [guide/AGENT_ROLE_DESCRIPTIONS.md](./guide/AGENT_ROLE_DESCRIPTIONS.md)
 
+### For Project Status
+
+1. **Current status**: Read [status/PHASE_1_COMPLETION_SNAPSHOT.md](./status/PHASE_1_COMPLETION_SNAPSHOT.md)
+2. **Phase 2 planning**: Read [status/PHASE_2_READINESS_SUMMARY.md](./status/PHASE_2_READINESS_SUMMARY.md)
+3. **Detailed metrics**: Read [status/PHASE_1_FINAL_SUMMARY.md](./status/PHASE_1_FINAL_SUMMARY.md)
+
+### For Strategic Planning
+
+1. **Implementation roadmap**: Read [plans/IMPLEMENTATION_PLAN.md](./plans/IMPLEMENTATION_PLAN.md)
+2. **Archon integration**: Read [plans/ARCHON_INTEGRATION_SUMMARY.md](./plans/ARCHON_INTEGRATION_SUMMARY.md)
+3. **Cleanup strategy**: Read [plans/INSTRUCTION_FILES_CLEANUP_GUIDE.md](./plans/INSTRUCTION_FILES_CLEANUP_GUIDE.md)
+
+### For Testing
+
+1. **Test overview**: Read [tests/TEST_ORCHESTRATION_GUIDE.md](./tests/TEST_ORCHESTRATION_GUIDE.md)
+2. **Agent implementation**: Read [tests/TEST_AGENT_IMPLEMENTATION_SUMMARY.md](./tests/TEST_AGENT_IMPLEMENTATION_SUMMARY.md)
+3. **MCP references**: See [tests/README.md](./tests/README.md)
+
+### For Code Quality
+
+1. **Cleanup guide**: Read [fixes/README.md](./fixes/README.md)
+2. **Targeted edits**: Read [fixes/CLEANUP_EDITS_SUMMARY.md](../../CLEANUP_EDITS_SUMMARY.md)
+
 ### For Architecture Review
 
 1. **Quick overview** (5 min): Read [features/ARCHITECTURE_FINDINGS_SUMMARY.md](./features/ARCHITECTURE_FINDINGS_SUMMARY.md)
 2. **Deep dive** (1-2 hours): Read [features/QUEST_SYSTEM_ARCHITECTURE_ANALYSIS.md](./features/QUEST_SYSTEM_ARCHITECTURE_ANALYSIS.md)
-
-### For Project Status
-
-1. **Current status**: Read [reports/ARCHON_PROJECT_STATUS_BRIEF.md](./reports/ARCHON_PROJECT_STATUS_BRIEF.md)
-2. **Task details**: Read [reports/DOC-02_DOC-03_COMPLETION_SUMMARY.md](./reports/DOC-02_DOC-03_COMPLETION_SUMMARY.md)
-
-### For Validation/Review
-
-1. **Review checklist**: Read [reports/APPROVAL_CHECKLIST_DOC02_DOC03.md](./reports/APPROVAL_CHECKLIST_DOC02_DOC03.md)
-2. **Detailed assessment**: Read [reports/COMPLETION_REVIEW_DOC02_DOC03.md](./reports/COMPLETION_REVIEW_DOC02_DOC03.md)
 
 ---
 
@@ -104,15 +170,39 @@ Project status reports, completion reports, and validation documentation.
 
 | Category | Files | Size | Purpose |
 |----------|-------|------|---------|
+| **Status** | 3 | 145+ KB | Project status & progress |
+| **Plans** | 5 | 1,600+ lines | Strategy & implementation |
+| **Tests** | 2 | 1,000+ lines | Testing & MCP infrastructure |
+| **Fixes** | 2 | 768 lines | Cleanup & improvements |
 | **Standards** | 1 | 10 KB | Conventions & naming |
 | **Guides** | 3 | 20 KB | Training & onboarding |
 | **Features** | 2 | 55 KB | Architecture & design |
-| **Reports** | 7 | 95 KB | Status & completion |
-| **Total** | **13** | **180 KB** | Complete documentation |
+| **Reports** | 7 | 95 KB | Legacy reports & validation |
+| **Total** | **25+** | **450+ KB** | Complete documentation |
 
 ---
 
 ## 🎯 Documentation Domains & Purpose
+
+### status/
+- **Who**: Project managers, team leads
+- **Why**: Track progress and current project state
+- **What**: Phase completion snapshots, readiness assessments, progress metrics
+
+### plans/
+- **Who**: Architects, project leads, strategic planners
+- **Why**: Understand strategy and plan implementations
+- **What**: Implementation roadmaps, strategic initiatives, cleanup strategies
+
+### tests/
+- **Who**: QA engineers, developers, test orchestrators
+- **Why**: Understand testing infrastructure and run tests
+- **What**: Test orchestration guides, MCP test documentation, agent implementations
+
+### fixes/
+- **Who**: Developers, architects, code maintainers
+- **Why**: Identify and implement improvements
+- **What**: Cleanup recommendations, improvement priorities, implementation steps
 
 ### standards/
 - **Who**: Team leads, architects
@@ -131,8 +221,8 @@ Project status reports, completion reports, and validation documentation.
 
 ### reports/
 - **Who**: Project managers, architects, team leads
-- **Why**: Track progress, validate quality, document decisions
-- **What**: Status reports, completion reports, validation
+- **Why**: Archive of historical status and validation documentation
+- **What**: Legacy status reports, completion reports, validation records
 
 ---
 
@@ -141,24 +231,31 @@ Project status reports, completion reports, and validation documentation.
 ### By Audience
 
 **New Developers**:
-- Start: guide/QUICK_START.md
-- Next: guide/ARCHON_TRAINING_GUIDE.md
-- Reference: guide/AGENT_ROLE_DESCRIPTIONS.md
-
-**Architects**:
-- Core: features/QUEST_SYSTEM_ARCHITECTURE_ANALYSIS.md
-- Summary: features/ARCHITECTURE_FINDINGS_SUMMARY.md
-- Status: reports/ARCHON_PROJECT_STATUS_BRIEF.md
+- Start: [guide/QUICK_START.md](./guide/QUICK_START.md)
+- Next: [guide/ARCHON_TRAINING_GUIDE.md](./guide/ARCHON_TRAINING_GUIDE.md)
+- Reference: [guide/AGENT_ROLE_DESCRIPTIONS.md](./guide/AGENT_ROLE_DESCRIPTIONS.md)
 
 **Project Managers**:
-- Status: reports/ARCHON_PROJECT_STATUS_BRIEF.md
-- Validation: reports/FINAL_VALIDATION_REPORT.md
-- Metrics: reports/ARCHON_EXECUTION_SUMMARY.md
+- Current Status: [status/PHASE_1_COMPLETION_SNAPSHOT.md](./status/PHASE_1_COMPLETION_SNAPSHOT.md)
+- Next Phase: [status/PHASE_2_READINESS_SUMMARY.md](./status/PHASE_2_READINESS_SUMMARY.md)
+- Metrics: [status/PHASE_1_FINAL_SUMMARY.md](./status/PHASE_1_FINAL_SUMMARY.md)
+
+**Architects**:
+- Architecture: [features/QUEST_SYSTEM_ARCHITECTURE_ANALYSIS.md](./features/QUEST_SYSTEM_ARCHITECTURE_ANALYSIS.md)
+- Summary: [features/ARCHITECTURE_FINDINGS_SUMMARY.md](./features/ARCHITECTURE_FINDINGS_SUMMARY.md)
+- Planning: [plans/IMPLEMENTATION_PLAN.md](./plans/IMPLEMENTATION_PLAN.md)
+- Status: [status/PHASE_1_COMPLETION_SNAPSHOT.md](./status/PHASE_1_COMPLETION_SNAPSHOT.md)
+
+**Test Engineers**:
+- Overview: [tests/TEST_ORCHESTRATION_GUIDE.md](./tests/TEST_ORCHESTRATION_GUIDE.md)
+- Implementation: [tests/TEST_AGENT_IMPLEMENTATION_SUMMARY.md](./tests/TEST_AGENT_IMPLEMENTATION_SUMMARY.md)
+- Reference: [tests/README.md](./tests/README.md)
 
 **Code Reviewers**:
-- Checklist: reports/APPROVAL_CHECKLIST_DOC02_DOC03.md
-- Assessment: reports/COMPLETION_REVIEW_DOC02_DOC03.md
-- Standards: standards/TASK_NAMING_STANDARD.md
+- Cleanup Guide: [fixes/README.md](./fixes/README.md)
+- Quick Reference: [fixes/CLEANUP_EDITS_SUMMARY.md](../../CLEANUP_EDITS_SUMMARY.md)
+- Standards: [standards/TASK_NAMING_STANDARD.md](./standards/TASK_NAMING_STANDARD.md)
+- Legacy Checklist: [reports/APPROVAL_CHECKLIST_DOC02_DOC03.md](./reports/APPROVAL_CHECKLIST_DOC02_DOC03.md)
 
 ---
 
