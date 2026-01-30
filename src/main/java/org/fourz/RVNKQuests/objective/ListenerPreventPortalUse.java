@@ -8,15 +8,14 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 /**
  * Prevents quest mobs from using portals during encounters
  */
 public class ListenerPreventPortalUse implements Listener {
     private final JavaPlugin plugin;
-    private final FZLogger logger;
+    private final LogManager logger;
     private boolean isRegistered = true;
 
     public ListenerPreventPortalUse(JavaPlugin plugin) {

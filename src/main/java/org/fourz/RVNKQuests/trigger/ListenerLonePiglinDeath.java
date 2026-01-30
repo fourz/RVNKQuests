@@ -7,8 +7,7 @@ import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestItem;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 /**
  * Listener that handles the death of the quest piglin.
@@ -18,7 +17,7 @@ import org.fourz.RVNKQuests.util.log.FZLogger;
 public class ListenerLonePiglinDeath implements Listener {
     private final Quest quest;
     private final ListenerLonePiglinTrigger lonePiglinListener;
-    private final FZLogger logger;
+    private final LogManager logger;
     private final ItemStack questItem;
 
     /**

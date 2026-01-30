@@ -9,13 +9,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 public class ListenerGuardianDefeat implements Listener {
     private final Quest quest;
     private final ListenerGuardianAwakening guardianListener;
-    private final FZLogger logger;
+    private final LogManager logger;
 
     public ListenerGuardianDefeat(Quest quest, ListenerGuardianAwakening guardianListener) {
         this.quest = quest;

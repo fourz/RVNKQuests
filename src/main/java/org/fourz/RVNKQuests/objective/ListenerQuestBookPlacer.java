@@ -9,8 +9,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
 // import org.fourz.RVNKQuests.quest.Quest; // not used
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import org.bukkit.block.Block;
 // import org.bukkit.block.Lectern; // duplicate/unused
 //import org.fourz.RVNKQuests.util.NMSUtil;
@@ -22,7 +21,7 @@ import java.util.List;
 
 public class ListenerQuestBookPlacer implements Listener {
     private final RVNKQuests plugin;
-    private final FZLogger logger;
+    private final LogManager logger;
     private final Location lecternLocation;
     private boolean bookPlaced = false;
 

@@ -11,8 +11,7 @@ import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import org.bukkit.Location;
 
 // Listener for when a player interacts with the quest book in the prophecy lectern
@@ -21,7 +20,7 @@ public class ListenerSpawnQuestBook implements Listener {
     private final Quest quest;
     private final String requiredBookTitle;
     private final Location lecternLocation;
-    private final FZLogger logger;
+    private final LogManager logger;
 
     public ListenerSpawnQuestBook(RVNKQuests plugin, Quest quest, String requiredBookTitle, Location lecternLocation) {
         this.quest = quest;

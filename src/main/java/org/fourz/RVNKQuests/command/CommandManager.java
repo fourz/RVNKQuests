@@ -2,8 +2,7 @@ package org.fourz.RVNKQuests.command;
 
 import org.bukkit.command.PluginCommand;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +22,7 @@ public class CommandManager {
     
     private static CommandManager instance;
     private final RVNKQuests plugin;
-    private final FZLogger logger;
+    private final LogManager logger;
     private final Map<String, RVNKCommand> commands;
     private final Map<String, String> aliases;
 

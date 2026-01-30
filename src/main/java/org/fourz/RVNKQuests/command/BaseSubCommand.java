@@ -4,8 +4,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,7 +29,7 @@ public abstract class BaseSubCommand implements SubCommand {
     protected final String usage;
     protected final String permission;
     protected final boolean playerOnly;
-    protected final FZLogger logger;
+    protected final LogManager logger;
     
     /**
      * Constructor for BaseSubCommand.

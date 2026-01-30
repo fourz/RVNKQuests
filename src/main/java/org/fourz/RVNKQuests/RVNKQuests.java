@@ -4,8 +4,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.quest.QuestManager;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 
 import java.util.logging.Level;
@@ -23,8 +22,8 @@ import java.util.logging.Level;
  * providing a clean API for extensions or add-ons.
  */
 public class RVNKQuests extends JavaPlugin {
-    // New logging system
-    private FZLogger logger;
+    // Unified logging system (RVNKCore)
+    private LogManager logger;
     
     private ConfigManager configManager;
     private QuestManager questManager;
@@ -90,10 +89,10 @@ public class RVNKQuests extends JavaPlugin {
     }
     
     /**
-     * Gets the FZLogger instance for this plugin.
-     * @return The FZLogger instance
+     * Gets the LogManager instance for this plugin.
+     * @return The LogManager instance
      */
-    public FZLogger getFZLogger() {
+    public LogManager getLogManager() {
         return logger;
     }
     

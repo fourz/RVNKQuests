@@ -5,15 +5,14 @@ import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.Random;
 import java.util.function.Consumer;
 
 public class EnvironmentEffects {
     private static final Random random = new Random();
-    private static FZLogger logger;
+    private static LogManager logger;
     private static boolean initialized = false;
 
     private EnvironmentEffects() {} // Prevent instantiation

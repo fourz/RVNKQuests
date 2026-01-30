@@ -15,8 +15,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.util.IntervalChecker;
 
 import java.util.Random;
@@ -30,7 +29,7 @@ public class ListenerLonePiglinTrigger implements Listener {
     private static final int CHECK_FREQUENCY = 20;
 
     private final Quest quest;
-    private final FZLogger logger;
+    private final LogManager logger;
     private final Random random = new Random();
     private Entity spawnedPiglin = null;
     private final IntervalChecker intervalChecker;

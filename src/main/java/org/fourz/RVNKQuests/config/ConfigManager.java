@@ -3,8 +3,7 @@ package org.fourz.RVNKQuests.config;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +24,7 @@ import java.util.logging.Level;
  */
 public class ConfigManager {
     private final RVNKQuests plugin;
-    private final FZLogger logger;
+    private final LogManager logger;
     private FileConfiguration config;
     private File configFile;
     private Map<String, Boolean> questEnableStatus = new HashMap<>();

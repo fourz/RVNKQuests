@@ -6,8 +6,7 @@ import org.bukkit.block.Lectern;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +15,7 @@ import java.util.Random;
 // Listener for placing the prophecy lectern around the spawn point
 
 public class ListenerQuestPillarStart {
-    private final FZLogger logger;
+    private final LogManager logger;
 
     public ListenerQuestPillarStart(RVNKQuests plugin) {
         this.logger = LogManager.getInstance(plugin, getClass());

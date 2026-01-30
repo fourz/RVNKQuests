@@ -6,8 +6,7 @@ import org.bukkit.entity.Piglin;
 import org.bukkit.event.Listener;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import java.util.UUID;
 
 /**
@@ -24,7 +23,7 @@ public class ListenerLonePiglin implements Listener {
     private final Location fixedLocation;
     @SuppressWarnings("unused")
     private final double spawnRadius;
-    private final FZLogger logger;
+    private final LogManager logger;
     
     private Piglin questPiglin;
     private String piglinName = "Lost Piglin";

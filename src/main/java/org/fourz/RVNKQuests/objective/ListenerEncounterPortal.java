@@ -10,8 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.util.EnvironmentEffects;
 import org.fourz.RVNKQuests.util.NameGenerator;
 import org.fourz.RVNKQuests.util.IntervalChecker;
@@ -27,7 +26,7 @@ public class ListenerEncounterPortal implements Listener {
     public static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
     
     private final Quest quest;
-        private final FZLogger logger;
+        private final LogManager logger;
     private final List<Entity> spawnedMobs = new ArrayList<>();
     private final Set<String> spawnedMobNames = new HashSet<>();
     private static final int PORTAL_HEIGHT = 160;

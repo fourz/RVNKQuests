@@ -2,8 +2,7 @@ package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 
 /**
@@ -15,7 +14,7 @@ public abstract class AbstractQuest implements Quest {
     protected final String questId;
     protected final String name;
     protected QuestState state;
-    protected final FZLogger logger;
+    protected final LogManager logger;
     
     /**
      * Creates a new quest with the specified ID and name.

@@ -1,8 +1,7 @@
 package org.fourz.RVNKQuests.quest;
 
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import java.util.HashMap;
 import java.util.Map;
 import org.bukkit.event.HandlerList;
@@ -26,7 +25,7 @@ import java.util.logging.Level;
  */
 public class QuestManager {
     private final RVNKQuests plugin;
-    private final FZLogger logger;
+    private final LogManager logger;
     private final Map<String, Quest> quests = new HashMap<>();
     private final Map<Quest, List<Listener>> activeListeners = new HashMap<>();
     private final Map<String, Integer> scheduledTasks = new HashMap<>();

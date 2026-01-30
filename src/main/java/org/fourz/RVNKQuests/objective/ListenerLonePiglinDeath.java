@@ -11,8 +11,7 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.trigger.ListenerLonePiglinTrigger;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 
 /**
  * Listener for the death of the lone piglin, used in the combat path
@@ -22,7 +21,7 @@ public class ListenerLonePiglinDeath implements Listener {
     private final Quest quest;
     private final ListenerLonePiglinTrigger piglinTrigger;
     private final ItemStack journalItem;
-    private final FZLogger logger;
+    private final LogManager logger;
 
     public ListenerLonePiglinDeath(Quest quest, ListenerLonePiglinTrigger piglinTrigger, ItemStack journalItem) {
         this.quest = quest;

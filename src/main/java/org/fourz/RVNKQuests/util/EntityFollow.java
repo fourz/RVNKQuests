@@ -10,8 +10,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.fourz.RVNKQuests.util.log.LogManager;
-import org.fourz.RVNKQuests.util.log.FZLogger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -37,7 +36,7 @@ public class EntityFollow {
     
     // Instance-specific settings
     private final JavaPlugin plugin;
-    private final FZLogger logger;
+    private final LogManager logger;
     private double followDistance;
     private double maxFollowDistance;
     private double followSpeed;

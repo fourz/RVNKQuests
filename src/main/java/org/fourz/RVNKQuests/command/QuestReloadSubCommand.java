@@ -27,7 +27,7 @@ public class QuestReloadSubCommand extends BaseSubCommand {
         
         if (resetReload) {
             sendErrorMessage(sender, "Performing reset reload - resetting all quests and reloading configuration...");
-            logger.warning("Reset reload initiated by " + sender.getName() + " - all quests will be reset");
+            logger.info("Reset reload initiated by " + sender.getName() + " - all quests will be reset");
         } else {
             sendInfoMessage(sender, "Reloading RVNKQuests configuration...");
         }
