@@ -3,12 +3,53 @@ general:
   # DEBUG and FINE are equivalent and both enable debug logging
   # Default: WARNING (quiet mode - set INFO for verbose operational logs)
   logLevel: WARNING
+
 quests:
+  # Announce quest completions server-wide
+  announce_completion: true
+
+  # Individual quest configuration
   piglin_far_from_home:
     world: event
     enable: true
   ancient_guardian:
     enable: true
+
+# Database configuration for quest progress persistence
+database:
+  # Storage type: yaml | sqlite | mysql
+  # yaml - Simple file-based storage (default for small servers)
+  # sqlite - Local database file (recommended for most servers)
+  # mysql - External MySQL server (for multi-server setups)
+  type: sqlite
+
+  # Autosave interval in seconds (0 to disable)
+  autosave_interval: 300
+
+  # MySQL settings (only used when type: mysql)
+  mysql:
+    host: localhost
+    port: 3306
+    database: minecraft
+    username: root
+    password: ''
+    useSSL: false
+
+  # SQLite settings (only used when type: sqlite)
+  sqlite:
+    # Database file path relative to plugin folder
+    file: data/quests.db
+
+  # Fallback settings - graceful degradation when database fails
+  fallback:
+    # Enable automatic fallback to YAML on database failures
+    enabled: true
+    # Number of consecutive failures before entering fallback mode
+    consecutive_failures: 3
+    # Minutes to wait before attempting database reconnection
+    recovery_minutes: 5
+
+# Legacy storage settings (kept for backwards compatibility)
 storage:
   type: sqlite
   mysql:
@@ -17,10 +58,11 @@ storage:
     username: root
     password: ''
     useSSL: false
-    database: 
-    tablePrefix: 
+    database:
+    tablePrefix:
   sqlite:
     database: data.db
+
 messages:
   generic:
     error:
