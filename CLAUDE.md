@@ -53,6 +53,14 @@
 
 **Task Status Flow:** `todo` → `doing` → `review` → `done`
 
+### Archon Board IDs
+
+**RVNKQuests Board**: `50448cbf-5f7e-4904-9158-09b759e16500`
+**Parent Project (Ravenkraft Dev)**: `4787f505-e92e-474d-ba54-f5ac7993ccfe`
+**RVNKCore Board**: `7785e125-4468-44e2-a86c-2fef668fce48`
+
+Use parent project for shared RVNK standards, coding patterns, and documentation. Reference RVNKCore board for integration patterns (ServiceRegistry, Repository, DTO) and shared service interfaces.
+
 ### Archon Quick Reference
 
 **Projects:**
@@ -70,6 +78,56 @@
 - `rag_get_available_sources()` - List available documentation sources
 - `rag_search_knowledge_base(...)` - Search documentation
 - `rag_search_code_examples(...)` - Find code examples
+
+---
+
+## Build & Deployment
+
+### Build Commands
+
+```bash
+# Build plugin JAR
+mvn clean package
+
+# Build without tests (faster)
+mvn clean package -DskipTests
+
+# Validate POM and dependencies
+mvn validate
+```
+
+**Output**: `target/RVNKQuests-1.0-SNAPSHOT.jar`
+
+### Remote Testing Workflow
+
+Use `/rvnkdev-deploy` and `/rvnkdev-query` skills for remote server testing:
+
+```bash
+# Full deployment cycle (build locally first)
+mvn clean package
+/rvnkdev-deploy b2bc4d7e full
+
+# Query console for errors
+/rvnkdev-query b2bc4d7e errors
+
+# Check plugin startup logs
+/rvnkdev-query b2bc4d7e plugin RVNKQuests
+
+# Quick config iteration (no restart)
+/rvnkdev-deploy b2bc4d7e reload-only
+```
+
+**Server IDs**:
+- `b2bc4d7e` - SparkedHost test server
+- `1eb313b1-40f7-4209-aa9d-352128214206` - Local MCSS dev server
+
+### Development Checklist
+
+Before committing changes:
+1. `mvn clean package` - Build succeeds
+2. Deploy to test server: `/rvnkdev-deploy b2bc4d7e full`
+3. Verify console output for errors: `/rvnkdev-query b2bc4d7e errors`
+4. Check plugin loads correctly: `/rvnkdev-query b2bc4d7e plugin RVNKQuests`
 
 ---
 
