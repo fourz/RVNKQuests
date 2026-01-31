@@ -62,8 +62,8 @@ public class QuestAncientGuardian extends AbstractQuest {
     @Override
     public void initialize() {
         logger.debug("Initializing Ancient Guardian quest");
-        // Initialize the quest in NOT_STARTED state
-        this.state = QuestState.NOT_STARTED;
+        // Quest starts in NOT_STARTED state by default
+        // Per-player state is managed by QuestProgressService
     }
 
     @Override

@@ -1,9 +1,18 @@
 package org.fourz.RVNKQuests;
 
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
+import org.fourz.RVNKQuests.data.DatabaseManager;
+import org.fourz.RVNKQuests.data.FallbackTracker;
+import org.fourz.RVNKQuests.event.PlayerJoinQuitListener;
 import org.fourz.RVNKQuests.quest.QuestManager;
+import org.fourz.RVNKQuests.service.IQuestDatabaseService;
+import org.fourz.RVNKQuests.service.IQuestProgressService;
+import org.fourz.RVNKQuests.service.IQuestService;
+import org.fourz.RVNKQuests.service.IPlayerQuestService;
+import org.fourz.RVNKQuests.service.QuestProgressServiceImpl;
 import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 
@@ -11,44 +20,78 @@ import java.util.logging.Level;
 
 /**
  * Main plugin class for RVNKQuests, a dynamic narrative quest system for Bukkit/Spigot servers.
- * 
- * The plugin architecture follows a manager-based approach:
- * - ConfigManager handles all configuration access
- * - QuestManager manages quest registration, state tracking and event handling
- * - CommandManager handles player commands and subcommands
- * - LoreDatabase (optional) stores narrative content for quests
- * 
- * Each manager is independent but can be accessed through this main class,
- * providing a clean API for extensions or add-ons.
+ *
+ * <p>The plugin architecture follows a manager-based approach:</p>
+ * <ul>
+ *   <li>ConfigManager handles all configuration access</li>
+ *   <li>DatabaseManager handles database connections and schema</li>
+ *   <li>QuestProgressService manages per-player quest state persistence</li>
+ *   <li>QuestManager manages quest registration, state tracking and event handling</li>
+ *   <li>CommandManager handles player commands and subcommands</li>
+ *   <li>LoreDatabase (optional) stores narrative content for quests</li>
+ * </ul>
+ *
+ * <p>Each manager is independent but can be accessed through this main class,
+ * providing a clean API for extensions or add-ons.</p>
  */
 public class RVNKQuests extends JavaPlugin {
     // Unified logging system (RVNKCore)
     private LogManager logger;
-    
+
+    // Configuration
     private ConfigManager configManager;
+
+    // Database and persistence
+    private FallbackTracker fallbackTracker;
+    private DatabaseManager databaseManager;
+    private IQuestProgressService questProgressService;
+
+    // Quest system
     private QuestManager questManager;
     private CommandManager commandManager;
+
+    // Optional features
     private LoreDatabase loreDatabase;
-    
+
+    // RVNKCore integration
+    private boolean rvnkCoreAvailable = false;
+    private Object rvnkCoreInstance = null;
+
     @Override
     public void onEnable() {
         // Initialize both new and legacy loggers
         logger = LogManager.getInstance(this, getClass());
-        
+
         logger.info("Initializing RVNKQuests plugin");
-        
+
         try {
             // Load configuration
             configManager = new ConfigManager(this);
-            
+
             // Update log level from config
             updateGlobalLogLevel(configManager.getLogLevel());
-            
+
+            // Initialize database layer
+            fallbackTracker = new FallbackTracker(this);
+            databaseManager = new DatabaseManager(this, fallbackTracker);
+
+            if (!databaseManager.initialize()) {
+                logger.warning("Database initialization failed - using YAML fallback");
+            }
+
+            // Initialize quest progress service
+            questProgressService = new QuestProgressServiceImpl(this, databaseManager);
+            logger.info("Quest persistence service initialized (fallback mode: " +
+                questProgressService.isInFallbackMode() + ")");
+
             // Initialize managers in correct dependency order
             questManager = new QuestManager(this);
             commandManager = CommandManager.getInstance(this);
             commandManager.initialize();
-            
+
+            // Register player join/quit listener for progress loading/saving
+            getServer().getPluginManager().registerEvents(new PlayerJoinQuitListener(this), this);
+
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
                 loreDatabase = new LoreDatabase(this);
@@ -56,38 +99,56 @@ public class RVNKQuests extends JavaPlugin {
             } else {
                 logger.info("Lore database disabled in config");
             }
-            
+
             // Register quests
             questManager.initializeQuests();
-            
+
+            // Register services with RVNKCore if available
+            registerWithRVNKCore();
+
             logger.info("RVNKQuests plugin enabled successfully");
         } catch (Exception e) {
             logger.error("Failed to initialize RVNKQuests plugin", e);
         }
     }
-    
+
     @Override
     public void onDisable() {
         logger.info("Disabling RVNKQuests plugin");
-        
+
         try {
+            // Unregister from RVNKCore first
+            unregisterFromRVNKCore();
+
+            // Clean up quests first
             if (questManager != null) {
                 questManager.cleanupQuests();
             }
-            
+
+            // Shutdown quest progress service (flushes pending saves)
+            if (questProgressService != null) {
+                questProgressService.shutdown();
+            }
+
+            // Shutdown database
+            if (databaseManager != null) {
+                databaseManager.shutdown();
+            }
+
+            // Close lore database
             if (loreDatabase != null) {
                 loreDatabase.close();
             }
-            
+
             logger.info("RVNKQuests plugin disabled successfully");
         } catch (Exception e) {
             logger.error("Error during plugin shutdown", e);
         }
-        
+
         // Clean up loggers on shutdown
         LogManager.clearLoggers(this);
     }
-    
+
     /**
      * Gets the LogManager instance for this plugin.
      * @return The LogManager instance
@@ -95,15 +156,39 @@ public class RVNKQuests extends JavaPlugin {
     public LogManager getLogManager() {
         return logger;
     }
-    
+
     public ConfigManager getConfigManager() {
         return configManager;
     }
-    
+
     public QuestManager getQuestManager() {
         return questManager;
     }
-    
+
+    /**
+     * Gets the database manager instance.
+     * @return The database manager
+     */
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
+    }
+
+    /**
+     * Gets the quest progress service for per-player state management.
+     * @return The quest progress service
+     */
+    public IQuestProgressService getQuestProgressService() {
+        return questProgressService;
+    }
+
+    /**
+     * Gets the fallback tracker for database failure handling.
+     * @return The fallback tracker
+     */
+    public FallbackTracker getFallbackTracker() {
+        return fallbackTracker;
+    }
+
     /**
      * Gets the lore database instance
      * @return The lore database or null if not enabled
@@ -111,7 +196,7 @@ public class RVNKQuests extends JavaPlugin {
     public LoreDatabase getLoreDatabase() {
         return loreDatabase;
     }
-    
+
     /**
      * Checks if this plugin has an active lore database
      * @return true if the lore database is enabled and initialized
@@ -119,28 +204,126 @@ public class RVNKQuests extends JavaPlugin {
     public boolean hasLoreDatabase() {
         return loreDatabase != null;
     }
-    
+
     /**
      * Updates the log level across all plugin components.
      * This ensures consistent logging behavior throughout the plugin.
-     * 
+     *
      * @param level The new logging level to apply
      */
     public void updateGlobalLogLevel(Level level) {
         logger.info("Updating global log level to: " + level.getName());
         logger.setLogLevel(level);
-        
+
         // Update log level for all managers
         if (configManager != null) {
             configManager.updateDebugLevel(level);
         }
-        
+
         if (questManager != null) {
             questManager.updateDebugLevel(level);
         }
-        
+
         if (loreDatabase != null) {
             loreDatabase.updateDebugLevel(level);
         }
+    }
+
+    // ==================== RVNKCore Integration ====================
+
+    /**
+     * Checks if RVNKCore integration is available.
+     * @return true if RVNKCore services are registered
+     */
+    public boolean isRVNKCoreAvailable() {
+        return rvnkCoreAvailable;
+    }
+
+    /**
+     * Registers services with RVNKCore ServiceRegistry if available.
+     * Uses reflection to avoid hard dependency on RVNKCore classes.
+     */
+    private void registerWithRVNKCore() {
+        Plugin rvnkCorePlugin = getServer().getPluginManager().getPlugin("RVNKCore");
+        if (rvnkCorePlugin == null || !rvnkCorePlugin.isEnabled()) {
+            logger.info("RVNKCore not found - running in standalone mode");
+            return;
+        }
+
+        try {
+            // Get RVNKCore instance via static getInstance() method
+            Class<?> rvnkCoreClass = Class.forName("org.fourz.rvnkcore.RVNKCore");
+            Object coreInstance = rvnkCoreClass.getMethod("getInstance").invoke(null);
+            if (coreInstance == null) {
+                logger.warning("RVNKCore instance is null - services not registered");
+                return;
+            }
+
+            // Get the ServiceRegistry from RVNKCore
+            Object serviceRegistry = rvnkCoreClass.getMethod("getServiceRegistry").invoke(coreInstance);
+            if (serviceRegistry == null) {
+                logger.warning("RVNKCore ServiceRegistry is null - services not registered");
+                return;
+            }
+
+            // Get the registerService method
+            Class<?> registryClass = serviceRegistry.getClass();
+            java.lang.reflect.Method registerMethod = registryClass.getMethod("registerService", Class.class, Object.class);
+
+            // Register IQuestService (quest definitions and lifecycle)
+            registerMethod.invoke(serviceRegistry, IQuestService.class, questManager);
+            logger.info("Registered IQuestService with RVNKCore");
+
+            // Register IPlayerQuestService (player quest state and progress)
+            registerMethod.invoke(serviceRegistry, IPlayerQuestService.class, questProgressService);
+            logger.info("Registered IPlayerQuestService with RVNKCore");
+
+            // Register IQuestDatabaseService (database access)
+            registerMethod.invoke(serviceRegistry, IQuestDatabaseService.class, databaseManager);
+            logger.info("Registered IQuestDatabaseService with RVNKCore");
+
+            rvnkCoreAvailable = true;
+            rvnkCoreInstance = coreInstance;
+            logger.info("RVNKCore integration enabled - services registered");
+
+        } catch (ClassNotFoundException e) {
+            logger.info("RVNKCore classes not found - running in standalone mode");
+        } catch (Exception e) {
+            logger.warning("Failed to register with RVNKCore: " + e.getMessage());
+            logger.warning("Running in standalone mode");
+        }
+    }
+
+    /**
+     * Unregisters services from RVNKCore ServiceRegistry.
+     */
+    private void unregisterFromRVNKCore() {
+        if (!rvnkCoreAvailable || rvnkCoreInstance == null) {
+            return;
+        }
+
+        try {
+            Class<?> rvnkCoreClass = rvnkCoreInstance.getClass();
+            Object serviceRegistry = rvnkCoreClass.getMethod("getServiceRegistry").invoke(rvnkCoreInstance);
+            if (serviceRegistry == null) {
+                return;
+            }
+
+            Class<?> registryClass = serviceRegistry.getClass();
+            java.lang.reflect.Method unregisterMethod = registryClass.getMethod("unregisterService", Class.class);
+
+            // Unregister services in reverse order
+            unregisterMethod.invoke(serviceRegistry, IQuestDatabaseService.class);
+            unregisterMethod.invoke(serviceRegistry, IPlayerQuestService.class);
+            unregisterMethod.invoke(serviceRegistry, IQuestService.class);
+
+            logger.info("Services unregistered from RVNKCore");
+
+        } catch (Exception e) {
+            logger.warning("Failed to unregister from RVNKCore: " + e.getMessage());
+        }
+
+        rvnkCoreAvailable = false;
+        rvnkCoreInstance = null;
     }
 }

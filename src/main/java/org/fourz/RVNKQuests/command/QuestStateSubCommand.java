@@ -1,6 +1,8 @@
 package org.fourz.RVNKQuests.command;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
@@ -12,13 +14,13 @@ import java.util.stream.Collectors;
 /**
  * Subcommand for changing quest states.
  * Extends BaseSubCommand to provide standardized subcommand functionality.
- * Usage: /quest state <quest_id> <state>
+ * Usage: /quest state <quest_id> <state> [player]
  */
 public class QuestStateSubCommand extends BaseSubCommand {
 
     public QuestStateSubCommand(RVNKQuests plugin) {
-        super(plugin, "state", "Changes the state of a quest", 
-              "/quest state <quest_id> <state>", "rvnkquests.command.state", false);
+        super(plugin, "state", "Changes the state of a quest",
+              "/quest state <quest_id> <state> [player]", "rvnkquests.command.state", false);
     }
 
     @Override
@@ -29,8 +31,26 @@ public class QuestStateSubCommand extends BaseSubCommand {
 
         String questId = args[0].toLowerCase();
         String stateStr = args[1].toUpperCase();
-        
-        logger.debug("Attempting to change quest state: " + stateStr + " for " + questId);
+
+        // Determine target player
+        Player targetPlayer;
+        if (args.length >= 3) {
+            // Player specified as argument
+            targetPlayer = Bukkit.getPlayer(args[2]);
+            if (targetPlayer == null) {
+                sendErrorMessage(sender, "Player not found: " + args[2]);
+                return true;
+            }
+        } else if (sender instanceof Player) {
+            // Use sender if they're a player
+            targetPlayer = (Player) sender;
+        } else {
+            // Console must specify a player
+            sendErrorMessage(sender, "Console must specify a player: /quest state <quest_id> <state> <player>");
+            return true;
+        }
+
+        logger.debug("Attempting to change quest state: " + stateStr + " for " + questId + " (player: " + targetPlayer.getName() + ")");
 
         Quest quest = plugin.getQuestManager().getQuest(questId);
         if (quest == null) {
@@ -38,9 +58,9 @@ public class QuestStateSubCommand extends BaseSubCommand {
             return true;
         }
 
-        QuestState currentState = quest.getCurrentState();
+        QuestState currentState = quest.getStateForPlayer(targetPlayer);
         QuestState newState;
-        
+
         try {
             newState = QuestState.valueOf(stateStr);
         } catch (IllegalArgumentException e) {
@@ -49,11 +69,24 @@ public class QuestStateSubCommand extends BaseSubCommand {
             return true;
         }
 
-        logger.debug("Changing quest " + questId + " state from " + currentState + " to " + newState);
-        quest.advanceState(newState);
-        sendSuccessMessage(sender, "Changed quest state for " + questId + " from " + 
-                currentState + " to " + newState);
-        
+        logger.debug("Changing quest " + questId + " state from " + currentState + " to " + newState + " for " + targetPlayer.getName());
+
+        // Use per-player state advancement
+        quest.advanceStateForPlayer(targetPlayer.getUniqueId(), newState)
+            .thenRun(() -> {
+                // Run on main thread for message sending
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    sendSuccessMessage(sender, "Changed " + targetPlayer.getName() + "'s quest state for " + questId +
+                            " from " + currentState + " to " + newState);
+                });
+            })
+            .exceptionally(ex -> {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    sendErrorMessage(sender, "Failed to update quest state: " + ex.getMessage());
+                });
+                return null;
+            });
+
         return true;
     }
 
@@ -69,6 +102,12 @@ public class QuestStateSubCommand extends BaseSubCommand {
             return Arrays.stream(QuestState.values())
                     .map(QuestState::name)
                     .filter(state -> state.startsWith(partial))
+                    .collect(Collectors.toList());
+        } else if (args.length == 3) {
+            String partial = args[2].toLowerCase();
+            return Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName)
+                    .filter(name -> name.toLowerCase().startsWith(partial))
                     .collect(Collectors.toList());
         }
         return super.getTabCompletionOptions(sender, args);

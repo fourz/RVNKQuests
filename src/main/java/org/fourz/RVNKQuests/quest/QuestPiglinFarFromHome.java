@@ -307,7 +307,8 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
     @Override
     public boolean update(Player player) {
         // This quest doesn't need periodic updates, but we could implement progress tracking here
-        logger.debug("Update requested for player: " + player.getName() + ", state: " + getCurrentState());
+        QuestState state = getStateForPlayer(player);
+        logger.debug("Update requested for player: " + player.getName() + ", state: " + state);
         return false; // No updates performed
     }
 }

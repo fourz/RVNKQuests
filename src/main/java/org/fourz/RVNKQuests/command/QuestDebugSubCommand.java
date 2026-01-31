@@ -244,7 +244,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
 
         for (Quest quest : quests) {
             boolean completed = quest.isCompleted(target);
-            QuestState state = quest.getCurrentState();
+            QuestState state = quest.getStateForPlayer(target);
 
             if (completed) {
                 completedCount++;
@@ -252,7 +252,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             } else if (state == QuestState.QUEST_ACTIVE || state == QuestState.OBJECTIVE_FOUND ||
                        state == QuestState.TRIGGER_FOUND) {
                 inProgressCount++;
-                sendMessage(sender, "&e◐ &f" + quest.getName() + " &7- &eIn Progress");
+                sendMessage(sender, "&e◐ &f" + quest.getName() + " &7- &eIn Progress (" + state + ")");
             } else {
                 sendMessage(sender, "&7○ &f" + quest.getName() + " &7- &7Not Started");
             }
