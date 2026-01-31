@@ -1,83 +1,19 @@
 # RVNKQuests: AI Assistant Instructions
 
-**Central documentation and integration hub for RVNKQuests quest system development**
+**Dynamic narrative quest system for Bukkit/Spigot servers**
 
-**Purpose**: Dynamic narrative quest system for Bukkit/Spigot servers with Archon MCP server integration for task management and knowledge base access.
-
----
-
-## ⚠️ CRITICAL: ARCHON-FIRST RULE - READ THIS FIRST
-
-**BEFORE doing ANYTHING else on task-related work:**
-
-1. **CHECK** if Archon MCP server is available
-2. **USE** Archon task management as PRIMARY system
-3. **FOLLOW** task-driven development workflow
-4. **Do NOT** use local task tracking - Archon is our source of truth
-
-**This rule overrides ALL other development patterns and instructions.**
+@import ../../.claude/rules/archon-workflow.md
+@import ../../.claude/rules/java-plugin-build.md
 
 ---
 
-## Archon Integration & Workflow
-
-**This project uses Archon MCP server for:**
-- **Knowledge Management**: RAG-based documentation search
-- **Task Tracking**: Project and task organization
-- **Project Management**: Cross-agent collaboration
-
-### Core Workflow: Task-Driven Development
-
-**MANDATORY task cycle before coding:**
-
-1. **Get Task** → `find_tasks(task_id="...")` or `find_tasks(filter_by="status", filter_value="todo")`
-2. **Start Work** → `manage_task("update", task_id="...", status="doing")`
-3. **Research** → Use RAG knowledge base (`rag_search_knowledge_base`)
-4. **Implement** → Write code based on research
-5. **Review** → `manage_task("update", task_id="...", status="review")`
-6. **Next Task** → `find_tasks(filter_by="status", filter_value="todo")`
-
-**NEVER skip task updates. NEVER code without checking current tasks first.**
-
-### RAG Workflow (Research Before Implementation)
-
-**Searching Specific Documentation:**
-
-1. `rag_get_available_sources()` - Get list with id, title, url
-2. Match to documentation (e.g., "RVNKQuests objectives" → "src_abc123")
-3. `rag_search_knowledge_base(query="quest objectives", source_id="src_abc123")`
-
-**General Research:**
-- `rag_search_knowledge_base(query="quest trigger patterns", match_count=5)` - 2-5 keywords only!
-- `rag_search_code_examples(query="CompletableFuture async", match_count=3)` - Find code examples
-
-**Task Status Flow:** `todo` → `doing` → `review` → `done`
-
-### Archon Board IDs
+## Archon Board IDs
 
 **RVNKQuests Board**: `50448cbf-5f7e-4904-9158-09b759e16500`
 **Parent Project (Ravenkraft Dev)**: `4787f505-e92e-474d-ba54-f5ac7993ccfe`
 **RVNKCore Board**: `7785e125-4468-44e2-a86c-2fef668fce48`
 
-Use parent project for shared RVNK standards, coding patterns, and documentation. Reference RVNKCore board for integration patterns (ServiceRegistry, Repository, DTO) and shared service interfaces.
-
-### Archon Quick Reference
-
-**Projects:**
-- `find_projects(query="...")` - Search projects
-- `find_projects(project_id="...")` - Get specific project
-- `manage_project("create"/"update"/"delete", ...)` - Manage projects
-
-**Tasks:**
-- `find_tasks(query="...")` - Search tasks
-- `find_tasks(task_id="...")` - Get specific task
-- `find_tasks(filter_by="status"/"project"/"assignee", filter_value="...")` - Filter tasks
-- `manage_task("create"/"update"/"delete", ...)` - Manage tasks (task_order: 0-100, higher = more priority)
-
-**Knowledge Base:**
-- `rag_get_available_sources()` - List available documentation sources
-- `rag_search_knowledge_base(...)` - Search documentation
-- `rag_search_code_examples(...)` - Find code examples
+Use parent project for shared RVNK standards, coding patterns, and documentation.
 
 ---
 
