@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bukkit.configuration.ConfigurationSection;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.service.IQuestDatabaseService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.io.*;
@@ -11,6 +12,8 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +24,7 @@ import java.util.concurrent.TimeUnit;
  * <p>Supports both MySQL and SQLite backends with automatic schema initialization.
  * Uses HikariCP for efficient connection pooling.</p>
  */
-public class DatabaseManager {
+public class DatabaseManager implements IQuestDatabaseService {
 
     /**
      * Supported database types.
@@ -311,5 +314,135 @@ public class DatabaseManager {
      */
     public boolean isInFallbackMode() {
         return type == DatabaseType.YAML || fallbackTracker.isInFallbackMode();
+    }
+
+    // ==================== IQuestDatabaseService Implementation ====================
+
+    @Override
+    public boolean isMySQL() {
+        return type == DatabaseType.MYSQL;
+    }
+
+    @Override
+    public boolean isSQLite() {
+        return type == DatabaseType.SQLITE;
+    }
+
+    @Override
+    public boolean isYAMLFallback() {
+        return type == DatabaseType.YAML;
+    }
+
+    @Override
+    public boolean isSchemaInitialized() {
+        return initialized;
+    }
+
+    @Override
+    public CompletableFuture<Boolean> reinitializeSchema() {
+        if (executor == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                initializeSchema();
+                return true;
+            } catch (Exception e) {
+                logger.error("Failed to reinitialize schema", e);
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<SchemaValidationResult> validateSchema() {
+        if (!initialized || type == DatabaseType.YAML) {
+            return CompletableFuture.completedFuture(
+                SchemaValidationResult.failure("Database not initialized", List.of("Database is in YAML mode or not initialized"))
+            );
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection conn = getConnection()) {
+                // Basic schema validation - check if main tables exist
+                String[] requiredTables = {"quest_progress", "quest_objective_progress", "quest_rewards_claimed"};
+                java.util.List<String> errors = new java.util.ArrayList<>();
+
+                for (String table : requiredTables) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.execute("SELECT 1 FROM " + table + " LIMIT 1");
+                    } catch (SQLException e) {
+                        errors.add("Table missing or invalid: " + table);
+                    }
+                }
+
+                if (errors.isEmpty()) {
+                    return SchemaValidationResult.success();
+                } else {
+                    return SchemaValidationResult.failure("Schema validation failed", errors);
+                }
+            } catch (SQLException e) {
+                return SchemaValidationResult.failure("Database connection failed", List.of(e.getMessage()));
+            }
+        }, executor);
+    }
+
+    @Override
+    public boolean testConnection() {
+        if (!initialized || dataSource == null || dataSource.isClosed()) {
+            return false;
+        }
+
+        try (Connection conn = dataSource.getConnection()) {
+            return conn.isValid(5);
+        } catch (SQLException e) {
+            logger.warning("Connection test failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public DatabaseHealthMetrics getHealthMetrics() {
+        if (dataSource == null || dataSource.isClosed()) {
+            return new DatabaseHealthMetrics(0, 0, 0, 0, false, "DataSource not available");
+        }
+
+        int active = dataSource.getHikariPoolMXBean() != null ? dataSource.getHikariPoolMXBean().getActiveConnections() : 0;
+        int idle = dataSource.getHikariPoolMXBean() != null ? dataSource.getHikariPoolMXBean().getIdleConnections() : 0;
+        int max = dataSource.getMaximumPoolSize();
+
+        boolean healthy = testConnection();
+        String status = healthy ? "Healthy" : "Connection issues detected";
+
+        return new DatabaseHealthMetrics(active, idle, max, 0, healthy, status);
+    }
+
+    @Override
+    public int getActiveConnectionCount() {
+        if (dataSource == null || dataSource.getHikariPoolMXBean() == null) {
+            return 0;
+        }
+        return dataSource.getHikariPoolMXBean().getActiveConnections();
+    }
+
+    @Override
+    public int getIdleConnectionCount() {
+        if (dataSource == null || dataSource.getHikariPoolMXBean() == null) {
+            return 0;
+        }
+        return dataSource.getHikariPoolMXBean().getIdleConnections();
+    }
+
+    @Override
+    public boolean isInitialized() {
+        return initialized;
+    }
+
+    @Override
+    public void reload() {
+        logger.info("Reloading database manager");
+        shutdown();
+        initialize();
     }
 }

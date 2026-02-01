@@ -52,7 +52,7 @@ public class QuestStateSubCommand extends BaseSubCommand {
 
         logger.debug("Attempting to change quest state: " + stateStr + " for " + questId + " (player: " + targetPlayer.getName() + ")");
 
-        Quest quest = plugin.getQuestManager().getQuest(questId);
+        Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
         if (quest == null) {
             sendErrorMessage(sender, "Unknown quest: " + questId);
             return true;

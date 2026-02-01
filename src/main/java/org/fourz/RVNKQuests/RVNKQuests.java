@@ -8,12 +8,14 @@ import org.fourz.RVNKQuests.data.DatabaseManager;
 import org.fourz.RVNKQuests.data.FallbackTracker;
 import org.fourz.RVNKQuests.event.PlayerJoinQuitListener;
 import org.fourz.RVNKQuests.quest.QuestManager;
+import org.fourz.RVNKQuests.service.IObjectiveService;
 import org.fourz.RVNKQuests.service.IQuestDatabaseService;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
 import org.fourz.RVNKQuests.service.IQuestService;
 import org.fourz.RVNKQuests.service.IPlayerQuestService;
 import org.fourz.RVNKQuests.service.IQuestChainService;
 import org.fourz.RVNKQuests.service.IRewardService;
+import org.fourz.RVNKQuests.service.ObjectiveServiceImpl;
 import org.fourz.RVNKQuests.service.QuestProgressServiceImpl;
 import org.fourz.RVNKQuests.service.QuestChainServiceImpl;
 import org.fourz.RVNKQuests.service.RewardServiceImpl;
@@ -57,6 +59,7 @@ public class RVNKQuests extends JavaPlugin {
     // Service layer
     private IRewardService rewardService;
     private IQuestChainService questChainService;
+    private IObjectiveService objectiveService;
 
     // Optional features
     private LoreDatabase loreDatabase;
@@ -103,6 +106,9 @@ public class RVNKQuests extends JavaPlugin {
 
             questChainService = new QuestChainServiceImpl(this, questProgressService, rewardService);
             logger.info("Quest chain service initialized");
+
+            objectiveService = new ObjectiveServiceImpl(this);
+            logger.info("Objective service initialized");
 
             // Register player join/quit listener for progress loading/saving
             getServer().getPluginManager().registerEvents(new PlayerJoinQuitListener(this), this);
@@ -237,6 +243,14 @@ public class RVNKQuests extends JavaPlugin {
     }
 
     /**
+     * Gets the objective service for objective management.
+     * @return The objective service
+     */
+    public IObjectiveService getObjectiveService() {
+        return objectiveService;
+    }
+
+    /**
      * Updates the log level across all plugin components.
      * This ensures consistent logging behavior throughout the plugin.
      *
@@ -321,6 +335,10 @@ public class RVNKQuests extends JavaPlugin {
             registerMethod.invoke(serviceRegistry, IQuestChainService.class, questChainService);
             logger.info("Registered IQuestChainService with RVNKCore");
 
+            // Register IObjectiveService (objective management)
+            registerMethod.invoke(serviceRegistry, IObjectiveService.class, objectiveService);
+            logger.info("Registered IObjectiveService with RVNKCore");
+
             rvnkCoreAvailable = true;
             rvnkCoreInstance = coreInstance;
             logger.info("RVNKCore integration enabled - services registered");
@@ -352,6 +370,7 @@ public class RVNKQuests extends JavaPlugin {
             java.lang.reflect.Method unregisterMethod = registryClass.getMethod("unregisterService", Class.class);
 
             // Unregister services in reverse order
+            unregisterMethod.invoke(serviceRegistry, IObjectiveService.class);
             unregisterMethod.invoke(serviceRegistry, IQuestChainService.class);
             unregisterMethod.invoke(serviceRegistry, IRewardService.class);
             unregisterMethod.invoke(serviceRegistry, IQuestDatabaseService.class);

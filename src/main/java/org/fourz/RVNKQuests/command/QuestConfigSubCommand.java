@@ -97,7 +97,7 @@ public class QuestConfigSubCommand extends BaseSubCommand {
             return true;
         } else {
             // Check if the quest exists
-            Quest quest = plugin.getQuestManager().getQuest(questId);
+            Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
             if (quest == null) {
                 sender.sendMessage(ChatColor.RED + "Quest not found: " + questId);
                 return true;
@@ -138,7 +138,7 @@ public class QuestConfigSubCommand extends BaseSubCommand {
             return true;
         } else {
             // Check if the quest exists
-            Quest quest = plugin.getQuestManager().getQuest(questId);
+            Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
             if (quest == null) {
                 sender.sendMessage(ChatColor.RED + "Quest not found: " + questId);
                 return true;
@@ -165,7 +165,7 @@ public class QuestConfigSubCommand extends BaseSubCommand {
         }
         
         for (String questId : questIds) {
-            Quest quest = plugin.getQuestManager().getQuest(questId);
+            Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
             if (quest != null) {
                 boolean enabled = isQuestEnabled(questId);
                 String statusColor = enabled ? ChatColor.GREEN.toString() : ChatColor.RED.toString();

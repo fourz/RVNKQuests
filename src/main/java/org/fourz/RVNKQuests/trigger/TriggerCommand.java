@@ -34,8 +34,8 @@ public class TriggerCommand {
      * @return true if successful, false otherwise
      */
     public boolean triggerQuest(Player player, String questId, String locationType) {
-        Quest quest = plugin.getQuestManager().getQuest(questId);
-        
+        Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
+
         if (quest == null) {
             logger.warning("Quest not found: " + questId + "");
             player.sendMessage(ChatColor.RED + "Quest not found: " + questId);

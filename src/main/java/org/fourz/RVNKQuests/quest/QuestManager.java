@@ -2,17 +2,21 @@ package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.service.IQuestService;
 import org.fourz.rvnkcore.util.log.LogManager;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * Core manager for quest registration, state management, and event handling.
@@ -31,7 +35,7 @@ import java.util.logging.Level;
  * quests, listeners are registered once but check player-specific state
  * within their event handlers.</p>
  */
-public class QuestManager {
+public class QuestManager implements IQuestService {
     private final RVNKQuests plugin;
     private final LogManager logger;
     private final Map<String, Quest> quests = new HashMap<>();
@@ -91,10 +95,22 @@ public class QuestManager {
         }
     }
 
-    public Quest getQuest(String id) {
-        Quest quest = quests.get(id);
-        logger.debug("Quest lookup for ID '" + id + "': " + (quest != null ? "found" : "not found"));
-        return quest;
+    @Override
+    public Optional<Quest> getQuest(String questId) {
+        Quest quest = quests.get(questId);
+        logger.debug("Quest lookup for ID '" + questId + "': " + (quest != null ? "found" : "not found"));
+        return Optional.ofNullable(quest);
+    }
+
+    /**
+     * Gets a quest by ID (legacy method for internal use).
+     * @param id The quest ID
+     * @return The quest or null
+     * @deprecated Use {@link #getQuest(String)} which returns Optional
+     */
+    @Deprecated
+    public Quest getQuestOrNull(String id) {
+        return quests.get(id);
     }
 
     public void initializeQuests() {
@@ -407,5 +423,184 @@ public class QuestManager {
 
         logger.debug("Quest validation complete. All valid: " + allValid);
         return allValid;
+    }
+
+    // ==================== IQuestService Implementation ====================
+
+    @Override
+    public boolean unregisterQuest(String questId) {
+        if (questId == null || questId.isEmpty()) {
+            logger.warning("Attempted to unregister quest with null or empty ID");
+            return false;
+        }
+
+        Quest quest = quests.remove(questId);
+        if (quest == null) {
+            logger.warning("Quest not found for unregistration: " + questId);
+            return false;
+        }
+
+        // Clean up listeners
+        if (activeListeners.containsKey(quest)) {
+            List<Listener> listeners = activeListeners.remove(quest);
+            listeners.forEach(HandlerList::unregisterAll);
+        }
+
+        // Clean up active players tracking
+        activePlayersByQuest.remove(questId);
+
+        // Clean up the quest
+        quest.cleanup();
+
+        logger.info("Unregistered quest: " + questId);
+        return true;
+    }
+
+    @Override
+    public List<Quest> getActiveQuests() {
+        return quests.values().stream()
+            .filter(quest -> !getActivePlayersForQuest(quest.getId()).isEmpty())
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public int getQuestCount() {
+        return quests.size();
+    }
+
+    @Override
+    public CompletableFuture<QuestState> getPlayerQuestState(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(QuestState.NOT_STARTED);
+        }
+        return quest.getStateForPlayer(playerId);
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePlayerQuestState(UUID playerId, String questId, QuestState newState) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Quest not found: " + questId));
+        }
+        return quest.advanceStateForPlayer(playerId, newState);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> startQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return quest.getStateForPlayer(playerId)
+            .thenCompose(currentState -> {
+                if (currentState != QuestState.NOT_STARTED) {
+                    logger.debug("Player " + playerId + " cannot start quest " + questId + " - already in state: " + currentState);
+                    return CompletableFuture.completedFuture(false);
+                }
+                return quest.advanceStateForPlayer(playerId, QuestState.QUEST_ACTIVE)
+                    .thenApply(v -> true);
+            });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> completeQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return quest.getStateForPlayer(playerId)
+            .thenCompose(currentState -> {
+                if (currentState == QuestState.COMPLETED) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return quest.advanceStateForPlayer(playerId, QuestState.COMPLETED)
+                    .thenApply(v -> true);
+            });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> abandonQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return quest.getStateForPlayer(playerId)
+            .thenCompose(currentState -> {
+                if (currentState == QuestState.NOT_STARTED || currentState == QuestState.COMPLETED) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return quest.advanceStateForPlayer(playerId, QuestState.NOT_STARTED)
+                    .thenApply(v -> true);
+            });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> resetQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return plugin.getQuestProgressService().resetQuestProgress(playerId, questId);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPlayerActiveQuests(UUID playerId) {
+        List<CompletableFuture<String>> futures = quests.keySet().stream()
+            .map(questId -> getPlayerQuestState(playerId, questId)
+                .thenApply(state -> state == QuestState.QUEST_ACTIVE ? questId : null))
+            .collect(Collectors.toList());
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(v -> futures.stream()
+                .map(CompletableFuture::join)
+                .filter(id -> id != null)
+                .collect(Collectors.toList()));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPlayerCompletedQuests(UUID playerId) {
+        List<CompletableFuture<String>> futures = quests.keySet().stream()
+            .map(questId -> getPlayerQuestState(playerId, questId)
+                .thenApply(state -> state == QuestState.COMPLETED ? questId : null))
+            .collect(Collectors.toList());
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(v -> futures.stream()
+                .map(CompletableFuture::join)
+                .filter(id -> id != null)
+                .collect(Collectors.toList()));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> canStartQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return quest.getStateForPlayer(playerId)
+            .thenApply(state -> state == QuestState.NOT_STARTED);
+    }
+
+    @Override
+    public boolean isInFallbackMode() {
+        return plugin.getQuestProgressService().isInFallbackMode();
+    }
+
+    @Override
+    public void reloadQuests() {
+        logger.info("Reloading all quests");
+        resetQuests();
+    }
+
+    @Override
+    public void shutdown() {
+        logger.info("Shutting down QuestManager");
+        cleanupQuests();
     }
 }
