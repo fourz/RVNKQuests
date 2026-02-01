@@ -12,7 +12,11 @@ import org.fourz.RVNKQuests.service.IQuestDatabaseService;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
 import org.fourz.RVNKQuests.service.IQuestService;
 import org.fourz.RVNKQuests.service.IPlayerQuestService;
+import org.fourz.RVNKQuests.service.IQuestChainService;
+import org.fourz.RVNKQuests.service.IRewardService;
 import org.fourz.RVNKQuests.service.QuestProgressServiceImpl;
+import org.fourz.RVNKQuests.service.QuestChainServiceImpl;
+import org.fourz.RVNKQuests.service.RewardServiceImpl;
 import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 
@@ -49,6 +53,10 @@ public class RVNKQuests extends JavaPlugin {
     // Quest system
     private QuestManager questManager;
     private CommandManager commandManager;
+
+    // Service layer
+    private IRewardService rewardService;
+    private IQuestChainService questChainService;
 
     // Optional features
     private LoreDatabase loreDatabase;
@@ -88,6 +96,13 @@ public class RVNKQuests extends JavaPlugin {
             questManager = new QuestManager(this);
             commandManager = CommandManager.getInstance(this);
             commandManager.initialize();
+
+            // Initialize service layer
+            rewardService = new RewardServiceImpl(this);
+            logger.info("Reward service initialized");
+
+            questChainService = new QuestChainServiceImpl(this, questProgressService, rewardService);
+            logger.info("Quest chain service initialized");
 
             // Register player join/quit listener for progress loading/saving
             getServer().getPluginManager().registerEvents(new PlayerJoinQuitListener(this), this);
@@ -206,6 +221,22 @@ public class RVNKQuests extends JavaPlugin {
     }
 
     /**
+     * Gets the reward service for reward delivery.
+     * @return The reward service
+     */
+    public IRewardService getRewardService() {
+        return rewardService;
+    }
+
+    /**
+     * Gets the quest chain service for chain management.
+     * @return The quest chain service
+     */
+    public IQuestChainService getQuestChainService() {
+        return questChainService;
+    }
+
+    /**
      * Updates the log level across all plugin components.
      * This ensures consistent logging behavior throughout the plugin.
      *
@@ -282,6 +313,14 @@ public class RVNKQuests extends JavaPlugin {
             registerMethod.invoke(serviceRegistry, IQuestDatabaseService.class, databaseManager);
             logger.info("Registered IQuestDatabaseService with RVNKCore");
 
+            // Register IRewardService (reward delivery)
+            registerMethod.invoke(serviceRegistry, IRewardService.class, rewardService);
+            logger.info("Registered IRewardService with RVNKCore");
+
+            // Register IQuestChainService (chain management)
+            registerMethod.invoke(serviceRegistry, IQuestChainService.class, questChainService);
+            logger.info("Registered IQuestChainService with RVNKCore");
+
             rvnkCoreAvailable = true;
             rvnkCoreInstance = coreInstance;
             logger.info("RVNKCore integration enabled - services registered");
@@ -313,6 +352,8 @@ public class RVNKQuests extends JavaPlugin {
             java.lang.reflect.Method unregisterMethod = registryClass.getMethod("unregisterService", Class.class);
 
             // Unregister services in reverse order
+            unregisterMethod.invoke(serviceRegistry, IQuestChainService.class);
+            unregisterMethod.invoke(serviceRegistry, IRewardService.class);
             unregisterMethod.invoke(serviceRegistry, IQuestDatabaseService.class);
             unregisterMethod.invoke(serviceRegistry, IPlayerQuestService.class);
             unregisterMethod.invoke(serviceRegistry, IQuestService.class);

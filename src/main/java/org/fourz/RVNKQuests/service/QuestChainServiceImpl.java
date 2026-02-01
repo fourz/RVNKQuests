@@ -9,6 +9,8 @@ import org.fourz.RVNKQuests.data.dto.QuestPrerequisite;
 import org.fourz.RVNKQuests.data.dto.QuestPrerequisite.PrerequisiteType;
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
 
+import org.fourz.RVNKQuests.quest.QuestState;
+
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -26,10 +28,10 @@ import java.util.stream.Collectors;
  * @since 1.0
  */
 public class QuestChainServiceImpl implements IQuestChainService {
-    
+
     private final Plugin plugin;
     private final Logger logger;
-    private final IQuestService questService;
+    private final IQuestProgressService questProgressService;
     private final IRewardService rewardService;
     
     // Chain definitions (chainId -> chain)
@@ -84,12 +86,12 @@ public class QuestChainServiceImpl implements IQuestChainService {
      * Creates a new QuestChainServiceImpl.
      *
      * @param plugin The owning plugin
-     * @param questService The quest service for quest operations
+     * @param questProgressService The quest progress service for quest state operations
      * @param rewardService The reward service for delivering rewards
      */
-    public QuestChainServiceImpl(Plugin plugin, IQuestService questService, IRewardService rewardService) {
+    public QuestChainServiceImpl(Plugin plugin, IQuestProgressService questProgressService, IRewardService rewardService) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.questService = Objects.requireNonNull(questService, "questService cannot be null");
+        this.questProgressService = Objects.requireNonNull(questProgressService, "questProgressService cannot be null");
         this.rewardService = Objects.requireNonNull(rewardService, "rewardService cannot be null");
         this.logger = plugin.getLogger();
     }
@@ -561,9 +563,9 @@ public class QuestChainServiceImpl implements IQuestChainService {
         try {
             return switch (prereq.type()) {
                 case QUEST_COMPLETE -> {
-                    // Check if quest completed via questService
-                    List<String> completed = questService.getPlayerCompletedQuests(playerId).join();
-                    yield completed.contains(prereq.targetId());
+                    // Check if quest completed via questProgressService
+                    QuestState state = questProgressService.getQuestState(playerId, prereq.targetId()).join();
+                    yield state == QuestState.COMPLETED;
                 }
                 case CHAIN_COMPLETE -> hasCompletedChain(playerId, prereq.targetId()).join();
                 case PLAYER_LEVEL -> {
