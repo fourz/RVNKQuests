@@ -6,7 +6,7 @@ import org.fourz.RVNKQuests.RVNKQuests;
 /**
  * Main command handler for the /quest command.
  * Extends BaseCommand to provide standardized command handling with subcommand support.
- * 
+ *
  * This command serves as the primary entry point for all quest-related operations
  * and delegates to appropriate subcommands based on arguments.
  */
@@ -22,7 +22,7 @@ public class QuestCommand extends BaseCommand {
      */
     private void registerCoreCommands() {
         logger.debug("Registering core subcommands");
-        
+
         // Create and register each subcommand directly
         registerSubCommand("item", new QuestItemSubCommand(plugin));
         registerSubCommand("state", new QuestStateSubCommand(plugin));
@@ -32,7 +32,12 @@ public class QuestCommand extends BaseCommand {
         registerSubCommand("mobs", new QuestMobsSubCommand(plugin));
         registerSubCommand("config", new QuestConfigSubCommand(plugin));
         registerSubCommand("validate", new QuestValidateSubCommand(plugin));
-        
+        registerSubCommand("start", new QuestStartSubCommand(plugin));
+        registerSubCommand("progress", new ProgressSubCommand(plugin));
+        registerSubCommand("abandon", new QuestAbandonSubCommand(plugin));
+        registerSubCommand("journal", new QuestJournalSubCommand(plugin));
+        registerSubCommand("leaderboard", new QuestLeaderboardSubCommand(plugin));
+
         logger.debug("Core subcommands registered");
     }
 

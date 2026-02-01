@@ -366,7 +366,18 @@ public class DatabaseManager implements IQuestDatabaseService {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = getConnection()) {
                 // Basic schema validation - check if main tables exist
-                String[] requiredTables = {"quest_progress", "quest_objective_progress", "quest_rewards_claimed"};
+                String[] requiredTables = {
+                    // Core tables
+                    "quest_progress",
+                    "quest_objective_progress",
+                    "quest_rewards_claimed",
+                    // Journal system tables (feat-27)
+                    "quest_journal_entries",
+                    "quest_categories",
+                    "quest_tags",
+                    "quest_tag_assignments",
+                    "quest_leaderboard_entries"
+                };
                 java.util.List<String> errors = new java.util.ArrayList<>();
 
                 for (String table : requiredTables) {

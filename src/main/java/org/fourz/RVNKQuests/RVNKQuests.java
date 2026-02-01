@@ -15,10 +15,16 @@ import org.fourz.RVNKQuests.service.IQuestService;
 import org.fourz.RVNKQuests.service.IPlayerQuestService;
 import org.fourz.RVNKQuests.service.IQuestChainService;
 import org.fourz.RVNKQuests.service.IRewardService;
+import org.fourz.RVNKQuests.service.IJournalService;
+import org.fourz.RVNKQuests.service.INotificationService;
+import org.fourz.RVNKQuests.service.IRepeatableQuestService;
 import org.fourz.RVNKQuests.service.ObjectiveServiceImpl;
 import org.fourz.RVNKQuests.service.QuestProgressServiceImpl;
 import org.fourz.RVNKQuests.service.QuestChainServiceImpl;
 import org.fourz.RVNKQuests.service.RewardServiceImpl;
+import org.fourz.RVNKQuests.service.JournalServiceImpl;
+import org.fourz.RVNKQuests.service.NotificationServiceImpl;
+import org.fourz.RVNKQuests.service.RepeatableQuestServiceImpl;
 import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 
@@ -34,6 +40,8 @@ import java.util.logging.Level;
  *   <li>QuestProgressService manages per-player quest state persistence</li>
  *   <li>QuestManager manages quest registration, state tracking and event handling</li>
  *   <li>CommandManager handles player commands and subcommands</li>
+ *   <li>JournalService provides quest history and statistics</li>
+ *   <li>RepeatableQuestService manages quest repeatability and cooldowns</li>
  *   <li>LoreDatabase (optional) stores narrative content for quests</li>
  * </ul>
  *
@@ -60,6 +68,9 @@ public class RVNKQuests extends JavaPlugin {
     private IRewardService rewardService;
     private IQuestChainService questChainService;
     private IObjectiveService objectiveService;
+    private IJournalService journalService;
+    private INotificationService notificationService;
+    private IRepeatableQuestService repeatableQuestService;
 
     // Optional features
     private LoreDatabase loreDatabase;
@@ -110,6 +121,16 @@ public class RVNKQuests extends JavaPlugin {
             objectiveService = new ObjectiveServiceImpl(this);
             logger.info("Objective service initialized");
 
+            journalService = new JournalServiceImpl(this);
+            logger.info("Journal service initialized");
+
+            notificationService = new NotificationServiceImpl(this);
+            logger.info("Notification service initialized");
+
+            // Initialize repeatable quest service (feat-31)
+            repeatableQuestService = new RepeatableQuestServiceImpl(this, databaseManager, questProgressService);
+            logger.info("Repeatable quest service initialized");
+
             // Register player join/quit listener for progress loading/saving
             getServer().getPluginManager().registerEvents(new PlayerJoinQuitListener(this), this);
 
@@ -151,6 +172,11 @@ public class RVNKQuests extends JavaPlugin {
                 questProgressService.shutdown();
             }
 
+            // Shutdown repeatable quest service
+            if (repeatableQuestService != null) {
+                repeatableQuestService.shutdown();
+            }
+
             // Shutdown database
             if (databaseManager != null) {
                 databaseManager.shutdown();
@@ -159,6 +185,11 @@ public class RVNKQuests extends JavaPlugin {
             // Close lore database
             if (loreDatabase != null) {
                 loreDatabase.close();
+            }
+
+            // Shutdown notification service
+            if (notificationService != null) {
+                notificationService.shutdown();
             }
 
             logger.info("RVNKQuests plugin disabled successfully");
@@ -251,6 +282,30 @@ public class RVNKQuests extends JavaPlugin {
     }
 
     /**
+     * Gets the journal service for quest history and statistics.
+     * @return The journal service
+     */
+    public IJournalService getJournalService() {
+        return journalService;
+    }
+
+    /**
+     * Gets the notification service for quest notifications.
+     * @return The notification service
+     */
+    public INotificationService getNotificationService() {
+        return notificationService;
+    }
+
+    /**
+     * Gets the repeatable quest service for repeatability and cooldowns.
+     * @return The repeatable quest service
+     */
+    public IRepeatableQuestService getRepeatableQuestService() {
+        return repeatableQuestService;
+    }
+
+    /**
      * Updates the log level across all plugin components.
      * This ensures consistent logging behavior throughout the plugin.
      *
@@ -339,6 +394,14 @@ public class RVNKQuests extends JavaPlugin {
             registerMethod.invoke(serviceRegistry, IObjectiveService.class, objectiveService);
             logger.info("Registered IObjectiveService with RVNKCore");
 
+            // Register IJournalService (quest history and statistics)
+            registerMethod.invoke(serviceRegistry, IJournalService.class, journalService);
+            logger.info("Registered IJournalService with RVNKCore");
+
+            // Register IRepeatableQuestService (repeatability and cooldowns)
+            registerMethod.invoke(serviceRegistry, IRepeatableQuestService.class, repeatableQuestService);
+            logger.info("Registered IRepeatableQuestService with RVNKCore");
+
             rvnkCoreAvailable = true;
             rvnkCoreInstance = coreInstance;
             logger.info("RVNKCore integration enabled - services registered");
@@ -370,6 +433,8 @@ public class RVNKQuests extends JavaPlugin {
             java.lang.reflect.Method unregisterMethod = registryClass.getMethod("unregisterService", Class.class);
 
             // Unregister services in reverse order
+            unregisterMethod.invoke(serviceRegistry, IRepeatableQuestService.class);
+            unregisterMethod.invoke(serviceRegistry, IJournalService.class);
             unregisterMethod.invoke(serviceRegistry, IObjectiveService.class);
             unregisterMethod.invoke(serviceRegistry, IQuestChainService.class);
             unregisterMethod.invoke(serviceRegistry, IRewardService.class);
