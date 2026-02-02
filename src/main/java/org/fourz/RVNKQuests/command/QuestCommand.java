@@ -24,6 +24,7 @@ public class QuestCommand extends BaseCommand {
         logger.debug("Registering core subcommands");
 
         // Create and register each subcommand directly
+        registerSubCommand("list", new QuestListSubCommand(plugin));
         registerSubCommand("item", new QuestItemSubCommand(plugin));
         registerSubCommand("state", new QuestStateSubCommand(plugin));
         registerSubCommand("reload", new QuestReloadSubCommand(plugin));
