@@ -11,9 +11,10 @@ commands:
     description: Main command for the RVNKQuests plugin
     usage: |
       §6=== RVNKQuests Commands ===
+      §e/quest menu [filter]§7 - Open quest GUI menu
       §e/quest item <item_name>§7 - Get a quest item
       §e/quest trigger <quest_id> [here|around]§7 - Trigger a quest
-      §e/quest state <quest_id> <state>§7 - Change quest state 
+      §e/quest state <quest_id> <state>§7 - Change quest state
       §e/quest reload§7 - Reload plugin configuration
       §7Use TAB for autocomplete
     aliases: [quests, q]
@@ -30,4 +31,10 @@ permissions:
     default: op
   rvnkquests.command.reload:
     description: Allows players to reload the plugin configuration
+    default: op
+  rvnkquests.command.menu:
+    description: Allows players to open the quest GUI menu
+    default: true
+  rvnkquests.menu.other:
+    description: Allows opening quest menu for other players
     default: op

@@ -25,6 +25,7 @@ import org.fourz.RVNKQuests.service.RewardServiceImpl;
 import org.fourz.RVNKQuests.service.JournalServiceImpl;
 import org.fourz.RVNKQuests.service.NotificationServiceImpl;
 import org.fourz.RVNKQuests.service.RepeatableQuestServiceImpl;
+import org.fourz.RVNKQuests.ui.QuestMenuListener;
 import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 
@@ -133,6 +134,10 @@ public class RVNKQuests extends JavaPlugin {
 
             // Register player join/quit listener for progress loading/saving
             getServer().getPluginManager().registerEvents(new PlayerJoinQuitListener(this), this);
+
+            // Register quest menu listener for GUI interactions (feat-24)
+            getServer().getPluginManager().registerEvents(new QuestMenuListener(this), this);
+            logger.info("Quest menu listener registered");
 
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {

@@ -37,6 +37,12 @@ public class QuestCommand extends BaseCommand {
         registerSubCommand("abandon", new QuestAbandonSubCommand(plugin));
         registerSubCommand("journal", new QuestJournalSubCommand(plugin));
         registerSubCommand("leaderboard", new QuestLeaderboardSubCommand(plugin));
+        registerSubCommand("menu", new QuestMenuSubCommand(plugin, this));
+
+        // Admin commands (require elevated permissions)
+        registerSubCommand("reset", new QuestResetSubCommand(plugin));
+        registerSubCommand("forcecomplete", new QuestCompleteSubCommand(plugin));
+        registerSubCommand("setstate", new QuestSetStateSubCommand(plugin));
 
         logger.debug("Core subcommands registered");
     }

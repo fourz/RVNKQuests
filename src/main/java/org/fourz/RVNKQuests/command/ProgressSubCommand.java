@@ -12,6 +12,7 @@ import org.fourz.RVNKQuests.service.IQuestProgressService;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -80,7 +81,8 @@ public class ProgressSubCommand extends BaseSubCommand {
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         displayNotStarted(sender, quest, targetPlayer);
                     });
-                    return null;
+                    // FIX: Return CompletableFuture instead of null to prevent NPE
+                    return CompletableFuture.completedFuture(null);
                 }
 
                 QuestProgressDTO progress = progressOpt.get();
