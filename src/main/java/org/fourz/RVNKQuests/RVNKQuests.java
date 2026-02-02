@@ -12,7 +12,6 @@ import org.fourz.RVNKQuests.service.IObjectiveService;
 import org.fourz.RVNKQuests.service.IQuestDatabaseService;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
 import org.fourz.RVNKQuests.service.IQuestService;
-import org.fourz.RVNKQuests.service.IPlayerQuestService;
 import org.fourz.RVNKQuests.service.IQuestChainService;
 import org.fourz.RVNKQuests.service.IRewardService;
 import org.fourz.RVNKQuests.service.IJournalService;
@@ -379,9 +378,9 @@ public class RVNKQuests extends JavaPlugin {
             registerMethod.invoke(serviceRegistry, IQuestService.class, questManager);
             logger.info("Registered IQuestService with RVNKCore");
 
-            // Register IPlayerQuestService (player quest state and progress)
-            registerMethod.invoke(serviceRegistry, IPlayerQuestService.class, questProgressService);
-            logger.info("Registered IPlayerQuestService with RVNKCore");
+            // Register IQuestProgressService (player quest state and progress)
+            registerMethod.invoke(serviceRegistry, IQuestProgressService.class, questProgressService);
+            logger.info("Registered IQuestProgressService with RVNKCore");
 
             // Register IQuestDatabaseService (database access)
             registerMethod.invoke(serviceRegistry, IQuestDatabaseService.class, databaseManager);
@@ -444,7 +443,7 @@ public class RVNKQuests extends JavaPlugin {
             unregisterMethod.invoke(serviceRegistry, IQuestChainService.class);
             unregisterMethod.invoke(serviceRegistry, IRewardService.class);
             unregisterMethod.invoke(serviceRegistry, IQuestDatabaseService.class);
-            unregisterMethod.invoke(serviceRegistry, IPlayerQuestService.class);
+            unregisterMethod.invoke(serviceRegistry, IQuestProgressService.class);
             unregisterMethod.invoke(serviceRegistry, IQuestService.class);
 
             logger.info("Services unregistered from RVNKCore");
