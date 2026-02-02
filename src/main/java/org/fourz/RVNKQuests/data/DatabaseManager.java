@@ -35,10 +35,23 @@ public class DatabaseManager implements IQuestDatabaseService {
         YAML  // Fallback mode
     }
 
+    // Base table names (used for prefix replacement in schema files)
+    private static final String[] BASE_TABLE_NAMES = {
+        "quest_progress",
+        "quest_objective_progress",
+        "quest_rewards_claimed",
+        "quest_journal_entries",
+        "quest_categories",
+        "quest_tags",
+        "quest_tag_assignments",
+        "quest_leaderboard_entries"
+    };
+
     private final RVNKQuests plugin;
     private final LogManager logger;
     private final DatabaseType type;
     private final FallbackTracker fallbackTracker;
+    private final String tablePrefix;
 
     private HikariDataSource dataSource;
     private ExecutorService executor;
@@ -63,7 +76,34 @@ public class DatabaseManager implements IQuestDatabaseService {
             default -> DatabaseType.SQLITE;
         };
 
+        // Load table prefix based on storage type
+        String prefixPath = (type == DatabaseType.MYSQL) ? "database.mysql.tablePrefix" : "database.sqlite.tablePrefix";
+        this.tablePrefix = plugin.getConfigManager().getConfig().getString(prefixPath, "");
+        if (tablePrefix != null && !tablePrefix.isEmpty()) {
+            logger.info("Using table prefix: " + tablePrefix);
+        }
+
         logger.info("Database type configured: " + type);
+    }
+
+    /**
+     * Get the table name with prefix applied.
+     * @param baseName The base table name (e.g., "quest_progress")
+     * @return The prefixed table name (e.g., "quests_quest_progress")
+     */
+    public String table(String baseName) {
+        if (tablePrefix == null || tablePrefix.isEmpty()) {
+            return baseName;
+        }
+        return tablePrefix + baseName;
+    }
+
+    /**
+     * Get the configured table prefix.
+     * @return The table prefix, or empty string if none
+     */
+    public String getTablePrefix() {
+        return tablePrefix != null ? tablePrefix : "";
     }
 
     /**
@@ -176,6 +216,7 @@ public class DatabaseManager implements IQuestDatabaseService {
 
     /**
      * Initialize database schema from SQL files.
+     * Applies table prefix substitution if configured.
      */
     private void initializeSchema() throws SQLException, IOException {
         String schemaFile = (type == DatabaseType.MYSQL) ? "schema/mysql.sql" : "schema/sqlite.sql";
@@ -186,6 +227,14 @@ public class DatabaseManager implements IQuestDatabaseService {
             }
 
             String schema = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+
+            // Apply table prefix substitution if configured
+            if (tablePrefix != null && !tablePrefix.isEmpty()) {
+                for (String baseTable : BASE_TABLE_NAMES) {
+                    schema = schema.replace(baseTable, table(baseTable));
+                }
+                logger.debug("Applied table prefix '" + tablePrefix + "' to schema");
+            }
 
             try (Connection conn = dataSource.getConnection()) {
                 // Disable auto-commit for atomic schema creation
@@ -365,26 +414,15 @@ public class DatabaseManager implements IQuestDatabaseService {
 
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = getConnection()) {
-                // Basic schema validation - check if main tables exist
-                String[] requiredTables = {
-                    // Core tables
-                    "quest_progress",
-                    "quest_objective_progress",
-                    "quest_rewards_claimed",
-                    // Journal system tables (feat-27)
-                    "quest_journal_entries",
-                    "quest_categories",
-                    "quest_tags",
-                    "quest_tag_assignments",
-                    "quest_leaderboard_entries"
-                };
+                // Basic schema validation - check if main tables exist (with prefix)
                 java.util.List<String> errors = new java.util.ArrayList<>();
 
-                for (String table : requiredTables) {
+                for (String baseTable : BASE_TABLE_NAMES) {
+                    String prefixedTable = table(baseTable);
                     try (Statement stmt = conn.createStatement()) {
-                        stmt.execute("SELECT 1 FROM " + table + " LIMIT 1");
+                        stmt.execute("SELECT 1 FROM " + prefixedTable + " LIMIT 1");
                     } catch (SQLException e) {
-                        errors.add("Table missing or invalid: " + table);
+                        errors.add("Table missing or invalid: " + prefixedTable);
                     }
                 }
 

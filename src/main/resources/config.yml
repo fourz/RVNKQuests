@@ -34,11 +34,15 @@ database:
     username: root
     password: ''
     useSSL: false
+    # Table prefix for shared database hosting (e.g., "quests_" creates "quests_quest_progress")
+    tablePrefix: ""
 
   # SQLite settings (only used when type: sqlite)
   sqlite:
     # Database file path relative to plugin folder
     file: data/quests.db
+    # Table prefix for shared database hosting (e.g., "quests_" creates "quests_quest_progress")
+    tablePrefix: ""
 
   # Fallback settings - graceful degradation when database fails
   fallback:
