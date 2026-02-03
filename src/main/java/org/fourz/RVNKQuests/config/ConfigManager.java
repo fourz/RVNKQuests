@@ -182,12 +182,16 @@ public class ConfigManager {
                 return Level.FINE;
             case "INFO":
                 return Level.INFO;
+            case "WARN":
             case "WARNING":
                 return Level.WARNING;
+            case "ERROR":
             case "SEVERE":
                 return Level.SEVERE;
             case "OFF":
                 return Level.OFF;
+            case "ALL":
+                return Level.ALL;
             default:
                 logger.warning("Unknown log level in config: " + logLevelStr + ", defaulting to INFO");
                 return Level.INFO;

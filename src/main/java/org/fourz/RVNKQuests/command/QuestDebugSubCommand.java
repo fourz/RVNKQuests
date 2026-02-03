@@ -27,8 +27,10 @@ import java.util.logging.Level;
 public class QuestDebugSubCommand extends BaseSubCommand {
 
     private static final List<String> SUB_COMMANDS = Arrays.asList(
-        "diagnostics", "list", "player", "level"
+        "diagnostics", "list", "player", "level", "seed"
     );
+
+    private SeedSubCommand seedSubCommand;
 
     private static final List<String> VALID_LEVELS = Arrays.asList(
         "debug", "info", "warning", "severe", "off"
@@ -37,6 +39,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
     public QuestDebugSubCommand(RVNKQuests plugin) {
         super(plugin, "debug", "Debug and diagnostics commands",
               "/quest debug <subcommand>", "rvnkquests.admin", false);
+        this.seedSubCommand = new SeedSubCommand(plugin);
     }
 
     @Override
@@ -62,6 +65,8 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             case "level":
             case "loglevel":
                 return executeLevel(sender, subArgs);
+            case "seed":
+                return seedSubCommand.execute(sender, subArgs);
             default:
                 sendErrorMessage(sender, "Unknown debug command: " + subCommand);
                 showUsage(sender);
@@ -75,6 +80,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug list &8- List all registered quests");
         sendMessage(sender, "&7/quest debug player [name] &8- Show player quest progress");
         sendMessage(sender, "&7/quest debug level [level] &8- View or change log level");
+        sendMessage(sender, "&7/quest debug seed <action> &8- Seed/cleanup test data");
     }
 
     /**
@@ -331,6 +337,10 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                         completions.add(level);
                     }
                 }
+            } else if (subCmd.equals("seed")) {
+                // Delegate to seed subcommand
+                return seedSubCommand.getTabCompletions(sender,
+                    Arrays.copyOfRange(args, 1, args.length));
             }
         }
 
