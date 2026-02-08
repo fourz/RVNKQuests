@@ -1,7 +1,9 @@
 package org.fourz.RVNKQuests.quest;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.event.QuestCompleteEvent;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
@@ -193,6 +195,10 @@ public abstract class AbstractQuest implements Quest {
                                     "\u00a76" + player.getName() + " \u00a7ehas completed the quest \u00a76" + name + "\u00a7e!"
                                 );
                             }
+
+                            // Fire event for cross-plugin integration (e.g., RVNKLore discovery triggers)
+                            Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(player, questId, name));
+
                             return true;
                         });
                 }
