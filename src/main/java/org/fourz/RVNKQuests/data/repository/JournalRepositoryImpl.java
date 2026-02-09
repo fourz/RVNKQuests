@@ -32,6 +32,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     private final RVNKQuests plugin;
     private final DatabaseManager databaseManager;
     private final LogManager logger;
+    private final String tblJournalEntries;
 
     /**
      * Creates a new JournalRepositoryImpl.
@@ -43,12 +44,13 @@ public class JournalRepositoryImpl implements IJournalRepository {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
         this.logger = LogManager.getInstance(plugin, "JournalRepository");
+        this.tblJournalEntries = databaseManager.table("quest_journal_entries");
     }
 
     @Override
     public CompletableFuture<JournalEntryDTO> save(JournalEntryDTO entry) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "INSERT INTO quest_journal_entries (player_uuid, quest_id, action, timestamp, details) " +
+            String sql = "INSERT INTO " + tblJournalEntries + " (player_uuid, quest_id, action, timestamp, details) " +
                          "VALUES (?, ?, ?, ?, ?)";
 
             try (Connection conn = databaseManager.getConnection();
@@ -100,7 +102,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     @Override
     public CompletableFuture<List<JournalEntryDTO>> findByPlayer(UUID playerUuid) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_journal_entries WHERE player_uuid = ? ORDER BY timestamp DESC";
+            String sql = "SELECT * FROM " + tblJournalEntries + " WHERE player_uuid = ? ORDER BY timestamp DESC";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -121,7 +123,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     @Override
     public CompletableFuture<List<JournalEntryDTO>> findByPlayerAndQuest(UUID playerUuid, String questId) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_journal_entries " +
+            String sql = "SELECT * FROM " + tblJournalEntries + " " +
                          "WHERE player_uuid = ? AND quest_id = ? " +
                          "ORDER BY timestamp DESC";
 
@@ -145,7 +147,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     @Override
     public CompletableFuture<List<JournalEntryDTO>> findByPlayerAndAction(UUID playerUuid, JournalAction action) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_journal_entries " +
+            String sql = "SELECT * FROM " + tblJournalEntries + " " +
                          "WHERE player_uuid = ? AND action = ? " +
                          "ORDER BY timestamp DESC";
 
@@ -170,7 +172,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     public CompletableFuture<List<JournalEntryDTO>> findByPlayerAndTimeRange(
             UUID playerUuid, Instant startTime, Instant endTime) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_journal_entries " +
+            String sql = "SELECT * FROM " + tblJournalEntries + " " +
                          "WHERE player_uuid = ? AND timestamp >= ? AND timestamp <= ? " +
                          "ORDER BY timestamp DESC";
 
@@ -202,7 +204,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     @Override
     public CompletableFuture<List<JournalEntryDTO>> findRecentByPlayer(UUID playerUuid, int limit) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_journal_entries " +
+            String sql = "SELECT * FROM " + tblJournalEntries + " " +
                          "WHERE player_uuid = ? " +
                          "ORDER BY timestamp DESC " +
                          "LIMIT ?";
@@ -227,7 +229,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     @Override
     public CompletableFuture<Integer> deleteByPlayer(UUID playerUuid) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_journal_entries WHERE player_uuid = ?";
+            String sql = "DELETE FROM " + tblJournalEntries + " WHERE player_uuid = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -248,7 +250,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     @Override
     public CompletableFuture<Integer> deleteByPlayerAndQuest(UUID playerUuid, String questId) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_journal_entries WHERE player_uuid = ? AND quest_id = ?";
+            String sql = "DELETE FROM " + tblJournalEntries + " WHERE player_uuid = ? AND quest_id = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -270,7 +272,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     @Override
     public CompletableFuture<Integer> deleteOlderThan(Instant beforeTime) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_journal_entries WHERE timestamp < ?";
+            String sql = "DELETE FROM " + tblJournalEntries + " WHERE timestamp < ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -296,7 +298,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
     @Override
     public CompletableFuture<Long> countByPlayer(UUID playerUuid) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT COUNT(*) FROM quest_journal_entries WHERE player_uuid = ?";
+            String sql = "SELECT COUNT(*) FROM " + tblJournalEntries + " WHERE player_uuid = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {

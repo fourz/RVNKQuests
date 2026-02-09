@@ -30,6 +30,8 @@ public class TagRepository {
 
     private final DatabaseManager dbManager;
     private final LogManager logger;
+    private final String tblTags;
+    private final String tblTagAssignments;
 
     /**
      * Creates a new TagRepository.
@@ -40,6 +42,8 @@ public class TagRepository {
     public TagRepository(DatabaseManager dbManager, LogManager logger) {
         this.dbManager = dbManager;
         this.logger = logger;
+        this.tblTags = dbManager.table("quest_tags");
+        this.tblTagAssignments = dbManager.table("quest_tag_assignments");
     }
 
     // ========================================
@@ -55,8 +59,8 @@ public class TagRepository {
     public CompletableFuture<Optional<QuestTag>> createTag(QuestTag tag) {
         return CompletableFuture.supplyAsync(() -> {
             String sql = dbManager.isMySQL()
-                ? "INSERT INTO quest_tags (name, description, color) VALUES (?, ?, ?)"
-                : "INSERT INTO quest_tags (name, description, color) VALUES (?, ?, ?)";
+                ? "INSERT INTO " + tblTags + " (name, description, color) VALUES (?, ?, ?)"
+                : "INSERT INTO " + tblTags + " (name, description, color) VALUES (?, ?, ?)";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -85,7 +89,7 @@ public class TagRepository {
      */
     public CompletableFuture<Optional<QuestTag>> getTag(String name) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT name, description, color FROM quest_tags WHERE name = ?";
+            String sql = "SELECT name, description, color FROM " + tblTags + " WHERE name = ?";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -115,7 +119,7 @@ public class TagRepository {
      */
     public CompletableFuture<List<QuestTag>> getAllTags() {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT name, description, color FROM quest_tags ORDER BY name";
+            String sql = "SELECT name, description, color FROM " + tblTags + " ORDER BY name";
             List<QuestTag> tags = new ArrayList<>();
 
             try (Connection conn = dbManager.getConnection();
@@ -144,7 +148,7 @@ public class TagRepository {
      */
     public CompletableFuture<Boolean> updateTag(QuestTag tag) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "UPDATE quest_tags SET description = ?, color = ? WHERE name = ?";
+            String sql = "UPDATE " + tblTags + " SET description = ?, color = ? WHERE name = ?";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -173,7 +177,7 @@ public class TagRepository {
      */
     public CompletableFuture<Boolean> deleteTag(String name) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_tags WHERE name = ?";
+            String sql = "DELETE FROM " + tblTags + " WHERE name = ?";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -215,8 +219,8 @@ public class TagRepository {
     public CompletableFuture<Boolean> assignTagToQuest(String questId, String tagName) {
         return CompletableFuture.supplyAsync(() -> {
             String sql = dbManager.isMySQL()
-                ? "INSERT IGNORE INTO quest_tag_assignments (quest_id, tag_name) VALUES (?, ?)"
-                : "INSERT OR IGNORE INTO quest_tag_assignments (quest_id, tag_name) VALUES (?, ?)";
+                ? "INSERT IGNORE INTO " + tblTagAssignments + " (quest_id, tag_name) VALUES (?, ?)"
+                : "INSERT OR IGNORE INTO " + tblTagAssignments + " (quest_id, tag_name) VALUES (?, ?)";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -244,7 +248,7 @@ public class TagRepository {
      */
     public CompletableFuture<Boolean> removeTagFromQuest(String questId, String tagName) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_tag_assignments WHERE quest_id = ? AND tag_name = ?";
+            String sql = "DELETE FROM " + tblTagAssignments + " WHERE quest_id = ? AND tag_name = ?";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -272,8 +276,8 @@ public class TagRepository {
     public CompletableFuture<List<QuestTag>> getQuestTags(String questId) {
         return CompletableFuture.supplyAsync(() -> {
             String sql = "SELECT t.name, t.description, t.color " +
-                        "FROM quest_tags t " +
-                        "INNER JOIN quest_tag_assignments a ON t.name = a.tag_name " +
+                        "FROM " + tblTags + " t " +
+                        "INNER JOIN " + tblTagAssignments + " a ON t.name = a.tag_name " +
                         "WHERE a.quest_id = ? " +
                         "ORDER BY t.name";
             List<QuestTag> tags = new ArrayList<>();
@@ -307,7 +311,7 @@ public class TagRepository {
      */
     public CompletableFuture<List<String>> getQuestsByTag(String tagName) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT quest_id FROM quest_tag_assignments WHERE tag_name = ?";
+            String sql = "SELECT quest_id FROM " + tblTagAssignments + " WHERE tag_name = ?";
             List<String> questIds = new ArrayList<>();
 
             try (Connection conn = dbManager.getConnection();
@@ -335,7 +339,7 @@ public class TagRepository {
      */
     public CompletableFuture<Integer> removeAllTagsFromQuest(String questId) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_tag_assignments WHERE quest_id = ?";
+            String sql = "DELETE FROM " + tblTagAssignments + " WHERE quest_id = ?";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -361,7 +365,7 @@ public class TagRepository {
      */
     public CompletableFuture<Boolean> isTagAssignedToQuest(String questId, String tagName) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT 1 FROM quest_tag_assignments WHERE quest_id = ? AND tag_name = ?";
+            String sql = "SELECT 1 FROM " + tblTagAssignments + " WHERE quest_id = ? AND tag_name = ?";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -386,7 +390,7 @@ public class TagRepository {
      */
     public CompletableFuture<java.util.Map<String, Integer>> getTagUsageStatistics() {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT tag_name, COUNT(*) as count FROM quest_tag_assignments GROUP BY tag_name";
+            String sql = "SELECT tag_name, COUNT(*) as count FROM " + tblTagAssignments + " GROUP BY tag_name";
             java.util.Map<String, Integer> stats = new java.util.HashMap<>();
 
             try (Connection conn = dbManager.getConnection();

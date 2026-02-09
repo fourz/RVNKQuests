@@ -30,6 +30,11 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
     private final Gson gson;
     private final boolean isMySQL;
 
+    // Prefixed table names (e.g. "quests_quest_progress" when prefix is "quests_")
+    private final String tblProgress;
+    private final String tblObjective;
+    private final String tblRewards;
+
     /**
      * Creates a new repository implementation.
      *
@@ -42,6 +47,9 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         this.logger = LogManager.getInstance(plugin, "QuestProgressRepository");
         this.gson = new GsonBuilder().create();
         this.isMySQL = databaseManager.getType() == DatabaseManager.DatabaseType.MYSQL;
+        this.tblProgress = databaseManager.table("quest_progress");
+        this.tblObjective = databaseManager.table("quest_objective_progress");
+        this.tblRewards = databaseManager.table("quest_rewards_claimed");
     }
 
     // ==================== Quest Progress Operations ====================
@@ -54,11 +62,11 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
 
         return CompletableFuture.supplyAsync(() -> {
             String sql = isMySQL
-                ? "INSERT INTO quest_progress (player_uuid, quest_id, state, path_choice, started_at, completed_at, metadata) " +
+                ? "INSERT INTO " + tblProgress + " (player_uuid, quest_id, state, path_choice, started_at, completed_at, metadata) " +
                   "VALUES (?, ?, ?, ?, ?, ?, ?) " +
                   "ON DUPLICATE KEY UPDATE state = VALUES(state), path_choice = VALUES(path_choice), " +
                   "started_at = VALUES(started_at), completed_at = VALUES(completed_at), metadata = VALUES(metadata)"
-                : "INSERT OR REPLACE INTO quest_progress (player_uuid, quest_id, state, path_choice, started_at, completed_at, metadata, updated_at) " +
+                : "INSERT OR REPLACE INTO " + tblProgress + " (player_uuid, quest_id, state, path_choice, started_at, completed_at, metadata, updated_at) " +
                   "VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))";
 
             try (Connection conn = databaseManager.getConnection();
@@ -103,7 +111,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_progress WHERE player_uuid = ? AND quest_id = ?";
+            String sql = "SELECT * FROM " + tblProgress + " WHERE player_uuid = ? AND quest_id = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -135,7 +143,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_progress WHERE player_uuid = ?";
+            String sql = "SELECT * FROM " + tblProgress + " WHERE player_uuid = ?";
             List<QuestProgressDTO> results = new ArrayList<>();
 
             try (Connection conn = databaseManager.getConnection();
@@ -166,7 +174,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_progress WHERE quest_id = ?";
+            String sql = "SELECT * FROM " + tblProgress + " WHERE quest_id = ?";
             List<QuestProgressDTO> results = new ArrayList<>();
 
             try (Connection conn = databaseManager.getConnection();
@@ -197,7 +205,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_progress WHERE quest_id = ? AND state = ?";
+            String sql = "SELECT * FROM " + tblProgress + " WHERE quest_id = ? AND state = ?";
             List<QuestProgressDTO> results = new ArrayList<>();
 
             try (Connection conn = databaseManager.getConnection();
@@ -229,7 +237,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_progress WHERE player_uuid = ? AND quest_id = ?";
+            String sql = "DELETE FROM " + tblProgress + " WHERE player_uuid = ? AND quest_id = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -256,7 +264,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_progress WHERE player_uuid = ?";
+            String sql = "DELETE FROM " + tblProgress + " WHERE player_uuid = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -285,11 +293,11 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
 
         return CompletableFuture.supplyAsync(() -> {
             String sql = isMySQL
-                ? "INSERT INTO quest_objective_progress (player_uuid, quest_id, objective_id, progress_count, target_count, is_completed, completed_at, metadata) " +
+                ? "INSERT INTO " + tblObjective + " (player_uuid, quest_id, objective_id, progress_count, target_count, is_completed, completed_at, metadata) " +
                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
                   "ON DUPLICATE KEY UPDATE progress_count = VALUES(progress_count), is_completed = VALUES(is_completed), " +
                   "completed_at = VALUES(completed_at), metadata = VALUES(metadata)"
-                : "INSERT OR REPLACE INTO quest_objective_progress (player_uuid, quest_id, objective_id, progress_count, target_count, is_completed, completed_at, metadata, updated_at) " +
+                : "INSERT OR REPLACE INTO " + tblObjective + " (player_uuid, quest_id, objective_id, progress_count, target_count, is_completed, completed_at, metadata, updated_at) " +
                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))";
 
             try (Connection conn = databaseManager.getConnection();
@@ -333,7 +341,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_objective_progress WHERE player_uuid = ? AND quest_id = ? AND objective_id = ?";
+            String sql = "SELECT * FROM " + tblObjective + " WHERE player_uuid = ? AND quest_id = ? AND objective_id = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -368,7 +376,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_objective_progress WHERE player_uuid = ? AND quest_id = ?";
+            String sql = "SELECT * FROM " + tblObjective + " WHERE player_uuid = ? AND quest_id = ?";
             List<QuestObjectiveProgressDTO> results = new ArrayList<>();
 
             try (Connection conn = databaseManager.getConnection();
@@ -400,7 +408,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_objective_progress WHERE player_uuid = ? AND quest_id = ?";
+            String sql = "DELETE FROM " + tblObjective + " WHERE player_uuid = ? AND quest_id = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -430,8 +438,8 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
 
         return CompletableFuture.supplyAsync(() -> {
             String sql = isMySQL
-                ? "INSERT IGNORE INTO quest_rewards_claimed (player_uuid, quest_id, reward_id, claimed_at) VALUES (?, ?, ?, ?)"
-                : "INSERT OR IGNORE INTO quest_rewards_claimed (player_uuid, quest_id, reward_id, claimed_at) VALUES (?, ?, ?, ?)";
+                ? "INSERT IGNORE INTO " + tblRewards + " (player_uuid, quest_id, reward_id, claimed_at) VALUES (?, ?, ?, ?)"
+                : "INSERT OR IGNORE INTO " + tblRewards + " (player_uuid, quest_id, reward_id, claimed_at) VALUES (?, ?, ?, ?)";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -465,7 +473,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT 1 FROM quest_rewards_claimed WHERE player_uuid = ? AND quest_id = ? AND reward_id = ?";
+            String sql = "SELECT 1 FROM " + tblRewards + " WHERE player_uuid = ? AND quest_id = ? AND reward_id = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -495,7 +503,7 @@ public class QuestProgressRepositoryImpl implements IQuestProgressRepository {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT * FROM quest_rewards_claimed WHERE player_uuid = ? AND quest_id = ?";
+            String sql = "SELECT * FROM " + tblRewards + " WHERE player_uuid = ? AND quest_id = ?";
             List<QuestRewardClaimedDTO> results = new ArrayList<>();
 
             try (Connection conn = databaseManager.getConnection();

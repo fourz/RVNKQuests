@@ -28,6 +28,7 @@ public class CategoryRepository {
 
     private final DatabaseManager dbManager;
     private final LogManager logger;
+    private final String tblCategories;
 
     /**
      * Creates a new CategoryRepository.
@@ -38,6 +39,7 @@ public class CategoryRepository {
     public CategoryRepository(DatabaseManager dbManager, LogManager logger) {
         this.dbManager = dbManager;
         this.logger = logger;
+        this.tblCategories = dbManager.table("quest_categories");
     }
 
     /**
@@ -50,8 +52,8 @@ public class CategoryRepository {
     public CompletableFuture<Boolean> setCategoryForQuest(String questId, QuestCategory category) {
         return CompletableFuture.supplyAsync(() -> {
             String sql = dbManager.isMySQL()
-                ? "INSERT INTO quest_categories (quest_id, category) VALUES (?, ?) ON DUPLICATE KEY UPDATE category = ?"
-                : "INSERT OR REPLACE INTO quest_categories (quest_id, category) VALUES (?, ?)";
+                ? "INSERT INTO " + tblCategories + " (quest_id, category) VALUES (?, ?) ON DUPLICATE KEY UPDATE category = ?"
+                : "INSERT OR REPLACE INTO " + tblCategories + " (quest_id, category) VALUES (?, ?)";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -82,7 +84,7 @@ public class CategoryRepository {
      */
     public CompletableFuture<QuestCategory> getCategoryForQuest(String questId) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT category FROM quest_categories WHERE quest_id = ?";
+            String sql = "SELECT category FROM " + tblCategories + " WHERE quest_id = ?";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -115,7 +117,7 @@ public class CategoryRepository {
      */
     public CompletableFuture<List<String>> getQuestsByCategory(QuestCategory category) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT quest_id FROM quest_categories WHERE category = ?";
+            String sql = "SELECT quest_id FROM " + tblCategories + " WHERE category = ?";
             List<String> questIds = new ArrayList<>();
 
             try (Connection conn = dbManager.getConnection();
@@ -143,7 +145,7 @@ public class CategoryRepository {
      */
     public CompletableFuture<Boolean> removeCategoryFromQuest(String questId) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_categories WHERE quest_id = ?";
+            String sql = "DELETE FROM " + tblCategories + " WHERE quest_id = ?";
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -177,7 +179,7 @@ public class CategoryRepository {
      */
     public CompletableFuture<java.util.Map<QuestCategory, Integer>> getCategoryDistribution() {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT category, COUNT(*) as count FROM quest_categories GROUP BY category";
+            String sql = "SELECT category, COUNT(*) as count FROM " + tblCategories + " GROUP BY category";
             java.util.Map<QuestCategory, Integer> distribution = new java.util.HashMap<>();
 
             try (Connection conn = dbManager.getConnection();
@@ -208,7 +210,7 @@ public class CategoryRepository {
      */
     public CompletableFuture<Integer> removeAllCategories() {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_categories";
+            String sql = "DELETE FROM " + tblCategories;
 
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
