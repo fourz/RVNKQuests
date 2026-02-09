@@ -140,7 +140,7 @@ public class RVNKQuests extends JavaPlugin {
 
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
-                loreDatabase = new LoreDatabase(this);
+                loreDatabase = new LoreDatabase(this, databaseManager);
                 logger.info("Lore database initialized");
             } else {
                 logger.info("Lore database disabled in config");

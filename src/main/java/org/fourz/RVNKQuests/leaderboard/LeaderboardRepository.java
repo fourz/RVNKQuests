@@ -24,11 +24,15 @@ public class LeaderboardRepository {
     private final RVNKQuests plugin;
     private final DatabaseManager dbManager;
     private final LogManager logger;
+    private final String tblLeaderboardEntries;
+    private final String tblLeaderboardCache;
 
     public LeaderboardRepository(RVNKQuests plugin, DatabaseManager dbManager) {
         this.plugin = plugin;
         this.dbManager = dbManager;
         this.logger = LogManager.getInstance(plugin, "LeaderboardRepository");
+        this.tblLeaderboardEntries = dbManager.table("quest_leaderboard_entries");
+        this.tblLeaderboardCache = dbManager.table("quest_leaderboard_cache");
     }
 
     /**
@@ -42,7 +46,7 @@ public class LeaderboardRepository {
     public CompletableFuture<List<LeaderboardEntry>> getTopEntries(LeaderboardType type, int limit) {
         return CompletableFuture.supplyAsync(() -> {
             String sql = "SELECT player_uuid, player_name, leaderboard_type, value, rank, updated_at " +
-                        "FROM quest_leaderboard_entries " +
+                        "FROM " + tblLeaderboardEntries + " " +
                         "WHERE leaderboard_type = ? " +
                         "ORDER BY rank ASC " +
                         "LIMIT ?";
@@ -81,7 +85,7 @@ public class LeaderboardRepository {
     public CompletableFuture<Optional<LeaderboardEntry>> getPlayerRank(UUID playerUuid, LeaderboardType type) {
         return CompletableFuture.supplyAsync(() -> {
             String sql = "SELECT player_uuid, player_name, leaderboard_type, value, rank, updated_at " +
-                        "FROM quest_leaderboard_entries " +
+                        "FROM " + tblLeaderboardEntries + " " +
                         "WHERE player_uuid = ? AND leaderboard_type = ?";
 
             try (Connection conn = dbManager.getConnection();
@@ -117,10 +121,10 @@ public class LeaderboardRepository {
     public CompletableFuture<Boolean> updateEntry(LeaderboardEntry entry) {
         return CompletableFuture.supplyAsync(() -> {
             String sql = dbManager.isMySQL()
-                ? "INSERT INTO quest_leaderboard_entries (player_uuid, player_name, leaderboard_type, value, rank, updated_at) " +
+                ? "INSERT INTO " + tblLeaderboardEntries + " (player_uuid, player_name, leaderboard_type, value, rank, updated_at) " +
                   "VALUES (?, ?, ?, ?, ?, ?) " +
                   "ON DUPLICATE KEY UPDATE player_name = VALUES(player_name), value = VALUES(value), rank = VALUES(rank), updated_at = VALUES(updated_at)"
-                : "INSERT OR REPLACE INTO quest_leaderboard_entries (player_uuid, player_name, leaderboard_type, value, rank, updated_at) " +
+                : "INSERT OR REPLACE INTO " + tblLeaderboardEntries + " (player_uuid, player_name, leaderboard_type, value, rank, updated_at) " +
                   "VALUES (?, ?, ?, ?, ?, ?)";
 
             try (Connection conn = dbManager.getConnection();
@@ -161,20 +165,20 @@ public class LeaderboardRepository {
             try (Connection conn = dbManager.getConnection()) {
                 // Recalculate ranks based on value (descending order)
                 String updateRanksSql = dbManager.isMySQL()
-                    ? "UPDATE quest_leaderboard_entries e " +
+                    ? "UPDATE " + tblLeaderboardEntries + " e " +
                       "SET rank = ( " +
                       "  SELECT COUNT(*) + 1 " +
-                      "  FROM quest_leaderboard_entries e2 " +
+                      "  FROM " + tblLeaderboardEntries + " e2 " +
                       "  WHERE e2.leaderboard_type = e.leaderboard_type " +
                       "  AND e2.value > e.value " +
                       ") " +
                       "WHERE leaderboard_type = ?"
-                    : "UPDATE quest_leaderboard_entries " +
+                    : "UPDATE " + tblLeaderboardEntries + " " +
                       "SET rank = ( " +
                       "  SELECT COUNT(*) + 1 " +
-                      "  FROM quest_leaderboard_entries AS e2 " +
-                      "  WHERE e2.leaderboard_type = quest_leaderboard_entries.leaderboard_type " +
-                      "  AND e2.value > quest_leaderboard_entries.value " +
+                      "  FROM " + tblLeaderboardEntries + " AS e2 " +
+                      "  WHERE e2.leaderboard_type = " + tblLeaderboardEntries + ".leaderboard_type " +
+                      "  AND e2.value > " + tblLeaderboardEntries + ".value " +
                       ") " +
                       "WHERE leaderboard_type = ?";
 
@@ -186,10 +190,10 @@ public class LeaderboardRepository {
 
                 // Update cache timestamp
                 String cacheSql = dbManager.isMySQL()
-                    ? "INSERT INTO quest_leaderboard_cache (leaderboard_type, cache_data, updated_at, expires_at) " +
+                    ? "INSERT INTO " + tblLeaderboardCache + " (leaderboard_type, cache_data, updated_at, expires_at) " +
                       "VALUES (?, '{}', NOW(), DATE_ADD(NOW(), INTERVAL ? SECOND)) " +
                       "ON DUPLICATE KEY UPDATE updated_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND)"
-                    : "INSERT OR REPLACE INTO quest_leaderboard_cache (leaderboard_type, cache_data, updated_at, expires_at) " +
+                    : "INSERT OR REPLACE INTO " + tblLeaderboardCache + " (leaderboard_type, cache_data, updated_at, expires_at) " +
                       "VALUES (?, '{}', datetime('now'), datetime('now', '+' || ? || ' seconds'))";
 
                 try (PreparedStatement stmt = conn.prepareStatement(cacheSql)) {

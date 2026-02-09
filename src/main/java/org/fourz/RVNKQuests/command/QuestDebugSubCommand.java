@@ -9,6 +9,8 @@ import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestManager;
 import org.fourz.RVNKQuests.quest.QuestState;
 
+import org.fourz.rvnkcore.util.log.LogManager;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -27,14 +29,12 @@ import java.util.logging.Level;
 public class QuestDebugSubCommand extends BaseSubCommand {
 
     private static final List<String> SUB_COMMANDS = Arrays.asList(
-        "diagnostics", "list", "player", "level", "seed"
+        "diagnostics", "list", "player", "loglevel", "seed"
     );
 
     private SeedSubCommand seedSubCommand;
 
-    private static final List<String> VALID_LEVELS = Arrays.asList(
-        "debug", "info", "warning", "severe", "off"
-    );
+    private static final List<String> LOG_LEVELS = Arrays.asList("DEBUG", "INFO", "WARN", "OFF");
 
     public QuestDebugSubCommand(RVNKQuests plugin) {
         super(plugin, "debug", "Debug and diagnostics commands",
@@ -62,9 +62,9 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             case "player":
             case "p":
                 return executePlayer(sender, subArgs);
-            case "level":
             case "loglevel":
-                return executeLevel(sender, subArgs);
+            case "level":
+                return handleLogLevel(sender, subArgs);
             case "seed":
                 return seedSubCommand.execute(sender, subArgs);
             default:
@@ -79,7 +79,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug diagnostics &8- Show system health status");
         sendMessage(sender, "&7/quest debug list &8- List all registered quests");
         sendMessage(sender, "&7/quest debug player [name] &8- Show player quest progress");
-        sendMessage(sender, "&7/quest debug level [level] &8- View or change log level");
+        sendMessage(sender, "&7/quest debug loglevel [level] &8- View or change log level");
         sendMessage(sender, "&7/quest debug seed <action> &8- Seed/cleanup test data");
     }
 
@@ -273,37 +273,27 @@ public class QuestDebugSubCommand extends BaseSubCommand {
     }
 
     /**
-     * View or change the log level at runtime
+     * View or change the log level at runtime.
+     * Usage: /quest debug loglevel [DEBUG|INFO|WARN|OFF]
      */
-    private boolean executeLevel(CommandSender sender, String[] args) {
+    private boolean handleLogLevel(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            Level currentLevel = plugin.getConfigManager().getLogLevel();
-            sendInfoMessage(sender, "Current debug level: " + getLevelName(currentLevel));
-            sendInfoMessage(sender, "Usage: /quest debug level [level]");
-            sendInfoMessage(sender, "Valid levels: " + String.join(", ", VALID_LEVELS));
+            String currentLevel = plugin.getConfig().getString("general.logLevel", "INFO");
+            sendInfoMessage(sender, "Current log level: " + currentLevel);
+            sendInfoMessage(sender, "Usage: /quest debug loglevel <DEBUG|INFO|WARN|OFF>");
             return true;
         }
 
-        String levelArg = args[0].toLowerCase();
-        if (!VALID_LEVELS.contains(levelArg)) {
-            sendErrorMessage(sender, "Invalid log level: " + levelArg);
-            sendInfoMessage(sender, "Valid levels: " + String.join(", ", VALID_LEVELS));
-            return true;
-        }
+        String levelStr = args[0].toUpperCase();
+        Level level = LogManager.parseLevel(levelStr);
 
-        // Convert string to Level
-        Level newLevel = getLevel(levelArg);
+        LogManager.setPluginLogLevel(plugin, level);
 
-        // Update config
-        FileConfiguration config = plugin.getConfig();
-        config.set("general.logLevel", levelArg.toUpperCase());
+        plugin.getConfig().set("general.logLevel", levelStr);
         plugin.saveConfig();
 
-        // Update runtime debug level
-        plugin.updateGlobalLogLevel(newLevel);
-
-        logger.info("Log level changed to " + newLevel.getName() + " by " + sender.getName());
-        sendSuccessMessage(sender, "Log level set to: " + levelArg);
+        sendSuccessMessage(sender, "Log level set to: " + levelStr);
+        sendInfoMessage(sender, "(Saved to config.yml)");
 
         return true;
     }
@@ -330,10 +320,11 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                         completions.add(player.getName());
                     }
                 }
-            } else if (subCmd.equals("level") || subCmd.equals("loglevel")) {
+            } else if (subCmd.equals("loglevel") || subCmd.equals("level")) {
                 // Complete with log levels
-                for (String level : VALID_LEVELS) {
-                    if (level.startsWith(partial)) {
+                String upperPartial = args[1].toUpperCase();
+                for (String level : LOG_LEVELS) {
+                    if (level.startsWith(upperPartial)) {
                         completions.add(level);
                     }
                 }
@@ -352,35 +343,4 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         return sender.hasPermission("rvnkquests.admin") || sender.isOp();
     }
 
-    private Level getLevel(String levelStr) {
-        switch (levelStr.toLowerCase()) {
-            case "debug":
-                return Level.FINE;
-            case "info":
-                return Level.INFO;
-            case "warning":
-                return Level.WARNING;
-            case "severe":
-                return Level.SEVERE;
-            case "off":
-                return Level.OFF;
-            default:
-                return Level.INFO;
-        }
-    }
-
-    private String getLevelName(Level level) {
-        if (level == Level.FINE) {
-            return "DEBUG";
-        } else if (level == Level.INFO) {
-            return "INFO";
-        } else if (level == Level.WARNING) {
-            return "WARNING";
-        } else if (level == Level.SEVERE) {
-            return "SEVERE";
-        } else if (level == Level.OFF) {
-            return "OFF";
-        }
-        return level.getName();
-    }
 }
