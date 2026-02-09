@@ -30,6 +30,7 @@ public class RepeatableQuestServiceImpl implements IRepeatableQuestService {
     private final LogManager logger;
     private final DatabaseManager databaseManager;
     private final IQuestProgressService questProgressService;
+    private final String tblRepeatConfig;
 
     // In-memory cache for repeat configurations
     private final Map<String, QuestRepeatConfigDTO> configCache = new ConcurrentHashMap<>();
@@ -51,6 +52,7 @@ public class RepeatableQuestServiceImpl implements IRepeatableQuestService {
         this.logger = LogManager.getInstance(plugin, "RepeatableQuestService");
         this.databaseManager = databaseManager;
         this.questProgressService = questProgressService;
+        this.tblRepeatConfig = databaseManager.table("quest_repeat_config");
 
         logger.info("RepeatableQuestService initialized");
     }
@@ -71,7 +73,7 @@ public class RepeatableQuestServiceImpl implements IRepeatableQuestService {
 
         return CompletableFuture.supplyAsync(() -> {
             String sql = "SELECT quest_id, repeat_type, cooldown_seconds, max_completions " +
-                        "FROM quest_repeat_config WHERE quest_id = ?";
+                        "FROM " + tblRepeatConfig + " WHERE quest_id = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -110,7 +112,7 @@ public class RepeatableQuestServiceImpl implements IRepeatableQuestService {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "INSERT OR REPLACE INTO quest_repeat_config " +
+            String sql = "INSERT OR REPLACE INTO " + tblRepeatConfig + " " +
                         "(quest_id, repeat_type, cooldown_seconds, max_completions, updated_at) " +
                         "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)";
 
@@ -143,7 +145,7 @@ public class RepeatableQuestServiceImpl implements IRepeatableQuestService {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "DELETE FROM quest_repeat_config WHERE quest_id = ?";
+            String sql = "DELETE FROM " + tblRepeatConfig + " WHERE quest_id = ?";
 
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {

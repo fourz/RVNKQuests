@@ -3,12 +3,12 @@ package org.fourz.RVNKQuests.lore;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.data.DatabaseManager;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -16,19 +16,19 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
-    
+
 /**
  * Manages lore and discovered locations for the server
  */
 public class LoreDatabase {
     private final RVNKQuests plugin;
     private final LogManager logger;
-    private Connection connection;
+    private final DatabaseManager databaseManager;
     private String databaseType;
     private boolean initialized = false;
     
-    // SQL statements for discoveries
-    private static final String CREATE_DISCOVERIES_TABLE = 
+    // SQL statements for discoveries (SQLite variant)
+    private static final String CREATE_DISCOVERIES_TABLE_SQLITE =
         "CREATE TABLE IF NOT EXISTS discoveries (" +
         "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
         "discovery_type TEXT NOT NULL, " +
@@ -36,6 +36,18 @@ public class LoreDatabase {
         "x INTEGER NOT NULL, " +
         "y INTEGER NOT NULL, " +
         "z INTEGER NOT NULL, " +
+        "description TEXT, " +
+        "discovery_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
+
+    // SQL statements for discoveries (MySQL variant)
+    private static final String CREATE_DISCOVERIES_TABLE_MYSQL =
+        "CREATE TABLE IF NOT EXISTS discoveries (" +
+        "id INT PRIMARY KEY AUTO_INCREMENT, " +
+        "discovery_type VARCHAR(255) NOT NULL, " +
+        "world VARCHAR(255) NOT NULL, " +
+        "x INT NOT NULL, " +
+        "y INT NOT NULL, " +
+        "z INT NOT NULL, " +
         "description TEXT, " +
         "discovery_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
     
@@ -47,8 +59,9 @@ public class LoreDatabase {
     private File loreFile;
     private FileConfiguration loreConfig;
     
-    public LoreDatabase(RVNKQuests plugin) {
+    public LoreDatabase(RVNKQuests plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
+        this.databaseManager = databaseManager;
         this.logger = LogManager.getInstance(plugin, getClass());
     }
     
@@ -75,23 +88,14 @@ public class LoreDatabase {
     }
     
     private void initializeSQLite() throws SQLException {
-        File dataFolder = plugin.getDataFolder();
-        File dbFile = new File(dataFolder, "lore.db");
-        
-        // Ensure the data folder exists
-        if (!dataFolder.exists()) {
-            dataFolder.mkdirs();
-        }
-        
-        // Connect to the database
-        String url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
-        logger.debug("Connecting to SQLite database at: " + url + "");
-        
-        connection = DriverManager.getConnection(url);
-        
-        // Create the discoveries table if it doesn't exist
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute(CREATE_DISCOVERIES_TABLE);
+        String createSql = databaseManager.isMySQL()
+            ? CREATE_DISCOVERIES_TABLE_MYSQL
+            : CREATE_DISCOVERIES_TABLE_SQLITE;
+
+        try (Connection conn = databaseManager.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(createSql);
+            logger.debug("Discoveries table created/verified via pooled connection");
         }
     }
     
@@ -127,17 +131,12 @@ public class LoreDatabase {
      */
     public void shutdown() {
         logger.debug("Shutting down lore database");
-        
-        if ("sqlite".equalsIgnoreCase(databaseType) && connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                logger.error("Error closing database connection", e);
-            }
-        } else if (loreConfig != null) {
+
+        if (loreConfig != null) {
             saveYamlConfig();
         }
-        
+        // Pool lifecycle managed by DatabaseManager -- no connection to close
+
         initialized = false;
     }
     
@@ -180,16 +179,17 @@ public class LoreDatabase {
         }
     }
     
-    private boolean recordDiscoverySQLite(String discoveryType, String world, int x, int y, int z, String description) 
+    private boolean recordDiscoverySQLite(String discoveryType, String world, int x, int y, int z, String description)
             throws SQLException {
-        try (PreparedStatement pstmt = connection.prepareStatement(INSERT_DISCOVERY)) {
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(INSERT_DISCOVERY)) {
             pstmt.setString(1, discoveryType);
             pstmt.setString(2, world);
             pstmt.setInt(3, x);
             pstmt.setInt(4, y);
             pstmt.setInt(5, z);
             pstmt.setString(6, description);
-            
+
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         }
@@ -246,12 +246,13 @@ public class LoreDatabase {
     
     private List<LoreDiscovery> getDiscoveriesByTypeSQLite(String discoveryType) throws SQLException {
         List<LoreDiscovery> discoveries = new ArrayList<>();
-        
+
         String query = "SELECT * FROM discoveries WHERE discovery_type = ?";
-        
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setString(1, discoveryType);
-            
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     LoreDiscovery discovery = new LoreDiscovery(
@@ -268,7 +269,7 @@ public class LoreDatabase {
                 }
             }
         }
-        
+
         return discoveries;
     }
     
@@ -308,17 +309,10 @@ public class LoreDatabase {
     }
 
     /**
-     * Check if the database is initialized
-     * @return true if initialized, false otherwise
+     * Close the lore database, saving any pending YAML data.
+     * Pool lifecycle is managed by DatabaseManager.
      */
     public void close() {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                logger.error("Error closing database connection", e);
-            }
-        }
         if (loreConfig != null) {
             saveYamlConfig();
         }
