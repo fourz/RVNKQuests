@@ -2,7 +2,6 @@ package org.fourz.RVNKQuests.command;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
@@ -24,7 +23,7 @@ import java.util.logging.Level;
  *   /quest debug diagnostics - Show system health status
  *   /quest debug list - List all registered quests with status
  *   /quest debug player [name] - Show player quest progress
- *   /quest debug level [level] - View or change log level
+ *   /quest debug loglevel [level] - View or change log level
  */
 public class QuestDebugSubCommand extends BaseSubCommand {
 
@@ -125,9 +124,9 @@ public class QuestDebugSubCommand extends BaseSubCommand {
 
         // Config Manager status
         if (plugin.getConfigManager() != null) {
-            Level logLevel = plugin.getConfigManager().getLogLevel();
+            String logLevel = plugin.getConfig().getString("general.logLevel", "INFO");
             sendMessage(sender, "&7Config Status: &aLoaded");
-            sendMessage(sender, "&7  Log Level: &f" + getLevelName(logLevel));
+            sendMessage(sender, "&7  Log Level: &f" + logLevel);
         } else {
             sendMessage(sender, "&7Config Manager: &cNOT INITIALIZED");
         }
