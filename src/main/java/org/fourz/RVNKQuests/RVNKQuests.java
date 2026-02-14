@@ -6,6 +6,8 @@ import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.data.DatabaseManager;
 import org.fourz.RVNKQuests.data.FallbackTracker;
+import org.fourz.RVNKQuests.data.repository.IPreferenceRepository;
+import org.fourz.RVNKQuests.data.repository.PreferenceRepositoryImpl;
 import org.fourz.RVNKQuests.event.PlayerJoinQuitListener;
 import org.fourz.RVNKQuests.quest.QuestManager;
 import org.fourz.RVNKQuests.service.IObjectiveService;
@@ -42,6 +44,7 @@ import java.util.logging.Level;
  *   <li>CommandManager handles player commands and subcommands</li>
  *   <li>JournalService provides quest history and statistics</li>
  *   <li>RepeatableQuestService manages quest repeatability and cooldowns</li>
+ *   <li>PreferenceRepository manages player notification preferences</li>
  *   <li>LoreDatabase (optional) stores narrative content for quests</li>
  * </ul>
  *
@@ -59,6 +62,7 @@ public class RVNKQuests extends JavaPlugin {
     private FallbackTracker fallbackTracker;
     private DatabaseManager databaseManager;
     private IQuestProgressService questProgressService;
+    private IPreferenceRepository preferenceRepository;
 
     // Quest system
     private QuestManager questManager;
@@ -105,6 +109,10 @@ public class RVNKQuests extends JavaPlugin {
             questProgressService = new QuestProgressServiceImpl(this, databaseManager);
             logger.info("Quest persistence service initialized (fallback mode: " +
                 questProgressService.isInFallbackMode() + ")");
+
+            // Initialize preference repository
+            preferenceRepository = new PreferenceRepositoryImpl(this, databaseManager);
+            logger.info("Preference repository initialized");
 
             // Initialize managers in correct dependency order
             questManager = new QuestManager(this);
@@ -235,6 +243,14 @@ public class RVNKQuests extends JavaPlugin {
      */
     public IQuestProgressService getQuestProgressService() {
         return questProgressService;
+    }
+
+    /**
+     * Gets the preference repository for player notification preferences.
+     * @return The preference repository
+     */
+    public IPreferenceRepository getPreferenceRepository() {
+        return preferenceRepository;
     }
 
     /**

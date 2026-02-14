@@ -159,3 +159,18 @@ CREATE TABLE IF NOT EXISTS player_quest_repeats (
 CREATE INDEX IF NOT EXISTS idx_player_repeats_player ON player_quest_repeats(player_uuid);
 CREATE INDEX IF NOT EXISTS idx_player_repeats_quest ON player_quest_repeats(quest_id);
 CREATE INDEX IF NOT EXISTS idx_player_repeats_next_available ON player_quest_repeats(next_available);
+
+-- ==================== Player Preferences Table ====================
+
+-- Player notification preferences - local plugin storage
+CREATE TABLE IF NOT EXISTS quest_player_preferences (
+    player_id TEXT NOT NULL,
+    pref_key TEXT NOT NULL,
+    pref_value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (player_id, pref_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_quest_prefs_player ON quest_player_preferences(player_id);
+CREATE INDEX IF NOT EXISTS idx_quest_prefs_key ON quest_player_preferences(pref_key);

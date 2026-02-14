@@ -123,3 +123,17 @@ CREATE TABLE IF NOT EXISTS quest_leaderboard_entries (
     INDEX idx_type_value (leaderboard_type, value DESC),
     INDEX idx_type_rank (leaderboard_type, rank ASC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==================== Player Preferences Table ====================
+
+-- Player notification preferences - local plugin storage
+CREATE TABLE IF NOT EXISTS quest_player_preferences (
+    player_id VARCHAR(36) NOT NULL,
+    pref_key VARCHAR(64) NOT NULL,
+    pref_value TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (player_id, pref_key),
+    INDEX idx_player (player_id),
+    INDEX idx_key (pref_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

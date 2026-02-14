@@ -45,8 +45,8 @@ public class QuestCommand extends BaseCommand {
         registerSubCommand("forcecomplete", new QuestCompleteSubCommand(plugin));
         registerSubCommand("setstate", new QuestSetStateSubCommand(plugin));
 
-        // Player preference commands (Phase 3)
-        registerSubCommand("prefs", new QuestPrefsSubCommand(plugin));
+        // Player preference commands (Phase 4 - with database persistence)
+        registerSubCommand("prefs", new QuestPrefsSubCommand(plugin, plugin.getPreferenceRepository()));
 
         logger.debug("Core subcommands registered");
     }
