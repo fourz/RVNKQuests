@@ -10,7 +10,9 @@ import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.notification.NotificationChannel;
 import org.fourz.RVNKQuests.notification.NotificationType;
+import org.fourz.RVNKQuests.integration.PreferencesServiceLookup;
 import org.fourz.rvnkcore.util.log.LogManager;
+import org.fourz.rvnkcore.api.service.PlayerPreferencesService;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -21,11 +23,15 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Handles multiple notification channels including titles, action bars,
  * boss bars, chat messages, and sound effects with player preference support.</p>
+ *
+ * <p>Respects PlayerPreferencesService from RVNKCore (Phase 3 integration) for
+ * persistent, centralized notification preferences management.</p>
  */
 public class NotificationServiceImpl implements INotificationService {
 
     private final RVNKQuests plugin;
     private final LogManager logger;
+    private final PreferencesServiceLookup prefsLookup;
 
     // Player boss bars for quest tracking
     private final Map<UUID, BossBar> playerBossBars = new ConcurrentHashMap<>();
@@ -36,7 +42,7 @@ public class NotificationServiceImpl implements INotificationService {
     // Default cooldowns per notification type (milliseconds)
     private final Map<NotificationType, Long> cooldownSettings = new EnumMap<>(NotificationType.class);
 
-    // Player preferences (in-memory, can be persisted via database later)
+    // Player preferences (in-memory, fallback when PlayerPreferencesService unavailable)
     private final Map<UUID, Set<NotificationChannel>> playerDisabledChannels = new ConcurrentHashMap<>();
 
     // Chat message prefixes
@@ -47,6 +53,7 @@ public class NotificationServiceImpl implements INotificationService {
     public NotificationServiceImpl(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
+        this.prefsLookup = new PreferencesServiceLookup(plugin);
         initializeDefaultCooldowns();
         logger.info("NotificationService initialized");
     }
@@ -67,7 +74,16 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void notifyQuestStart(Player player, String questName, String questDescription) {
-        if (!canSendNotification(player.getUniqueId(), NotificationType.QUEST_START)) {
+        UUID playerId = player.getUniqueId();
+
+        // Check PlayerPreferencesService first
+        if (!shouldNotifyPlayerViaPreferences(playerId, "quest_start")) {
+            logger.debug("Quest start notification suppressed for " + player.getName() +
+                    " (notifications disabled in preferences)");
+            return;
+        }
+
+        if (!canSendNotification(playerId, NotificationType.QUEST_START)) {
             return;
         }
 
@@ -89,7 +105,16 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void notifyQuestComplete(Player player, String questName) {
-        if (!canSendNotification(player.getUniqueId(), NotificationType.QUEST_COMPLETE)) {
+        UUID playerId = player.getUniqueId();
+
+        // Check PlayerPreferencesService first
+        if (!shouldNotifyPlayerViaPreferences(playerId, "quest_complete")) {
+            logger.debug("Quest complete notification suppressed for " + player.getName() +
+                    " (notifications disabled in preferences)");
+            return;
+        }
+
+        if (!canSendNotification(playerId, NotificationType.QUEST_COMPLETE)) {
             return;
         }
 
@@ -110,7 +135,16 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void notifyQuestFailed(Player player, String questName, String reason) {
-        if (!canSendNotification(player.getUniqueId(), NotificationType.QUEST_FAILED)) {
+        UUID playerId = player.getUniqueId();
+
+        // Check PlayerPreferencesService first
+        if (!shouldNotifyPlayerViaPreferences(playerId, "quest_failed")) {
+            logger.debug("Quest failed notification suppressed for " + player.getName() +
+                    " (notifications disabled in preferences)");
+            return;
+        }
+
+        if (!canSendNotification(playerId, NotificationType.QUEST_FAILED)) {
             return;
         }
 
@@ -136,7 +170,14 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void notifyObjectiveProgress(Player player, String objectiveName, int current, int target) {
-        if (!canSendNotification(player.getUniqueId(), NotificationType.OBJECTIVE_PROGRESS)) {
+        UUID playerId = player.getUniqueId();
+
+        // Check PlayerPreferencesService first
+        if (!shouldNotifyPlayerViaPreferences(playerId, "objective_progress")) {
+            return;
+        }
+
+        if (!canSendNotification(playerId, NotificationType.OBJECTIVE_PROGRESS)) {
             return;
         }
 
@@ -149,7 +190,14 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void notifyObjectiveComplete(Player player, String objectiveName) {
-        if (!canSendNotification(player.getUniqueId(), NotificationType.OBJECTIVE_COMPLETE)) {
+        UUID playerId = player.getUniqueId();
+
+        // Check PlayerPreferencesService first
+        if (!shouldNotifyPlayerViaPreferences(playerId, "objective_complete")) {
+            return;
+        }
+
+        if (!canSendNotification(playerId, NotificationType.OBJECTIVE_COMPLETE)) {
             return;
         }
 
@@ -170,7 +218,14 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void notifyQuestAvailable(Player player, String questName) {
-        if (!canSendNotification(player.getUniqueId(), NotificationType.QUEST_AVAILABLE)) {
+        UUID playerId = player.getUniqueId();
+
+        // Check PlayerPreferencesService first
+        if (!shouldNotifyPlayerViaPreferences(playerId, "quest_available")) {
+            return;
+        }
+
+        if (!canSendNotification(playerId, NotificationType.QUEST_AVAILABLE)) {
             return;
         }
 
@@ -187,7 +242,14 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void notifyMilestone(Player player, String milestoneName) {
-        if (!canSendNotification(player.getUniqueId(), NotificationType.MILESTONE)) {
+        UUID playerId = player.getUniqueId();
+
+        // Check PlayerPreferencesService first
+        if (!shouldNotifyPlayerViaPreferences(playerId, "milestone")) {
+            return;
+        }
+
+        if (!canSendNotification(playerId, NotificationType.MILESTONE)) {
             return;
         }
 
@@ -200,7 +262,14 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void notifyChainProgress(Player player, String chainName, int currentQuest, int totalQuests) {
-        if (!canSendNotification(player.getUniqueId(), NotificationType.CHAIN_PROGRESS)) {
+        UUID playerId = player.getUniqueId();
+
+        // Check PlayerPreferencesService first
+        if (!shouldNotifyPlayerViaPreferences(playerId, "chain_progress")) {
+            return;
+        }
+
+        if (!canSendNotification(playerId, NotificationType.CHAIN_PROGRESS)) {
             return;
         }
 
@@ -406,6 +475,32 @@ public class NotificationServiceImpl implements INotificationService {
     @Override
     public long getCooldown(NotificationType type) {
         return cooldownSettings.getOrDefault(type, 0L);
+    }
+
+    /**
+     * Checks if a player has notifications enabled via PlayerPreferencesService.
+     * Returns true if service unavailable (graceful fallback).
+     * This is a synchronous check with short timeout.
+     *
+     * @param playerUuid Player UUID
+     * @param notificationType Notification type (e.g., "quest_start")
+     * @return true if player should receive notifications
+     */
+    private boolean shouldNotifyPlayerViaPreferences(UUID playerUuid, String notificationType) {
+        if (!prefsLookup.isAvailable()) {
+            return true; // Service unavailable - allow notification
+        }
+
+        try {
+            PlayerPreferencesService prefs = prefsLookup.getService();
+            // Check master toggle with 500ms timeout
+            Boolean canNotify = prefs.isNotificationEnabled(playerUuid, "rvnkquests", notificationType)
+                    .get(500, java.util.concurrent.TimeUnit.MILLISECONDS);
+            return canNotify != null && canNotify;
+        } catch (Exception e) {
+            logger.debug("Error checking notification preferences: " + e.getMessage() + ", allowing notification");
+            return true; // On error, allow notification (fail open)
+        }
     }
 
     private boolean canSendNotification(UUID playerUuid, NotificationType type) {
