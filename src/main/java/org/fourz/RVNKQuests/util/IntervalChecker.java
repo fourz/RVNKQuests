@@ -21,13 +21,23 @@ public class IntervalChecker {
         if (++counter % checkFrequency != 0) {
             return false;
         }
-        
+
         // Then check the movement distance
         Location lastLocation = lastCheckLocations.get(entityId);
-        if (lastLocation != null && lastLocation.distance(currentLocation) < minMovementDistance) {
-            return false;
+        if (lastLocation != null) {
+            // Skip distance check if locations are in different worlds
+            if (lastLocation.getWorld() == null || currentLocation.getWorld() == null ||
+                !lastLocation.getWorld().equals(currentLocation.getWorld())) {
+                // Different world = player teleported, always check
+                lastCheckLocations.put(entityId, currentLocation.clone());
+                return true;
+            }
+
+            if (lastLocation.distance(currentLocation) < minMovementDistance) {
+                return false;
+            }
         }
-        
+
         // Update the last check location and return true
         lastCheckLocations.put(entityId, currentLocation.clone());
         return true;
