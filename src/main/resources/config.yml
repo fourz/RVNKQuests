@@ -21,19 +21,19 @@ database:
   # yaml - Simple file-based storage (default for small servers)
   # sqlite - Local database file (recommended for most servers)
   # mysql - External MySQL server (for multi-server setups)
-  type: sqlite
+  type: mysql
 
   # Autosave interval in seconds (0 to disable)
   autosave_interval: 300
 
   # MySQL settings (only used when type: mysql)
   mysql:
-    host: localhost
+    host: 64.20.41.122
     port: 3306
-    database: minecraft
-    username: root
+    database: fourzorg_rvnkcore_dev
+    username: fourzorg_rvnkuser
     password: ''
-    useSSL: false
+    useSSL: true
     # Table prefix for shared database hosting (e.g., "quests_" creates "quests_quest_progress")
     tablePrefix: ""
 
