@@ -3,6 +3,9 @@ package org.fourz.RVNKQuests.config;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.config.dto.DatabaseSettingsDTO;
+import org.fourz.RVNKQuests.config.dto.MySQLSettingsDTO;
+import org.fourz.RVNKQuests.config.dto.SQLiteSettingsDTO;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.io.File;
@@ -28,6 +31,7 @@ public class ConfigManager {
     private FileConfiguration config;
     private File configFile;
     private Map<String, Boolean> questEnableStatus = new HashMap<>();
+    private DatabaseSettingsDTO databaseSettings;
     
     // Constants for configuration keys
     public static final String KEY_LORE_DATABASE_ENABLED = "lore_database.enabled";
@@ -61,6 +65,56 @@ public class ConfigManager {
 
         config = YamlConfiguration.loadConfiguration(configFile);
         logger.info("Configuration loaded from: " + configFile.getAbsolutePath());
+
+        String dbType = config.getString("database.type", "sqlite");
+        if (!"yaml".equalsIgnoreCase(dbType)) {
+            try {
+                this.databaseSettings = createDatabaseSettings();
+            } catch (IllegalArgumentException e) {
+                logger.error("Invalid database configuration: " + e.getMessage());
+            }
+        }
+    }
+
+    private DatabaseSettingsDTO createDatabaseSettings() {
+        String storageType = config.getString("database.type", "sqlite");
+        DatabaseSettingsDTO.DatabaseType type = "mysql".equalsIgnoreCase(storageType)
+                ? DatabaseSettingsDTO.DatabaseType.MYSQL
+                : DatabaseSettingsDTO.DatabaseType.SQLITE;
+
+        MySQLSettingsDTO mysqlSettings = null;
+        if (type == DatabaseSettingsDTO.DatabaseType.MYSQL) {
+            mysqlSettings = new MySQLSettingsDTO(
+                    config.getString("database.mysql.host", "localhost"),
+                    config.getInt("database.mysql.port", 3306),
+                    config.getString("database.mysql.database", "minecraft"),
+                    config.getString("database.mysql.username", "root"),
+                    config.getString("database.mysql.password", ""),
+                    config.getBoolean("database.mysql.useSSL", false),
+                    config.getString("database.mysql.tablePrefix", "")
+            );
+        }
+
+        SQLiteSettingsDTO sqliteSettings = null;
+        if (type == DatabaseSettingsDTO.DatabaseType.SQLITE) {
+            String dbFile = config.getString("database.sqlite.file", "data/quests.db");
+            String filePath = new File(plugin.getDataFolder(), dbFile).getAbsolutePath();
+            sqliteSettings = new SQLiteSettingsDTO(
+                    filePath,
+                    config.getString("database.sqlite.tablePrefix", "")
+            );
+        }
+
+        DatabaseSettingsDTO dto = new DatabaseSettingsDTO(type, mysqlSettings, sqliteSettings);
+        dto.validate();
+        return dto;
+    }
+
+    public DatabaseSettingsDTO getDatabaseSettings() {
+        if (databaseSettings == null) {
+            databaseSettings = createDatabaseSettings();
+        }
+        return databaseSettings;
     }
 
     /**
@@ -90,6 +144,16 @@ public class ConfigManager {
         logger.debug("Reloading configuration");
         config = YamlConfiguration.loadConfiguration(configFile);
         loadQuestEnableStatus();
+        String dbType = config.getString("database.type", "sqlite");
+        if (!"yaml".equalsIgnoreCase(dbType)) {
+            try {
+                this.databaseSettings = createDatabaseSettings();
+            } catch (IllegalArgumentException e) {
+                logger.error("Invalid database configuration after reload: " + e.getMessage());
+            }
+        } else {
+            this.databaseSettings = null;
+        }
         logger.debug("Configuration reloaded");
     }
 

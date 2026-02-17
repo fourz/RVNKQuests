@@ -2,8 +2,10 @@ package org.fourz.RVNKQuests.data;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.bukkit.configuration.ConfigurationSection;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.config.dto.DatabaseSettingsDTO;
+import org.fourz.RVNKQuests.config.dto.MySQLSettingsDTO;
+import org.fourz.RVNKQuests.config.dto.SQLiteSettingsDTO;
 import org.fourz.RVNKQuests.service.IQuestDatabaseService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
@@ -78,9 +80,13 @@ public class DatabaseManager implements IQuestDatabaseService {
             default -> DatabaseType.SQLITE;
         };
 
-        // Load table prefix based on storage type
-        String prefixPath = (type == DatabaseType.MYSQL) ? "database.mysql.tablePrefix" : "database.sqlite.tablePrefix";
-        this.tablePrefix = plugin.getConfigManager().getConfig().getString(prefixPath, "");
+        // Load table prefix from DTO (YAML mode has no DTO)
+        if (this.type == DatabaseType.YAML) {
+            this.tablePrefix = "";
+        } else {
+            DatabaseSettingsDTO settings = plugin.getConfigManager().getDatabaseSettings();
+            this.tablePrefix = settings.getTablePrefix();
+        }
         if (tablePrefix != null && !tablePrefix.isEmpty()) {
             logger.info("Using table prefix: " + tablePrefix);
         }
@@ -160,24 +166,16 @@ public class DatabaseManager implements IQuestDatabaseService {
         HikariConfig config = new HikariConfig();
 
         if (type == DatabaseType.MYSQL) {
-            ConfigurationSection mysql = plugin.getConfigManager().getConfig()
-                .getConfigurationSection("database.mysql");
-
-            String host = mysql.getString("host", "localhost");
-            int port = mysql.getInt("port", 3306);
-            String database = mysql.getString("database", "minecraft");
-            String username = mysql.getString("username", "root");
-            String password = mysql.getString("password", "");
-            boolean useSsl = mysql.getBoolean("useSSL", false);
+            MySQLSettingsDTO mysql = plugin.getConfigManager().getDatabaseSettings().getMysqlSettings();
 
             config.setJdbcUrl(String.format(
                 "jdbc:mysql://%s:%d/%s?useSSL=%s&serverTimezone=UTC&allowPublicKeyRetrieval=true",
-                host, port, database, useSsl
+                mysql.getHost(), mysql.getPort(), mysql.getDatabase(), mysql.isUseSSL()
             ));
-            config.setUsername(username);
-            config.setPassword(password);
+            config.setUsername(mysql.getUsername());
+            config.setPassword(mysql.getPassword());
 
-            // MySQL pool settings
+            // MySQL pool settings (hardcoded - not in config)
             config.setMaximumPoolSize(10);
             config.setMinimumIdle(2);
             config.setConnectionTimeout(30000);
@@ -192,14 +190,13 @@ public class DatabaseManager implements IQuestDatabaseService {
             config.addDataSourceProperty("useServerPrepStmts", "true");
 
         } else { // SQLite
-            String dbFile = plugin.getConfigManager().getConfig()
-                .getString("database.sqlite.file", "data/quests.db");
-            File file = new File(plugin.getDataFolder(), dbFile);
+            SQLiteSettingsDTO sqlite = plugin.getConfigManager().getDatabaseSettings().getSqliteSettings();
+            File file = new File(sqlite.getFilePath());
 
             // Ensure parent directory exists
             file.getParentFile().mkdirs();
 
-            config.setJdbcUrl("jdbc:sqlite:" + file.getAbsolutePath());
+            config.setJdbcUrl("jdbc:sqlite:" + sqlite.getFilePath());
 
             // SQLite-specific settings
             config.setMaximumPoolSize(1);  // SQLite limitation: single writer
