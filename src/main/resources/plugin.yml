@@ -5,6 +5,7 @@ description: A quest system for Minecraft
 authors: [Fourz]
 main: org.fourz.RVNKQuests.RVNKQuests
 api-version: 1.17
+depend: [RVNKCore]
 
 commands:
   quest:

@@ -1,9 +1,9 @@
 package org.fourz.RVNKQuests.command;
 
-import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.rvnkcore.util.chat.ChatService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.Collections;
@@ -21,7 +21,7 @@ import java.util.List;
  * - Integrated logging with proper context
  */
 public abstract class BaseSubCommand implements SubCommand {
-    
+
     protected final RVNKQuests plugin;
     protected final RVNKCommand parent;
     protected final String name;
@@ -30,6 +30,7 @@ public abstract class BaseSubCommand implements SubCommand {
     protected final String permission;
     protected final boolean playerOnly;
     protected final LogManager logger;
+    protected final ChatService chatService;
     
     /**
      * Constructor for BaseSubCommand.
@@ -52,6 +53,7 @@ public abstract class BaseSubCommand implements SubCommand {
         this.permission = permission;
         this.playerOnly = playerOnly;
         this.logger = LogManager.getInstance(plugin, getClass());
+        this.chatService = new ChatService();
     }
     
     /**
@@ -202,25 +204,25 @@ public abstract class BaseSubCommand implements SubCommand {
     
     /**
      * Send a message when the sender doesn't have permission.
-     * 
+     *
      * @param sender The command sender
      */
     protected void sendNoPermissionMessage(CommandSender sender) {
-        sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
+        chatService.sendError(sender, "You don't have permission to use this command.");
         String parentName = parent != null ? parent.getName() : "unknown";
-        logger.warning("Permission denied for " + sender.getName() + " attempting to use subcommand: " + 
+        logger.warning("Permission denied for " + sender.getName() + " attempting to use subcommand: " +
                       parentName + " " + getName());
     }
     
     /**
      * Validate that the sender is a player.
-     * 
+     *
      * @param sender The command sender
      * @return true if the sender is a player
      */
     protected boolean validatePlayer(CommandSender sender) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
+            chatService.sendError(sender, "This command can only be used by players.");
             return false;
         }
         return true;
@@ -228,7 +230,7 @@ public abstract class BaseSubCommand implements SubCommand {
     
     /**
      * Validate the number of arguments.
-     * 
+     *
      * @param sender The command sender
      * @param args The arguments
      * @param minArgs Minimum number of arguments required
@@ -236,7 +238,7 @@ public abstract class BaseSubCommand implements SubCommand {
      */
     protected boolean validateArgs(CommandSender sender, String[] args, int minArgs) {
         if (args.length < minArgs) {
-            sender.sendMessage(ChatColor.RED + "Usage: " + getUsage());
+            chatService.sendUsage(sender, "Usage: " + getUsage());
             return false;
         }
         return true;
@@ -244,41 +246,41 @@ public abstract class BaseSubCommand implements SubCommand {
     
     /**
      * Send a formatted message to the sender.
-     * 
+     *
      * @param sender The command sender
      * @param message The message to send (supports color codes with &)
      */
     protected void sendMessage(CommandSender sender, String message) {
-        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+        chatService.sendMessage(sender, message);
     }
     
     /**
      * Send a success message to the sender.
-     * 
+     *
      * @param sender The command sender
      * @param message The success message
      */
     protected void sendSuccessMessage(CommandSender sender, String message) {
-        sendMessage(sender, "&a" + message);
+        chatService.sendSuccess(sender, message);
     }
     
     /**
      * Send an error message to the sender.
-     * 
+     *
      * @param sender The command sender
      * @param message The error message
      */
     protected void sendErrorMessage(CommandSender sender, String message) {
-        sendMessage(sender, "&c" + message);
+        chatService.sendError(sender, message);
     }
     
     /**
      * Send an info message to the sender.
-     * 
+     *
      * @param sender The command sender
      * @param message The info message
      */
     protected void sendInfoMessage(CommandSender sender, String message) {
-        sendMessage(sender, "&e" + message);
+        chatService.sendInfo(sender, message);
     }
 }
