@@ -426,11 +426,61 @@ public class RVNKQuests extends JavaPlugin {
             rvnkCoreInstance = coreInstance;
             logger.info("RVNKCore integration enabled - services registered");
 
+            // Register notification types with PlayerPreferencesService
+            registerNotificationTypes();
+
         } catch (ClassNotFoundException e) {
             logger.info("RVNKCore classes not found - running in standalone mode");
         } catch (Exception e) {
             logger.warning("Failed to register with RVNKCore: " + e.getMessage());
             logger.warning("Running in standalone mode");
+        }
+    }
+
+    /**
+     * Registers notification types with PlayerPreferencesService so players can control
+     * which quest notifications they receive via /pref rvnkquests.
+     */
+    private void registerNotificationTypes() {
+        try {
+            org.fourz.rvnkcore.RVNKCore core = org.fourz.rvnkcore.RVNKCore.getInstance();
+            if (core == null) return;
+
+            org.fourz.rvnkcore.service.registry.ServiceRegistry registry = core.getServiceRegistry();
+            if (registry == null) return;
+
+            org.fourz.rvnkcore.api.service.PlayerPreferencesService prefsService =
+                    registry.getService(org.fourz.rvnkcore.api.service.PlayerPreferencesService.class);
+            if (prefsService == null) {
+                logger.debug("PlayerPreferencesService not available - notification types not registered");
+                return;
+            }
+
+            java.util.List<org.fourz.rvnkcore.api.model.NotificationTypeDefinition> types =
+                    java.util.Arrays.asList(
+                            new org.fourz.rvnkcore.api.model.NotificationTypeDefinition(
+                                    "rvnkquests", "quest_start", "New quest started", true),
+                            new org.fourz.rvnkcore.api.model.NotificationTypeDefinition(
+                                    "rvnkquests", "quest_complete", "Quest completed", true),
+                            new org.fourz.rvnkcore.api.model.NotificationTypeDefinition(
+                                    "rvnkquests", "quest_failed", "Quest failed or abandoned", true),
+                            new org.fourz.rvnkcore.api.model.NotificationTypeDefinition(
+                                    "rvnkquests", "objective_progress", "Objective progress updates", true),
+                            new org.fourz.rvnkcore.api.model.NotificationTypeDefinition(
+                                    "rvnkquests", "objective_complete", "Objective completed", true),
+                            new org.fourz.rvnkcore.api.model.NotificationTypeDefinition(
+                                    "rvnkquests", "quest_available", "New quest available notifications", true),
+                            new org.fourz.rvnkcore.api.model.NotificationTypeDefinition(
+                                    "rvnkquests", "milestone", "Quest milestone reached", true),
+                            new org.fourz.rvnkcore.api.model.NotificationTypeDefinition(
+                                    "rvnkquests", "chain_progress", "Quest chain progress", true)
+                    );
+
+            prefsService.registerNotificationTypes("rvnkquests", types);
+            logger.info("Registered " + types.size() + " notification types with PlayerPreferencesService");
+
+        } catch (Exception e) {
+            logger.debug("Failed to register notification types: " + e.getMessage());
         }
     }
 
