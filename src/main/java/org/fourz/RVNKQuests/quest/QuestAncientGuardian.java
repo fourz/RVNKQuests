@@ -113,11 +113,7 @@ public class QuestAncientGuardian extends AbstractQuest {
     @Override
     protected boolean onStart(Player player) {
         logger.debug("Starting Ancient Guardian quest for player: " + player.getName());
-        
-        // Send the player a quest start message
-        player.sendMessage("§b[Ancient Guardian] §fYou've discovered an ancient underwater mystery!");
-        player.sendMessage("§b[Ancient Guardian] §fDefeat the Elder Guardian to uncover its secrets.");
-        
+        // Notification handled by AbstractQuest.start() via INotificationService
         return true;
     }
 
@@ -128,15 +124,7 @@ public class QuestAncientGuardian extends AbstractQuest {
     @Override
     protected boolean onComplete(Player player) {
         logger.debug("Completing Ancient Guardian quest for player: " + player.getName());
-        
-        // Send completion message
-        player.sendMessage("§b[Ancient Guardian] §fYou've defeated the ancient defenders and claimed their treasure!");
-        
-        // Record the achievement globally
-        plugin.getServer().broadcastMessage(
-            "§b[Ancient Guardian] §f" + player.getName() + " has uncovered the secrets of the ancient underwater ruins!"
-        );
-        
+        // Notifications (per-player and server-wide broadcast) handled by AbstractQuest.complete()
         return true;
     }
 
