@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.event.QuestCompleteEvent;
+import org.fourz.RVNKQuests.service.INotificationService;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
@@ -151,7 +152,12 @@ public abstract class AbstractQuest implements Quest {
                 if (success) {
                     return advanceStateForPlayer(playerUuid, QuestState.QUEST_ACTIVE)
                         .thenApply(v -> {
-                            player.sendMessage("\u00a7a[Quest Started] \u00a7f" + name);
+                            INotificationService notif = plugin.getNotificationService();
+                            if (notif != null) {
+                                notif.notifyQuestStart(player, name, null);
+                            } else {
+                                player.sendMessage("\u00a7a[Quest Started] \u00a7f" + name);
+                            }
                             return true;
                         });
                 }
@@ -187,9 +193,15 @@ public abstract class AbstractQuest implements Quest {
                 if (success) {
                     return advanceStateForPlayer(playerUuid, QuestState.COMPLETED)
                         .thenApply(v -> {
-                            player.sendMessage("\u00a7a[Quest Completed] \u00a7f" + name);
+                            // Per-player notification: routed through NotificationService (preference-gated)
+                            INotificationService notif = plugin.getNotificationService();
+                            if (notif != null) {
+                                notif.notifyQuestComplete(player, name);
+                            } else {
+                                player.sendMessage("\u00a7a[Quest Completed] \u00a7f" + name);
+                            }
 
-                            // Announce completion to all players if configured
+                            // Server-wide broadcast: config-gated only (not a personal preference)
                             if (plugin.getConfigManager().getConfig().getBoolean("quests.announce_completion", true)) {
                                 plugin.getServer().broadcastMessage(
                                     "\u00a76" + player.getName() + " \u00a7ehas completed the quest \u00a76" + name + "\u00a7e!"
