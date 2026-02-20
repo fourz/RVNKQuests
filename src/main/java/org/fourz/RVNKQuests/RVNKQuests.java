@@ -5,7 +5,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.data.DatabaseManager;
-import org.fourz.RVNKQuests.data.FallbackTracker;
+import org.fourz.rvnkcore.data.FallbackTracker;
 import org.fourz.RVNKQuests.data.repository.IPreferenceRepository;
 import org.fourz.RVNKQuests.data.repository.PreferenceRepositoryImpl;
 import org.fourz.RVNKQuests.event.PlayerJoinQuitListener;
@@ -98,7 +98,10 @@ public class RVNKQuests extends JavaPlugin {
             updateGlobalLogLevel(configManager.getLogLevel());
 
             // Initialize database layer
-            fallbackTracker = new FallbackTracker(this);
+            fallbackTracker = new FallbackTracker(
+                    configManager.getConfig().getInt("database.fallback.consecutive_failures", 3),
+                    configManager.getConfig().getInt("database.fallback.recovery_minutes", 5) * 60 * 1000L,
+                    LogManager.getInstance(this, "FallbackTracker"));
             databaseManager = new DatabaseManager(this, fallbackTracker);
 
             if (!databaseManager.initialize()) {

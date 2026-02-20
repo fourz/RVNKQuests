@@ -1,6 +1,6 @@
 name: RVNKQuests
 api: "1.17"
-version: 1.0.0
+version: '${project.version}'
 description: A quest system for Minecraft
 authors: [Fourz]
 main: org.fourz.RVNKQuests.RVNKQuests

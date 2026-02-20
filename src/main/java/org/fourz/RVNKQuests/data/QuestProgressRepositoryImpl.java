@@ -8,6 +8,7 @@ import org.fourz.RVNKQuests.data.dto.QuestObjectiveProgressDTO;
 import org.fourz.RVNKQuests.data.dto.QuestProgressDTO;
 import org.fourz.RVNKQuests.data.dto.QuestRewardClaimedDTO;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.rvnkcore.data.FallbackTracker;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.lang.reflect.Type;

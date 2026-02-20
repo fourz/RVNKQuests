@@ -3,9 +3,10 @@ package org.fourz.RVNKQuests.data;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.config.dto.DatabaseSettingsDTO;
-import org.fourz.RVNKQuests.config.dto.MySQLSettingsDTO;
-import org.fourz.RVNKQuests.config.dto.SQLiteSettingsDTO;
+import org.fourz.rvnkcore.config.dto.DatabaseSettingsDTO;
+import org.fourz.rvnkcore.config.dto.MySQLSettingsDTO;
+import org.fourz.rvnkcore.config.dto.SQLiteSettingsDTO;
+import org.fourz.rvnkcore.data.FallbackTracker;
 import org.fourz.RVNKQuests.service.IQuestDatabaseService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
