@@ -3,6 +3,7 @@ package org.fourz.RVNKQuests.reward;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
+import org.fourz.rvnkquests.integration.ILoreIntegration;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,9 +24,37 @@ public class QuestItem {
     /** Registry of all quest items indexed by identifier */
     private static final Map<String, ItemStack> questItems = new HashMap<>();
 
+    /** Optional lore integration for DB-backed quest books */
+    private static ILoreIntegration loreIntegration = null;
+
     // Initialize all quest items at class load time
     static {
         initializeQuestItems();
+    }
+
+    /**
+     * Set the lore integration instance for DB-backed book generation.
+     * Called from RVNKQuests.onEnable() after lore integration is initialized.
+     *
+     * @param integration The lore integration, or null to disable
+     */
+    public static void setLoreIntegration(ILoreIntegration integration) {
+        loreIntegration = integration;
+    }
+
+    /**
+     * Asynchronously pre-populates a quest book from the lore DB.
+     * If the entry doesn't exist it is auto-created with the provided seed data.
+     * When RVNKLore is unavailable this is a no-op; the hardcoded fallback remains.
+     *
+     * @param key   Quest item key (lore entry name)
+     * @param title Seed title for auto-creation
+     * @param desc  Seed description for auto-creation
+     */
+    public static void populateFromLoreAsync(String key, String title, String desc) {
+        if (loreIntegration == null || !loreIntegration.isLoreAvailable()) return;
+        loreIntegration.getOrCreateQuestBook(key, title, desc)
+                .thenAccept(opt -> opt.ifPresent(book -> questItems.put(key, book)));
     }
 
     /**
@@ -57,9 +86,11 @@ public class QuestItem {
     /**
      * Creates GrotSnout's last stand journal - a quest item for the Piglin Far From Home quest
      * This book contains the final entry describing GrotSnout's plan to fight the portal guardians
-     * 
+     *
+     * @deprecated Use lore DB entry "grotsnouts_last_stand" instead (via {@link #populateFromLoreAsync})
      * @return The written book item
      */
+    @Deprecated
     private static ItemStack createGrotSnoutsLastStandBook() {
         ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
@@ -114,9 +145,11 @@ public class QuestItem {
     /**
      * Creates GrotSnout's journal - the main quest trigger for Piglin Far From Home
      * This book contains clues about the quest objectives and backstory
-     * 
+     *
+     * @deprecated Use lore DB entry "grotsnouts_journal" instead (via {@link #populateFromLoreAsync})
      * @return The written book item
      */
+    @Deprecated
     private static ItemStack createGrotsnoutJournal() {
         ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();

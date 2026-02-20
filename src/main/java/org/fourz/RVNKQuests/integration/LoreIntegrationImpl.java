@@ -1,5 +1,6 @@
 package org.fourz.rvnkquests.integration;
 
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.rvnkquests.integration.dto.LoreEntryDTO;
@@ -28,6 +29,10 @@ public class LoreIntegrationImpl implements ILoreIntegration {
     private Object loreService = null;
     private Method getLoreEntryByNameMethod = null;
     private Method getLoreEntryMethod = null;
+
+    // RVNKLore book service references
+    private Object loreBookService = null;
+    private Method getOrCreateQuestBookMethod = null;
 
     public LoreIntegrationImpl(RVNKQuests plugin) {
         this.plugin = plugin;
@@ -67,23 +72,34 @@ public class LoreIntegrationImpl implements ILoreIntegration {
             }
 
             // Get ILoreService from registry
+            // ServiceRegistry.getService() returns T directly and throws ServiceException if not found
             Class<?> registryClass = serviceRegistry.getClass();
             Method getServiceMethod = registryClass.getMethod("getService", Class.class);
 
-            Class<?> loreServiceInterface = Class.forName("org.fourz.rvnklore.service.ILoreService");
-            Optional<?> loreServiceOpt = (Optional<?>) getServiceMethod.invoke(serviceRegistry, loreServiceInterface);
-
-            if (loreServiceOpt.isEmpty()) {
+            // Fixed: correct package casing org.fourz.RVNKLore (not rvnklore)
+            Class<?> loreServiceInterface = Class.forName("org.fourz.RVNKLore.service.ILoreService");
+            try {
+                loreService = getServiceMethod.invoke(serviceRegistry, loreServiceInterface);
+            } catch (Exception e) {
                 logger.warning("ILoreService not registered - lore integration disabled");
                 return;
             }
-
-            loreService = loreServiceOpt.get();
 
             // Cache reflection methods for lore lookups
             Class<?> loreServiceClass = loreService.getClass();
             getLoreEntryByNameMethod = loreServiceClass.getMethod("getLoreEntryByName", String.class);
             getLoreEntryMethod = loreServiceClass.getMethod("getLoreEntry", UUID.class);
+
+            // Also look up ILoreBookService
+            try {
+                Class<?> bookServiceInterface = Class.forName("org.fourz.RVNKLore.service.ILoreBookService");
+                loreBookService = getServiceMethod.invoke(serviceRegistry, bookServiceInterface);
+                getOrCreateQuestBookMethod = loreBookService.getClass()
+                        .getMethod("getOrCreateQuestBook", String.class, String.class, String.class);
+                logger.info("RVNKLore book service available");
+            } catch (Exception e) {
+                logger.debug("ILoreBookService not registered - quest book integration unavailable: " + e.getMessage());
+            }
 
             loreAvailable = true;
             logger.info("RVNKLore integration enabled - lore services available");
@@ -200,6 +216,27 @@ public class LoreIntegrationImpl implements ILoreIntegration {
 
         logger.debug("Discovery list for player " + playerId + " (feature pending)");
         return CompletableFuture.completedFuture(Collections.emptyList());
+    }
+
+    @Override
+    public CompletableFuture<Optional<ItemStack>> getOrCreateQuestBook(
+            String questItemKey, String title, String description) {
+        if (loreBookService == null || getOrCreateQuestBookMethod == null) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Optional<?>> future =
+                    (CompletableFuture<Optional<?>>) getOrCreateQuestBookMethod
+                        .invoke(loreBookService, questItemKey, title, description);
+                Optional<?> result = future.join();
+                return result.map(o -> (ItemStack) o);
+            } catch (Exception e) {
+                logger.warning("Error getting quest book '" + questItemKey + "': " + e.getMessage());
+                return Optional.empty();
+            }
+        });
     }
 
     /**

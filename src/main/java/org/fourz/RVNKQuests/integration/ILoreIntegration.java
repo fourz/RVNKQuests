@@ -1,5 +1,6 @@
 package org.fourz.rvnkquests.integration;
 
+import org.bukkit.inventory.ItemStack;
 import org.fourz.rvnkquests.integration.dto.LoreEntryDTO;
 
 import java.util.List;
@@ -178,4 +179,22 @@ public interface ILoreIntegration {
      * @return Future containing list of discovered lore entry IDs
      */
     CompletableFuture<List<String>> getPlayerDiscoveries(UUID playerId);
+
+    /**
+     * Get or create a lore-backed book for a quest item.
+     *
+     * <p>Looks up the lore entry by {@code questItemKey}. If absent, auto-creates
+     * a QUEST lore entry with the seed title/description. Returns the formatted
+     * lore book ItemStack on success.</p>
+     *
+     * <p>If RVNKLore is unavailable, returns {@code Optional.empty()} so callers
+     * can fall back to the hardcoded book.</p>
+     *
+     * @param questItemKey Unique key used as the lore entry name
+     * @param title        Seed title for auto-creation
+     * @param description  Seed description for auto-creation
+     * @return Future containing the book ItemStack, or empty on failure/unavailability
+     */
+    CompletableFuture<Optional<ItemStack>> getOrCreateQuestBook(
+            String questItemKey, String title, String description);
 }

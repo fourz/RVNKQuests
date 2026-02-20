@@ -29,6 +29,9 @@ import org.fourz.RVNKQuests.service.RepeatableQuestServiceImpl;
 import org.fourz.RVNKQuests.ui.QuestMenuListener;
 import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
+import org.fourz.RVNKQuests.reward.QuestItem;
+import org.fourz.rvnkquests.integration.ILoreIntegration;
+import org.fourz.rvnkquests.integration.LoreIntegrationImpl;
 
 import java.util.logging.Level;
 
@@ -78,6 +81,7 @@ public class RVNKQuests extends JavaPlugin {
 
     // Optional features
     private LoreDatabase loreDatabase;
+    private ILoreIntegration loreIntegration;
 
     // RVNKCore integration
     private boolean rvnkCoreAvailable = false;
@@ -159,6 +163,16 @@ public class RVNKQuests extends JavaPlugin {
 
             // Register quests
             questManager.initializeQuests();
+
+            // Initialize lore integration and pre-populate quest books from lore DB
+            loreIntegration = new LoreIntegrationImpl(this);
+            QuestItem.setLoreIntegration(loreIntegration);
+            // Seed known quest books (async, falls back to hardcoded if RVNKLore unavailable)
+            QuestItem.populateFromLoreAsync("grotsnouts_journal",
+                    "DIS AIN'T RIGHT!", "GrotSnout's journal about being stuck in the overworld.");
+            QuestItem.populateFromLoreAsync("grotsnouts_last_stand",
+                    "GrotSnout's Last Stand", "GrotSnout's final journal entry before facing the portal guardians.");
+            logger.info("Lore integration initialized (available: " + loreIntegration.isLoreAvailable() + ")");
 
             // Register services with RVNKCore if available
             registerWithRVNKCore();
