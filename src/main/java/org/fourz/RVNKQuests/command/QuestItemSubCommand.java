@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  */
 public class QuestItemSubCommand extends BaseSubCommand {
     private static final List<String> QUEST_ITEM_IDS = Arrays.asList(
-            "grotsnout_journal", "grotsnouts_last_stand"
+            "grotsnouts_journal", "grotsnouts_last_stand"
             // Add more item IDs here as they are created
     );
 
