@@ -5,6 +5,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.data.repository.IPreferenceRepository;
+import org.fourz.RVNKQuests.integration.PreferencesServiceLookup;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.ArrayList;
@@ -23,7 +24,10 @@ import java.util.UUID;
  */
 public class QuestPrefsSubCommand extends BaseSubCommand {
 
+    private static final String PLUGIN_ID = "rvnkquests";
+
     private final IPreferenceRepository prefsRepo;
+    private final PreferencesServiceLookup prefsLookup;
     private final LogManager logger;
 
     public QuestPrefsSubCommand(RVNKQuests plugin, IPreferenceRepository prefsRepo) {
@@ -37,6 +41,7 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
             true  // player-only
         );
         this.prefsRepo = prefsRepo;
+        this.prefsLookup = new PreferencesServiceLookup(plugin);
         this.logger = LogManager.getInstance(plugin, "QuestPrefsCommand");
     }
 
@@ -100,6 +105,9 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
                 // Save the new value
                 prefsRepo.savePreference(playerId, "master_enabled", newValueStr)
                     .thenRun(() -> {
+                        if (prefsLookup.isAvailable()) {
+                            prefsLookup.getService().setMasterEnabled(playerId, PLUGIN_ID, newValue);
+                        }
                         plugin.getServer().getScheduler().runTask(plugin, () -> {
                             String status = newValue ? "enabled" : "disabled";
                             player.sendMessage(ChatColor.GREEN + "✓ All quest notifications " + status);
@@ -135,6 +143,9 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
 
         prefsRepo.savePreference(playerId, prefKey, "true")
             .thenRun(() -> {
+                if (prefsLookup.isAvailable()) {
+                    prefsLookup.getService().setNotificationEnabled(playerId, PLUGIN_ID, type, true);
+                }
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     player.sendMessage(ChatColor.GREEN + "✓ Enabled notifications for " + type);
                 });
@@ -161,6 +172,9 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
 
         prefsRepo.savePreference(playerId, prefKey, "false")
             .thenRun(() -> {
+                if (prefsLookup.isAvailable()) {
+                    prefsLookup.getService().setNotificationEnabled(playerId, PLUGIN_ID, type, false);
+                }
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     player.sendMessage(ChatColor.GREEN + "✓ Disabled notifications for " + type);
                 });
@@ -184,6 +198,9 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
         if ("disable".equalsIgnoreCase(args[1])) {
             prefsRepo.savePreference(playerId, "quiet_hours_enabled", "false")
                 .thenRun(() -> {
+                    if (prefsLookup.isAvailable()) {
+                        prefsLookup.getService().setQuietHours(playerId, PLUGIN_ID, -1, -1);
+                    }
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
                         player.sendMessage(ChatColor.GREEN + "✓ Quiet hours disabled");
                     });
@@ -217,6 +234,9 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
                 .thenCompose(v -> prefsRepo.savePreference(playerId, "quiet_hours_start", String.valueOf(hour1)))
                 .thenCompose(v -> prefsRepo.savePreference(playerId, "quiet_hours_end", String.valueOf(hour2)))
                 .thenRun(() -> {
+                    if (prefsLookup.isAvailable()) {
+                        prefsLookup.getService().setQuietHours(playerId, PLUGIN_ID, hour1, hour2);
+                    }
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
                         player.sendMessage(ChatColor.GREEN + "✓ Quiet hours set to " + hour1 + ":00 - " + hour2 + ":00");
                     });
@@ -256,6 +276,9 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
 
         prefsRepo.savePreference(playerId, prefKey, prefValue)
             .thenRun(() -> {
+                if (prefsLookup.isAvailable()) {
+                    prefsLookup.getService().setChannelEnabled(playerId, PLUGIN_ID, type, channel, state.equals("on"));
+                }
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     String status = state.equals("on") ? "enabled" : "disabled";
                     player.sendMessage(ChatColor.GREEN + "✓ Channel " + channel + " " + status + " for " + type);
