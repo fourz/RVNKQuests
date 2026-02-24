@@ -11,6 +11,8 @@ import org.fourz.rvnkcore.util.log.LogManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
  * Subcommand for managing player quest notification preferences.
@@ -21,6 +23,9 @@ import java.util.UUID;
  *        /quest prefs quiet <startHour> <endHour>
  *        /quest prefs quiet disable
  *        /quest prefs channel <type> <channel> <on|off>
+ *
+ * Writes go to PlayerPreferencesService when available, local repo otherwise.
+ * Never writes to both simultaneously.
  */
 public class QuestPrefsSubCommand extends BaseSubCommand {
 
@@ -77,6 +82,16 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
         }
     }
 
+    /**
+     * Routes a preference write to exactly one storage system.
+     * Uses PlayerPreferencesService when available, local repository as fallback.
+     */
+    private CompletableFuture<Void> routeWrite(
+            Supplier<CompletableFuture<Void>> localWrite,
+            Supplier<CompletableFuture<Void>> serviceWrite) {
+        return prefsLookup.isAvailable() ? serviceWrite.get() : localWrite.get();
+    }
+
     private boolean showPreferences(Player player, UUID playerId) {
         player.sendMessage(ChatColor.GOLD + "===== Your Quest Preferences =====");
         player.sendMessage(ChatColor.YELLOW + "Use /quest prefs <action> to modify:");
@@ -95,9 +110,7 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
     }
 
     private boolean handleToggleMaster(Player player, UUID playerId) {
-        // Read current value from PlayerPreferencesService if available (source of truth),
-        // otherwise fall back to local repo
-        java.util.concurrent.CompletableFuture<Boolean> currentFuture = prefsLookup.isAvailable()
+        CompletableFuture<Boolean> currentFuture = prefsLookup.isAvailable()
                 ? prefsLookup.getService().isMasterEnabled(playerId, PLUGIN_ID)
                 : prefsRepo.getPreference(playerId, "master_enabled")
                            .thenApply(v -> "true".equals(v));
@@ -105,32 +118,26 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
         currentFuture
             .thenAccept(currentValue -> {
                 boolean newValue = !currentValue;
-                String newValueStr = String.valueOf(newValue);
-
-                // Dual-write: local repo + PlayerPreferencesService
-                prefsRepo.savePreference(playerId, "master_enabled", newValueStr)
-                    .thenRun(() -> {
-                        if (prefsLookup.isAvailable()) {
-                            prefsLookup.getService().setMasterEnabled(playerId, PLUGIN_ID, newValue);
-                        }
-                        plugin.getServer().getScheduler().runTask(plugin, () -> {
-                            String status = newValue ? "enabled" : "disabled";
-                            player.sendMessage(ChatColor.GREEN + "✓ All quest notifications " + status);
-                        });
-                    })
-                    .exceptionally(ex -> {
-                        logger.error("Failed to save master preference for player " + playerId, ex);
-                        plugin.getServer().getScheduler().runTask(plugin, () -> {
-                            player.sendMessage(ChatColor.RED + "✖ Failed to save preference");
-                        });
-                        return null;
-                    });
+                routeWrite(
+                    () -> prefsRepo.savePreference(playerId, "master_enabled", String.valueOf(newValue))
+                                   .thenApply(v -> null),
+                    () -> prefsLookup.getService().setMasterEnabled(playerId, PLUGIN_ID, newValue)
+                )
+                .thenRun(() -> plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    String status = newValue ? "enabled" : "disabled";
+                    player.sendMessage(ChatColor.GREEN + "✓ All quest notifications " + status);
+                }))
+                .exceptionally(ex -> {
+                    logger.error("Failed to save master preference for player " + playerId, ex);
+                    plugin.getServer().getScheduler().runTask(plugin, () ->
+                        player.sendMessage(ChatColor.RED + "✖ Failed to save preference"));
+                    return null;
+                });
             })
             .exceptionally(ex -> {
                 logger.error("Failed to get master preference for player " + playerId, ex);
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(ChatColor.RED + "✖ Failed to load current preference");
-                });
+                plugin.getServer().getScheduler().runTask(plugin, () ->
+                    player.sendMessage(ChatColor.RED + "✖ Failed to load current preference"));
                 return null;
             });
         return true;
@@ -144,24 +151,18 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
         }
 
         String type = args[1].toLowerCase();
-        String prefKey = type + "_enabled";
-
-        prefsRepo.savePreference(playerId, prefKey, "true")
-            .thenRun(() -> {
-                if (prefsLookup.isAvailable()) {
-                    prefsLookup.getService().setNotificationEnabled(playerId, PLUGIN_ID, type, true);
-                }
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(ChatColor.GREEN + "✓ Enabled notifications for " + type);
-                });
-            })
-            .exceptionally(ex -> {
-                logger.error("Failed to save preference for player " + playerId + " key " + prefKey, ex);
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(ChatColor.RED + "✖ Failed to save preference");
-                });
-                return null;
-            });
+        routeWrite(
+            () -> prefsRepo.savePreference(playerId, type + "_enabled", "true").thenApply(v -> null),
+            () -> prefsLookup.getService().setNotificationEnabled(playerId, PLUGIN_ID, type, true)
+        )
+        .thenRun(() -> plugin.getServer().getScheduler().runTask(plugin, () ->
+            player.sendMessage(ChatColor.GREEN + "✓ Enabled notifications for " + type)))
+        .exceptionally(ex -> {
+            logger.error("Failed to enable notification type " + type + " for player " + playerId, ex);
+            plugin.getServer().getScheduler().runTask(plugin, () ->
+                player.sendMessage(ChatColor.RED + "✖ Failed to save preference"));
+            return null;
+        });
         return true;
     }
 
@@ -173,24 +174,18 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
         }
 
         String type = args[1].toLowerCase();
-        String prefKey = type + "_enabled";
-
-        prefsRepo.savePreference(playerId, prefKey, "false")
-            .thenRun(() -> {
-                if (prefsLookup.isAvailable()) {
-                    prefsLookup.getService().setNotificationEnabled(playerId, PLUGIN_ID, type, false);
-                }
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(ChatColor.GREEN + "✓ Disabled notifications for " + type);
-                });
-            })
-            .exceptionally(ex -> {
-                logger.error("Failed to save preference for player " + playerId + " key " + prefKey, ex);
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(ChatColor.RED + "✖ Failed to save preference");
-                });
-                return null;
-            });
+        routeWrite(
+            () -> prefsRepo.savePreference(playerId, type + "_enabled", "false").thenApply(v -> null),
+            () -> prefsLookup.getService().setNotificationEnabled(playerId, PLUGIN_ID, type, false)
+        )
+        .thenRun(() -> plugin.getServer().getScheduler().runTask(plugin, () ->
+            player.sendMessage(ChatColor.GREEN + "✓ Disabled notifications for " + type)))
+        .exceptionally(ex -> {
+            logger.error("Failed to disable notification type " + type + " for player " + playerId, ex);
+            plugin.getServer().getScheduler().runTask(plugin, () ->
+                player.sendMessage(ChatColor.RED + "✖ Failed to save preference"));
+            return null;
+        });
         return true;
     }
 
@@ -201,22 +196,18 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
         }
 
         if ("disable".equalsIgnoreCase(args[1])) {
-            prefsRepo.savePreference(playerId, "quiet_hours_enabled", "false")
-                .thenRun(() -> {
-                    if (prefsLookup.isAvailable()) {
-                        prefsLookup.getService().setQuietHours(playerId, PLUGIN_ID, -1, -1);
-                    }
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        player.sendMessage(ChatColor.GREEN + "✓ Quiet hours disabled");
-                    });
-                })
-                .exceptionally(ex -> {
-                    logger.error("Failed to disable quiet hours for player " + playerId, ex);
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        player.sendMessage(ChatColor.RED + "✖ Failed to save preference");
-                    });
-                    return null;
-                });
+            routeWrite(
+                () -> prefsRepo.savePreference(playerId, "quiet_hours_enabled", "false").thenApply(v -> null),
+                () -> prefsLookup.getService().setQuietHours(playerId, PLUGIN_ID, -1, -1)
+            )
+            .thenRun(() -> plugin.getServer().getScheduler().runTask(plugin, () ->
+                player.sendMessage(ChatColor.GREEN + "✓ Quiet hours disabled")))
+            .exceptionally(ex -> {
+                logger.error("Failed to disable quiet hours for player " + playerId, ex);
+                plugin.getServer().getScheduler().runTask(plugin, () ->
+                    player.sendMessage(ChatColor.RED + "✖ Failed to save preference"));
+                return null;
+            });
             return true;
         }
 
@@ -234,25 +225,21 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
                 return true;
             }
 
-            // Save all three preferences
-            prefsRepo.savePreference(playerId, "quiet_hours_enabled", "true")
-                .thenCompose(v -> prefsRepo.savePreference(playerId, "quiet_hours_start", String.valueOf(hour1)))
-                .thenCompose(v -> prefsRepo.savePreference(playerId, "quiet_hours_end", String.valueOf(hour2)))
-                .thenRun(() -> {
-                    if (prefsLookup.isAvailable()) {
-                        prefsLookup.getService().setQuietHours(playerId, PLUGIN_ID, hour1, hour2);
-                    }
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        player.sendMessage(ChatColor.GREEN + "✓ Quiet hours set to " + hour1 + ":00 - " + hour2 + ":00");
-                    });
-                })
-                .exceptionally(ex -> {
-                    logger.error("Failed to save quiet hours for player " + playerId, ex);
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        player.sendMessage(ChatColor.RED + "✖ Failed to save quiet hours");
-                    });
-                    return null;
-                });
+            routeWrite(
+                () -> prefsRepo.savePreference(playerId, "quiet_hours_enabled", "true")
+                               .thenCompose(v -> prefsRepo.savePreference(playerId, "quiet_hours_start", String.valueOf(hour1)))
+                               .thenCompose(v -> prefsRepo.savePreference(playerId, "quiet_hours_end", String.valueOf(hour2)))
+                               .thenApply(v -> null),
+                () -> prefsLookup.getService().setQuietHours(playerId, PLUGIN_ID, hour1, hour2)
+            )
+            .thenRun(() -> plugin.getServer().getScheduler().runTask(plugin, () ->
+                player.sendMessage(ChatColor.GREEN + "✓ Quiet hours set to " + hour1 + ":00 - " + hour2 + ":00")))
+            .exceptionally(ex -> {
+                logger.error("Failed to save quiet hours for player " + playerId, ex);
+                plugin.getServer().getScheduler().runTask(plugin, () ->
+                    player.sendMessage(ChatColor.RED + "✖ Failed to save quiet hours"));
+                return null;
+            });
             return true;
         } catch (NumberFormatException e) {
             player.sendMessage(ChatColor.RED + "✖ Hours must be numbers");
@@ -276,26 +263,23 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
             return true;
         }
 
+        boolean enabled = state.equals("on");
         String prefKey = type + "_channel_" + channel.toLowerCase();
-        String prefValue = state.equals("on") ? "true" : "false";
 
-        prefsRepo.savePreference(playerId, prefKey, prefValue)
-            .thenRun(() -> {
-                if (prefsLookup.isAvailable()) {
-                    prefsLookup.getService().setChannelEnabled(playerId, PLUGIN_ID, type, channel, state.equals("on"));
-                }
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    String status = state.equals("on") ? "enabled" : "disabled";
-                    player.sendMessage(ChatColor.GREEN + "✓ Channel " + channel + " " + status + " for " + type);
-                });
-            })
-            .exceptionally(ex -> {
-                logger.error("Failed to save channel preference for player " + playerId + " key " + prefKey, ex);
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(ChatColor.RED + "✖ Failed to save channel preference");
-                });
-                return null;
-            });
+        routeWrite(
+            () -> prefsRepo.savePreference(playerId, prefKey, String.valueOf(enabled)).thenApply(v -> null),
+            () -> prefsLookup.getService().setChannelEnabled(playerId, PLUGIN_ID, type, channel, enabled)
+        )
+        .thenRun(() -> plugin.getServer().getScheduler().runTask(plugin, () -> {
+            String status = enabled ? "enabled" : "disabled";
+            player.sendMessage(ChatColor.GREEN + "✓ Channel " + channel + " " + status + " for " + type);
+        }))
+        .exceptionally(ex -> {
+            logger.error("Failed to save channel preference for player " + playerId + " key " + prefKey, ex);
+            plugin.getServer().getScheduler().runTask(plugin, () ->
+                player.sendMessage(ChatColor.RED + "✖ Failed to save channel preference"));
+            return null;
+        });
         return true;
     }
 
