@@ -78,8 +78,6 @@ public abstract class AbstractQuest implements Quest {
     @Override
     @Deprecated
     public QuestState getCurrentState() {
-        // Deprecated - per-player state is the new standard
-        // Return NOT_STARTED to indicate no global state
         logger.debug("getCurrentState() called - use getStateForPlayer() instead");
         return QuestState.NOT_STARTED;
     }
@@ -106,8 +104,7 @@ public abstract class AbstractQuest implements Quest {
     @Override
     @Deprecated
     public void advanceState(QuestState newState) {
-        // Deprecated - use advanceStateForPlayer instead
-        logger.warning("advanceState() called without player - this is deprecated");
+        logger.warning("advanceState() called without player - use advanceStateForPlayer() instead");
     }
 
     @Override

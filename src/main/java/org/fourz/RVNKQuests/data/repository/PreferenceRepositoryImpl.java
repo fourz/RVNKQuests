@@ -58,7 +58,7 @@ public class PreferenceRepositoryImpl implements IPreferenceRepository {
                     "pref_key VARCHAR(100) NOT NULL, " +
                     "pref_value VARCHAR(255), " +
                     "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
-                    "UNIQUE KEY unique_pref (player_id, pref_key)" +
+                    "UNIQUE (player_id, pref_key)" +
                     ")";
 
             try (Connection conn = databaseManager.getConnection();

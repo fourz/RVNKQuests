@@ -102,17 +102,6 @@ public class QuestManager implements IQuestService {
         return Optional.ofNullable(quest);
     }
 
-    /**
-     * Gets a quest by ID (legacy method for internal use).
-     * @param id The quest ID
-     * @return The quest or null
-     * @deprecated Use {@link #getQuest(String)} which returns Optional
-     */
-    @Deprecated
-    public Quest getQuestOrNull(String id) {
-        return quests.get(id);
-    }
-
     public void initializeQuests() {
         logger.debug("Beginning quest initialization");
 

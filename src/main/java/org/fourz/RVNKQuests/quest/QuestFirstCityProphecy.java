@@ -108,7 +108,6 @@ public class QuestFirstCityProphecy implements Quest {
     @Override
     @Deprecated
     public QuestState getCurrentState() {
-        // Deprecated - per-player state is the new standard
         logger.debug("getCurrentState() called - use getStateForPlayer() instead");
         return QuestState.NOT_STARTED;
     }
@@ -134,8 +133,7 @@ public class QuestFirstCityProphecy implements Quest {
     @Override
     @Deprecated
     public void advanceState(QuestState newState) {
-        // Deprecated - use advanceStateForPlayer instead
-        logger.warning("advanceState() called without player - this is deprecated");
+        logger.warning("advanceState() called without player - use advanceStateForPlayer() instead");
     }
 
     @Override
