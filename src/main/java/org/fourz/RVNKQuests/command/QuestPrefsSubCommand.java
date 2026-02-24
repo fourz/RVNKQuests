@@ -95,14 +95,19 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
     }
 
     private boolean handleToggleMaster(Player player, UUID playerId) {
-        // Get current master preference value
-        prefsRepo.getPreference(playerId, "master_enabled")
+        // Read current value from PlayerPreferencesService if available (source of truth),
+        // otherwise fall back to local repo
+        java.util.concurrent.CompletableFuture<Boolean> currentFuture = prefsLookup.isAvailable()
+                ? prefsLookup.getService().isMasterEnabled(playerId, PLUGIN_ID)
+                : prefsRepo.getPreference(playerId, "master_enabled")
+                           .thenApply(v -> "true".equals(v));
+
+        currentFuture
             .thenAccept(currentValue -> {
-                // Toggle the value (default to "true" if not set, then toggle to "false")
-                boolean newValue = !"true".equals(currentValue);
+                boolean newValue = !currentValue;
                 String newValueStr = String.valueOf(newValue);
 
-                // Save the new value
+                // Dual-write: local repo + PlayerPreferencesService
                 prefsRepo.savePreference(playerId, "master_enabled", newValueStr)
                     .thenRun(() -> {
                         if (prefsLookup.isAvailable()) {
