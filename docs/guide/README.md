@@ -20,24 +20,6 @@
 
 ---
 
-### ARCHON_TRAINING_GUIDE.md
-- **Duration**: 15 minutes
-- **Audience**: All developers
-- **Purpose**: Comprehensive onboarding and training curriculum
-- **Topics**:
-  - What is Archon (2 min)
-  - First 5 minutes (get a task)
-  - First 15 minutes (understand requirements)
-  - First 30 minutes (research using RAG)
-  - First 60 minutes (implement & submit)
-  - Daily workflow checklist
-  - Common mistakes to avoid
-  - Help & support guide
-
-**When to read**: Complete onboarding before starting first task
-
----
-
 ### AGENT_ROLE_DESCRIPTIONS.md
 - **Duration**: 10 minutes
 - **Audience**: All team members
@@ -59,14 +41,13 @@
 ### New Developer Onboarding
 
 ```
-Day 1 (30 minutes):
+Day 1 (15 minutes):
 ├─ Read: QUICK_START.md (5 min)
-├─ Read: ARCHON_TRAINING_GUIDE.md (15 min)
 └─ Review: AGENT_ROLE_DESCRIPTIONS.md (10 min)
 
 Day 2 (Start working):
 ├─ Get task from Archon
-├─ Review: ARCHON_TRAINING_GUIDE.md (reference as needed)
+├─ Review: CLAUDE.md (reference as needed)
 └─ Execute: Task-driven development cycle
 ```
 
@@ -76,7 +57,7 @@ Day 2 (Start working):
 When you need to:
 ├─ Remember the workflow? → QUICK_START.md
 ├─ Work with agents? → AGENT_ROLE_DESCRIPTIONS.md
-├─ Check your progress? → ARCHON_TRAINING_GUIDE.md (checklist section)
+├─ Check your progress? → CLAUDE.md
 └─ Help a new developer? → Share QUICK_START.md
 ```
 
@@ -86,7 +67,7 @@ When you need to:
 When assigning work to agents:
 ├─ Choose agent? → AGENT_ROLE_DESCRIPTIONS.md (decision tree)
 ├─ Write clear task? → AGENT_ROLE_DESCRIPTIONS.md (communication patterns)
-├─ Track progress? → Reference ARCHON_TRAINING_GUIDE.md (workflow)
+├─ Track progress? → Reference CLAUDE.md (workflow)
 └─ Review deliverables? → AGENT_ROLE_DESCRIPTIONS.md (turnaround times)
 ```
 
@@ -97,9 +78,8 @@ When assigning work to agents:
 | Guide | Duration | Size | Key Topics |
 |-------|----------|------|-----------|
 | QUICK_START.md | 5 min | 2 KB | Workflow, 30-sec summary |
-| ARCHON_TRAINING_GUIDE.md | 15 min | 10 KB | Full training, milestones |
 | AGENT_ROLE_DESCRIPTIONS.md | 10 min | 8 KB | Agent guide, decision tree |
-| **Total** | **30 min** | **20 KB** | **Complete training** |
+| **Total** | **15 min** | **10 KB** | **Complete training** |
 
 ---
 

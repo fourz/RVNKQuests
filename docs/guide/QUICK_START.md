@@ -164,7 +164,6 @@ A: 1) Search more, 2) Ask in team chat, 3) Request task clarification
 
 | Name | Purpose |
 |------|---------|
-| ARCHON_TRAINING_GUIDE.md | Full 15-min version of this |
 | AGENT_ROLE_DESCRIPTIONS.md | Who to ask for what |
 | CLAUDE.md | Central reference |
 | copilot-instructions.archon.md | Detailed Archon guide |
@@ -199,7 +198,7 @@ A: 1) Search more, 2) Ask in team chat, 3) Request task clarification
 
 Start with a TODO task. You've got this.
 
-Need more detail? → Read **ARCHON_TRAINING_GUIDE.md**
+Need more detail? → Read **CLAUDE.md**
 
 Need to know about agents? → Read **AGENT_ROLE_DESCRIPTIONS.md**
 
