@@ -1,4 +1,4 @@
-package org.fourz.rvnkquests.integration.dto;
+package org.fourz.RVNKQuests.integration.dto;
 
 import java.util.Objects;
 

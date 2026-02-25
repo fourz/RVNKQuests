@@ -1,7 +1,7 @@
-package org.fourz.rvnkquests.integration;
+package org.fourz.RVNKQuests.integration;
 
 import org.bukkit.inventory.ItemStack;
-import org.fourz.rvnkquests.integration.dto.LoreEntryDTO;
+import org.fourz.RVNKQuests.integration.dto.LoreEntryDTO;
 
 import java.util.List;
 import java.util.Optional;

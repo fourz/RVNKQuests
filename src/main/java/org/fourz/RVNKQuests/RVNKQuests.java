@@ -30,8 +30,8 @@ import org.fourz.RVNKQuests.ui.QuestMenuListener;
 import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.lore.LoreDatabase;
 import org.fourz.RVNKQuests.reward.QuestItem;
-import org.fourz.rvnkquests.integration.ILoreIntegration;
-import org.fourz.rvnkquests.integration.LoreIntegrationImpl;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
+import org.fourz.RVNKQuests.integration.LoreIntegrationImpl;
 
 import java.util.logging.Level;
 

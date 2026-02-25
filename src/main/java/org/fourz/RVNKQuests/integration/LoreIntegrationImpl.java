@@ -1,9 +1,9 @@
-package org.fourz.rvnkquests.integration;
+package org.fourz.RVNKQuests.integration;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.rvnkquests.integration.dto.LoreEntryDTO;
+import org.fourz.RVNKQuests.integration.dto.LoreEntryDTO;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.lang.reflect.Method;

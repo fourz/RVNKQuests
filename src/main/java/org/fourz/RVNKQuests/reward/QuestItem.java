@@ -3,7 +3,7 @@ package org.fourz.RVNKQuests.reward;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
-import org.fourz.rvnkquests.integration.ILoreIntegration;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 
 import java.util.HashMap;
 import java.util.Map;
