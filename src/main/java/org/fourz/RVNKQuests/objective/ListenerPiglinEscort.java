@@ -89,7 +89,7 @@ public class ListenerPiglinEscort implements Listener {
                 pathChosen = true;
                 
                 // Advance the quest state
-                quest.advanceState(QuestState.QUEST_ACTIVE);
+                quest.advanceStateForPlayer(player.getUniqueId(), QuestState.QUEST_ACTIVE);
             }
         }
         

@@ -2,6 +2,7 @@ package org.fourz.RVNKQuests.trigger;
 
 import org.bukkit.Material;
 import org.bukkit.entity.ElderGuardian;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -38,7 +39,12 @@ public class ListenerGuardianDefeat implements Listener {
         event.getDrops().add(new ItemStack(Material.PRISMARINE_SHARD, 5));
         event.getDrops().add(new ItemStack(Material.PRISMARINE_CRYSTALS, 3));
         
-        quest.advanceState(QuestState.QUEST_ACTIVE);
+        Player killer = event.getEntity().getKiller();
+        if (killer != null) {
+            quest.advanceStateForPlayer(killer.getUniqueId(), QuestState.QUEST_ACTIVE);
+        } else {
+            // TODO: no player context — guardian killed without a player killer; state advance skipped
+        }
     }
     
     private ItemStack createAncientInscription() {

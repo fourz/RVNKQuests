@@ -287,6 +287,7 @@ public class NotificationServiceImpl implements INotificationService {
 
     // ==================== Custom Notifications ====================
 
+    @SuppressWarnings("deprecation")
     @Override
     public void sendNotification(Player player, NotificationType type, String title, String subtitle) {
         UUID playerId = player.getUniqueId();
@@ -325,6 +326,7 @@ public class NotificationServiceImpl implements INotificationService {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void sendToChannel(Player player, NotificationChannel channel, String message) {
         if (!isChannelEnabled(player.getUniqueId(), channel)) {

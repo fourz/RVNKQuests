@@ -25,7 +25,7 @@ public class ListenerFirstCityChoice implements Listener {
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event) {
         if (cityChosen) return;
-        if (quest.getCurrentState() != QuestState.QUEST_ACTIVE) return;
+        if (quest.getStateForPlayer(event.getPlayer()) != QuestState.QUEST_ACTIVE) return;
 
         Material placed = event.getBlock().getType();
         if (placed != Material.CAMPFIRE && placed != Material.LECTERN) return;
@@ -44,6 +44,6 @@ public class ListenerFirstCityChoice implements Listener {
         player.sendMessage("§bThe spirits approve... The settlement is chosen!");
         
         world.spawnEntity(loc.clone().add(0, 10, 0), EntityType.PHANTOM);
-        quest.advanceState(QuestState.OBJECTIVE_FOUND);
+        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.OBJECTIVE_FOUND);
     }
 }

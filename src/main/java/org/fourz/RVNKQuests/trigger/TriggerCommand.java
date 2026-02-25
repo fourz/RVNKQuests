@@ -67,28 +67,30 @@ public class TriggerCommand {
         // Special handling for different quest types
         if (quest instanceof QuestPiglinFarFromHome) {
             QuestPiglinFarFromHome piglinQuest = (QuestPiglinFarFromHome) quest;
-            
+
             // Only set the spawn location if the quest is not already started
-            if (quest.getCurrentState() == QuestState.NOT_STARTED) {
+            if (quest.getStateForPlayer(player) == QuestState.NOT_STARTED) {
                 // This allows the spawner listeners to use this location
                 piglinQuest.setSpawnLocation(location);
-                quest.advanceState(QuestState.TRIGGER_FOUND);
+                quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
                 logger.debug("Set piglin quest spawn location and advanced state to TRIGGER_FOUND");
                 return true;
             } else {
-                logger.debug("Piglin quest already started, current state: " + quest.getCurrentState());
-                player.sendMessage(ChatColor.YELLOW + "Quest is already in progress (state: " + quest.getCurrentState() + ")");
+                QuestState currentState = quest.getStateForPlayer(player);
+                logger.debug("Piglin quest already started, current state: " + currentState);
+                player.sendMessage(ChatColor.YELLOW + "Quest is already in progress (state: " + currentState + ")");
                 return false;
             }
         } else {
             // Generic handling for other quest types
-            if (quest.getCurrentState() == QuestState.NOT_STARTED) {
-                quest.advanceState(QuestState.TRIGGER_FOUND);
+            if (quest.getStateForPlayer(player) == QuestState.NOT_STARTED) {
+                quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
                 logger.debug("Advanced generic quest state to TRIGGER_FOUND");
                 return true;
             } else {
-                logger.debug("Quest already started, current state: " + quest.getCurrentState());
-                player.sendMessage(ChatColor.YELLOW + "Quest is already in progress (state: " + quest.getCurrentState() + ")");
+                QuestState currentState = quest.getStateForPlayer(player);
+                logger.debug("Quest already started, current state: " + currentState);
+                player.sendMessage(ChatColor.YELLOW + "Quest is already in progress (state: " + currentState + ")");
                 return false;
             }
         }

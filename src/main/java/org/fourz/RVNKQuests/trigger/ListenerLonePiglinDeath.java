@@ -1,5 +1,6 @@
 package org.fourz.RVNKQuests.trigger;
 
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -65,6 +66,11 @@ public class ListenerLonePiglinDeath implements Listener {
 
         // Advance the quest to the active state since player has chosen the combat path
         logger.debug("Advancing quest state to QUEST_ACTIVE");
-        quest.advanceState(QuestState.QUEST_ACTIVE);
+        Player killer = event.getEntity().getKiller();
+        if (killer != null) {
+            quest.advanceStateForPlayer(killer.getUniqueId(), QuestState.QUEST_ACTIVE);
+        } else {
+            // TODO: no player context — piglin died without a player killer; state advance skipped
+        }
     }
 }

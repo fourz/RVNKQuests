@@ -20,9 +20,8 @@ public class ListenerProphecyDiscovery implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (lightningTriggered || quest.getCurrentState() != QuestState.NOT_STARTED) return;
-
         Player player = event.getPlayer();
+        if (lightningTriggered || quest.getStateForPlayer(player) != QuestState.NOT_STARTED) return;
         if (lecternLocation == null) return;
 
         if (player.getWorld().equals(lecternLocation.getWorld()) 
@@ -31,7 +30,7 @@ public class ListenerProphecyDiscovery implements Listener {
             player.getWorld().strikeLightningEffect(lecternLocation);
             player.sendMessage("§6A sudden lightning flash reveals an ancient lectern...");
             
-            quest.advanceState(QuestState.TRIGGER_FOUND);
+            quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
             lightningTriggered = true;
         }
     }

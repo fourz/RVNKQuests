@@ -74,7 +74,7 @@ public class ListenerForgottenSite implements Listener {
             (v) -> {} // No additional action needed
         );
         
-        quest.advanceState(QuestState.OBJECTIVE_FOUND);
+        quest.advanceStateForPlayer(event.getPlayer().getUniqueId(), QuestState.OBJECTIVE_FOUND);
     }
 
     private boolean isNearUnderwaterStructure(Location loc) {

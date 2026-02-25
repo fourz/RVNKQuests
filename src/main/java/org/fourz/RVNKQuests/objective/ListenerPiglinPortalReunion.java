@@ -67,7 +67,7 @@ public class ListenerPiglinPortalReunion implements Listener {
             giveSpecialReward(player);
             
             // Advance quest state
-            quest.advanceState(QuestState.COMPLETED);
+            quest.advanceStateForPlayer(player.getUniqueId(), QuestState.COMPLETED);
             
             // Remove the piglin (it's going home)
             piglin.remove();

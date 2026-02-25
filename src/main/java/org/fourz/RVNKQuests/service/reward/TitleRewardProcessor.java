@@ -1,6 +1,8 @@
 package org.fourz.RVNKQuests.service.reward;
 
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
@@ -83,11 +85,9 @@ public class TitleRewardProcessor implements RewardProcessor {
                         // Play sound if configured
                         String soundName = reward.metadata().get("sound");
                         if (soundName != null && !soundName.isEmpty()) {
-                            try {
-                                Sound sound = Sound.valueOf(soundName.toUpperCase());
+                            Sound sound = Registry.SOUNDS.get(NamespacedKey.minecraft(soundName.toLowerCase()));
+                            if (sound != null) {
                                 player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
-                            } catch (IllegalArgumentException ignored) {
-                                // Invalid sound name, skip
                             }
                         }
                     }
@@ -138,9 +138,7 @@ public class TitleRewardProcessor implements RewardProcessor {
             // Validate sound if specified
             String soundName = reward.metadata().get("sound");
             if (soundName != null && !soundName.isEmpty()) {
-                try {
-                    Sound.valueOf(soundName.toUpperCase());
-                } catch (IllegalArgumentException e) {
+                if (Registry.SOUNDS.get(NamespacedKey.minecraft(soundName.toLowerCase())) == null) {
                     return RewardValidationResult.invalid(
                         reward,
                         "Invalid sound: " + soundName,

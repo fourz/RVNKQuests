@@ -66,6 +66,6 @@ public class ListenerLonePiglinDeath implements Listener {
         }
         
         // Advance the quest state
-        quest.advanceState(QuestState.QUEST_ACTIVE);
+        quest.advanceStateForPlayer(killer.getUniqueId(), QuestState.QUEST_ACTIVE);
     }
 }

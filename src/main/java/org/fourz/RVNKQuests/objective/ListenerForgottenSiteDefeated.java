@@ -2,6 +2,7 @@ package org.fourz.RVNKQuests.objective;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Drowned;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -52,7 +53,12 @@ public class ListenerForgottenSiteDefeated implements Listener {
                     );
                 }
                 
-                quest.advanceState(QuestState.COMPLETED);
+                Player killer = event.getEntity().getKiller();
+                if (killer != null) {
+                    quest.advanceStateForPlayer(killer.getUniqueId(), QuestState.COMPLETED);
+                } else {
+                    // TODO: no player context — drowned killed without a player killer; state advance skipped
+                }
             }
         }
     }

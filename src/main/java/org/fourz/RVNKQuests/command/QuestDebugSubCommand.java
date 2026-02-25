@@ -106,6 +106,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             int notStartedCount = 0;
             int completedCount = 0;
             for (Quest quest : quests) {
+                // TODO: no player context — getCurrentState() deprecated; diagnostics counts may not reflect per-player state
                 QuestState state = quest.getCurrentState();
                 if (state == QuestState.QUEST_ACTIVE || state == QuestState.OBJECTIVE_FOUND ||
                     state == QuestState.TRIGGER_FOUND) {
@@ -176,6 +177,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         for (Quest quest : quests) {
             String id = quest.getId();
             String name = quest.getName();
+            // TODO: no player context — getCurrentState() deprecated; list shows global/default state only
             QuestState state = quest.getCurrentState();
             String trigger = quest.getStartTrigger();
 

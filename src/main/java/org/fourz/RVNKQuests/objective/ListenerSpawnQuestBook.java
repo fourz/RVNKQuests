@@ -44,7 +44,7 @@ public class ListenerSpawnQuestBook implements Listener {
         BookMeta meta = (BookMeta) book.getItemMeta();
         if (meta != null && meta.getTitle().equals(requiredBookTitle)) {
             logger.debug("Player found quest pillar book: " + requiredBookTitle);
-            quest.advanceState(QuestState.TRIGGER_FOUND);
+            quest.advanceStateForPlayer(event.getPlayer().getUniqueId(), QuestState.TRIGGER_FOUND);
             event.getPlayer().sendMessage("§5The ancient text speaks to you...");
         }
     }

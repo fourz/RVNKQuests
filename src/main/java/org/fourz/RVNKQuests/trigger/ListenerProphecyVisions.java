@@ -21,12 +21,12 @@ public class ListenerProphecyVisions implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (quest.getCurrentState() != QuestState.TRIGGER_FOUND) return;
-        
+        if (quest.getStateForPlayer(event.getPlayer()) != QuestState.TRIGGER_FOUND) return;
+
         // ...existing particle and whisper logic...
 
         if (random.nextInt(1000) == 0) { // Rare chance to advance to next state
-            quest.advanceState(QuestState.QUEST_ACTIVE);
+            quest.advanceStateForPlayer(event.getPlayer().getUniqueId(), QuestState.QUEST_ACTIVE);
             event.getPlayer().sendMessage("§5The visions have shown you the way. Find the prophesied location...");
         }
     }

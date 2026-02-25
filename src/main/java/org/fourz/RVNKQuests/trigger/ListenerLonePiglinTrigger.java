@@ -88,7 +88,7 @@ public class ListenerLonePiglinTrigger implements Listener {
 
     logger.debug("Checking for piglin spawn conditions near player: " + player.getName());
         if (shouldSpawnPiglin(currentLoc)) {
-            spawnLonePiglin(currentLoc);
+            spawnLonePiglin(player, currentLoc);
         }
     }
 
@@ -110,7 +110,7 @@ public class ListenerLonePiglinTrigger implements Listener {
         return true;
     }
 
-    private void spawnLonePiglin(Location playerLocation) {
+    private void spawnLonePiglin(Player player, Location playerLocation) {
         logger.debug("Spawning a lone piglin at world spawn");
 
         // Use the target location (world spawn) as the base spawn point
@@ -144,7 +144,7 @@ public class ListenerLonePiglinTrigger implements Listener {
         logger.debug("Piglin spawned successfully at: " + spawnLoc + "");
 
         // Advance quest state
-        quest.advanceState(QuestState.TRIGGER_FOUND);
+        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
     }
 
     public void cleanup() {

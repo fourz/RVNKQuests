@@ -71,7 +71,7 @@ public class ListenerEncounterPortal implements Listener {
         // Perform portal check
         if (isNearLitPortal(to, TRIGGER_DISTANCE)) {
             
-            quest.advanceState(QuestState.OBJECTIVE_FOUND);            
+            quest.advanceStateForPlayer(player.getUniqueId(), QuestState.OBJECTIVE_FOUND);
             
             // Capture world here to ensure it's available for the lambda
             final Location portalLoc = portalLocation.clone();
