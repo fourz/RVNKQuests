@@ -37,6 +37,8 @@ public class ListenerEventPopulated implements Listener {
     private void checkEventWorldPopulation() {
         if (triggered) return;
 
+        if (Bukkit.getOnlinePlayers().isEmpty()) return;
+
         World eventWorld = Bukkit.getWorld("event");
         if (eventWorld == null) return;
 
