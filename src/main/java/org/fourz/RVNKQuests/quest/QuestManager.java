@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.fourz.RVNKQuests.util.PlayerAwareListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -305,6 +306,15 @@ public class QuestManager implements IQuestService {
         for (Set<UUID> activePlayers : activePlayersByQuest.values()) {
             activePlayers.remove(playerUuid);
         }
+
+        // Notify listeners that hold per-player state
+        activeListeners.values().forEach(listeners ->
+            listeners.stream()
+                .filter(l -> l instanceof PlayerAwareListener)
+                .map(l -> (PlayerAwareListener) l)
+                .forEach(l -> l.clearPlayerData(playerUuid))
+        );
+
         // Progress saving is handled by PlayerJoinQuitListener
     }
 

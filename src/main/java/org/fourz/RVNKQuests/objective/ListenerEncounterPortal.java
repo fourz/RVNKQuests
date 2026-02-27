@@ -15,14 +15,16 @@ import org.fourz.RVNKQuests.util.EnvironmentEffects;
 import org.fourz.RVNKQuests.util.NameGenerator;
 import org.fourz.RVNKQuests.util.IntervalChecker;
 import org.bukkit.metadata.FixedMetadataValue;
+import org.fourz.RVNKQuests.util.PlayerAwareListener;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
-public class ListenerEncounterPortal implements Listener {
+public class ListenerEncounterPortal implements PlayerAwareListener {
     public static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
     
     private final Quest quest;
@@ -200,5 +202,10 @@ public class ListenerEncounterPortal implements Listener {
      */
     public Location getPortalLocation() {
         return portalLocation;
+    }
+
+    @Override
+    public void clearPlayerData(UUID playerUuid) {
+        moveChecker.clearEntity(playerUuid);
     }
 }

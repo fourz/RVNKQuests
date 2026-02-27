@@ -17,13 +17,15 @@ import org.fourz.RVNKQuests.quest.QuestPiglinFarFromHome;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.util.IntervalChecker;
+import org.fourz.RVNKQuests.util.PlayerAwareListener;
 
 import java.util.Random;
+import java.util.UUID;
 
 /**
  * Trigger for spawning a lone piglin when a player enters a specific area
  */
-public class ListenerLonePiglinTrigger implements Listener {
+public class ListenerLonePiglinTrigger implements PlayerAwareListener {
     private static final double DETECTION_RADIUS = 30.0;
     private static final double MIN_MOVEMENT_CHECK = 5.0;
     private static final int CHECK_FREQUENCY = 20;
@@ -197,5 +199,10 @@ public class ListenerLonePiglinTrigger implements Listener {
      */
     public Entity getSpawnedPiglin() {
     return spawnedPiglin;
+    }
+
+    @Override
+    public void clearPlayerData(UUID playerUuid) {
+        intervalChecker.clearEntity(playerUuid);
     }
 }
