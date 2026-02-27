@@ -13,14 +13,17 @@ import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.rvnkcore.util.log.LogManager;
 import org.fourz.RVNKQuests.util.IntervalChecker;
 import org.fourz.RVNKQuests.util.EnvironmentEffects;
+import org.fourz.RVNKQuests.util.PlayerAwareListener;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
-public class ListenerForgottenSite implements Listener {
+public class ListenerForgottenSite implements PlayerAwareListener {
     private final Quest quest;
+    private final String questWorld;
     private final List<Drowned> defenders = new ArrayList<>();
     private static final int TRIGGER_DISTANCE = 30;
     private boolean spawned = false;
@@ -28,8 +31,9 @@ public class ListenerForgottenSite implements Listener {
     private final IntervalChecker moveChecker;
     private final Set<Material> ruinMaterials = new HashSet<>();
 
-    public ListenerForgottenSite(Quest quest) {
+    public ListenerForgottenSite(Quest quest, String questWorld) {
         this.quest = quest;
+        this.questWorld = questWorld;
         this.logger = LogManager.getInstance(quest.getPlugin(), getClass());
         this.moveChecker = new IntervalChecker(5, 5.0); // Check every 5 ticks, minimum 5.0 blocks moved
         
@@ -45,6 +49,15 @@ public class ListenerForgottenSite implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (spawned) return;
+
+        // Guard 1: wrong world — clear tracker entry to avoid map accumulation
+        if (!event.getPlayer().getWorld().getName().equals(questWorld)) {
+            moveChecker.clearEntity(event.getPlayer().getUniqueId());
+            return;
+        }
+
+        // Guard 2: player not in the state this listener serves
+        if (quest.getStateForPlayer(event.getPlayer()) != QuestState.QUEST_ACTIVE) return;
 
         // Only check if player moved to a new block (use IntervalChecker)
         if (!moveChecker.shouldCheck(event.getPlayer().getUniqueId(), event.getTo())) {
@@ -151,5 +164,10 @@ public class ListenerForgottenSite implements Listener {
 
     public List<Drowned> getDefenders() {
         return defenders;
+    }
+
+    @Override
+    public void clearPlayerData(UUID playerUuid) {
+        moveChecker.clearEntity(playerUuid);
     }
 }

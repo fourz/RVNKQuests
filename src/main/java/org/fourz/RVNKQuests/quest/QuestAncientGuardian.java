@@ -56,7 +56,7 @@ public class QuestAncientGuardian extends AbstractQuest {
         
         // Initialize quest-specific listeners
         this.guardianListener = new ListenerGuardianAwakening(this);
-        this.forgottenSiteListener = new ListenerForgottenSite(this);
+        this.forgottenSiteListener = new ListenerForgottenSite(this, ListenerGuardianAwakening.EVENT_WORLD);
     }
 
     @Override
