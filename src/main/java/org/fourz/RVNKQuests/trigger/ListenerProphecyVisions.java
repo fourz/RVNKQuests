@@ -6,13 +6,16 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.QuestFirstCityProphecy;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.RVNKQuests.util.IntervalChecker;
 
 import java.util.Random;
 
 public class ListenerProphecyVisions implements Listener {
+    private static final String QUEST_WORLD = "event";
     private final RVNKQuests plugin;
     private final QuestFirstCityProphecy quest;
     private final Random random = new Random();
+    private final IntervalChecker moveChecker = new IntervalChecker(10, 5.0);
 
     public ListenerProphecyVisions(RVNKQuests plugin, QuestFirstCityProphecy quest) {
         this.plugin = plugin;
@@ -21,6 +24,8 @@ public class ListenerProphecyVisions implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
+        if (!event.getPlayer().getWorld().getName().equals(QUEST_WORLD)) return;
+        if (!moveChecker.shouldCheck(event.getPlayer().getUniqueId(), event.getTo())) return;
         if (quest.getStateForPlayer(event.getPlayer()) != QuestState.TRIGGER_FOUND) return;
 
         // ...existing particle and whisper logic...
