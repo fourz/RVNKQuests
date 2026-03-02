@@ -41,29 +41,27 @@ Use `/rvnkdev-deploy` and `/rvnkdev-query` skills for remote server testing:
 ```bash
 # Full deployment cycle (build locally first)
 mvn clean package
-/rvnkdev-deploy b2bc4d7e full
+/rvnkdev-deploy <server_id> full
 
 # Query console for errors
-/rvnkdev-query b2bc4d7e errors
+/rvnkdev-query <server_id> errors
 
 # Check plugin startup logs
-/rvnkdev-query b2bc4d7e plugin RVNKQuests
+/rvnkdev-query <server_id> plugin RVNKQuests
 
 # Quick config iteration (no restart)
-/rvnkdev-deploy b2bc4d7e reload-only
+/rvnkdev-deploy <server_id> reload-only
 ```
 
-**Server IDs**:
-- `b2bc4d7e` - SparkedHost test server
-- `1eb313b1-40f7-4209-aa9d-352128214206` - Local MCSS dev server
+Use `mcp__ravencast-mcp__find_servers` to look up current server IDs.
 
 ### Development Checklist
 
 Before committing changes:
 1. `mvn clean package` - Build succeeds
-2. Deploy to test server: `/rvnkdev-deploy b2bc4d7e full`
-3. Verify console output for errors: `/rvnkdev-query b2bc4d7e errors`
-4. Check plugin loads correctly: `/rvnkdev-query b2bc4d7e plugin RVNKQuests`
+2. Deploy to dev server: `/rvnkdev-deploy <server_id> full`
+3. Verify console output for errors: `/rvnkdev-query <server_id> errors`
+4. Check plugin loads correctly: `/rvnkdev-query <server_id> plugin RVNKQuests`
 
 ---
 
