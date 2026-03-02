@@ -370,7 +370,7 @@ Claude will automatically load appropriate context based on your task.
 
 - **[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)** - Archon integration plan and timeline
 - **[README.md](README.md)** — Project overview, commands, and API usage
-- **Docker MCP** — For plugin status and history: `search_nodes("RVNKQuests")` (PRIMARY STATUS REFERENCE)
+- **GraphQL-Memdock** — For plugin status and history: `search_nodes("RVNKQuests")` (PRIMARY STATUS REFERENCE)
 
 ### GitHub Copilot Instruction Files (Reference)
 
@@ -402,11 +402,11 @@ Claude will automatically load appropriate context based on your task.
 
 ### Project Status
 
-**All project status, current achievements, roadmap, and development progress is tracked in Docker MCP and GitHub Issues.**
+**All project status, current achievements, roadmap, and development progress is tracked in GraphQL-Memdock and GitHub Issues.**
 
 For current project status, development milestones, and implementation progress, refer to:
 
-- **Docker MCP** — Plugin status, milestones, planned features: `mcp__MCP_DOCKER__search_nodes("RVNKQuests")`
+- **GraphQL-Memdock** — Plugin status, milestones, planned features: `mcp__MCP_DOCKER__search_nodes("RVNKQuests")`
 - **GitHub Issues** — Open tasks and bugs: `mcp__github__list_issues(labels=["board:rvnkquests"])`
 - **[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)** - Archon integration plan (current phase)
 
