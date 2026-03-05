@@ -42,8 +42,9 @@ public class ListenerFirstCityChoice implements Listener {
 
         world.strikeLightningEffect(loc);
         player.sendMessage("§bThe spirits approve... The settlement is chosen!");
-        
+        player.sendMessage("§6The First City Prophecy is fulfilled.");
+        player.giveExp(500);
         world.spawnEntity(loc.clone().add(0, 10, 0), EntityType.PHANTOM);
-        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.OBJECTIVE_FOUND);
+        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.COMPLETED);
     }
 }

@@ -48,8 +48,13 @@ public class ListenerEventPopulated implements Listener {
         if (allPlayersInEventWorld) {
             triggered = true;
             quest.buildQuestBeacon();
-            // TODO: no player context — this is a world-population event, not player-specific; state advance skipped
-            // quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
+            eventWorld.getPlayers().forEach(player ->
+                quest.getStateForPlayer(player.getUniqueId()).thenAccept(state -> {
+                    if (state == QuestState.NOT_STARTED) {
+                        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
+                    }
+                })
+            );
         }
     }
 }

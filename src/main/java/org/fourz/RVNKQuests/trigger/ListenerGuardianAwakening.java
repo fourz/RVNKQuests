@@ -47,8 +47,13 @@ public class ListenerGuardianAwakening implements Listener {
             guardian.setCustomName("Ancient Guardian");
             guardian.setCustomNameVisible(true);
             guardian.setRemoveWhenFarAway(false);
-            // TODO: no player context — guardian awakens for all players in world; state advance skipped
-            // quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
+            world.getPlayers().forEach(player ->
+                quest.getStateForPlayer(player.getUniqueId()).thenAccept(state -> {
+                    if (state == QuestState.NOT_STARTED) {
+                        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
+                    }
+                })
+            );
         }
     }
 

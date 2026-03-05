@@ -46,6 +46,10 @@ public class QuestManager implements IQuestService {
     // Track which players are actively engaged with each quest (for listener optimization)
     private final Map<String, Set<UUID>> activePlayersByQuest = new ConcurrentHashMap<>();
 
+    // Idempotency guard: tracks in-flight completion requests (playerId:questId keys)
+    // Prevents double-reward from concurrent events firing before the first write completes.
+    private final Set<String> completionsInProgress = ConcurrentHashMap.newKeySet();
+
     public QuestManager(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
@@ -510,6 +514,14 @@ public class QuestManager implements IQuestService {
             return CompletableFuture.completedFuture(false);
         }
 
+        // Idempotency guard: if a completion for this player+quest is already in-flight,
+        // drop the duplicate (e.g. two rapid event firings before the first DB write lands).
+        String inFlightKey = playerId.toString() + ":" + questId;
+        if (!completionsInProgress.add(inFlightKey)) {
+            logger.debug("Duplicate completion ignored for " + playerId + " on quest " + questId);
+            return CompletableFuture.completedFuture(false);
+        }
+
         return quest.getStateForPlayer(playerId)
             .thenCompose(currentState -> {
                 if (currentState == QuestState.COMPLETED) {
@@ -517,7 +529,8 @@ public class QuestManager implements IQuestService {
                 }
                 return quest.advanceStateForPlayer(playerId, QuestState.COMPLETED)
                     .thenApply(v -> true);
-            });
+            })
+            .whenComplete((result, ex) -> completionsInProgress.remove(inFlightKey));
     }
 
     @Override

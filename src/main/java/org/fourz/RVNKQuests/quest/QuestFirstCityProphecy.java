@@ -175,16 +175,17 @@ public class QuestFirstCityProphecy implements Quest {
         switch (state) {
             case NOT_STARTED:
                 listeners.add(new ListenerEventPopulated(this));
-                break;
-            case TRIGGER_FOUND:
                 prophecyDiscovery = new ListenerProphecyDiscovery(this, lecternLocation);
                 listeners.add(prophecyDiscovery);
                 break;
-            case QUEST_ACTIVE:
+            case TRIGGER_FOUND:
                 listeners.add(new ListenerProphecyVisions(plugin, this));
                 break;
-            case OBJECTIVE_FOUND:
+            case QUEST_ACTIVE:
                 listeners.add(new ListenerFirstCityChoice(plugin, this));
+                break;
+            case OBJECTIVE_FOUND:
+                // City has been chosen; no further listeners needed
                 break;
             case COMPLETED:
                 // No listeners needed for completed state
