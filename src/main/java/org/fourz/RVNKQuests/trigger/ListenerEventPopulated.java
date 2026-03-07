@@ -37,6 +37,8 @@ public class ListenerEventPopulated implements Listener {
     private void checkEventWorldPopulation() {
         if (triggered) return;
 
+        if (Bukkit.getOnlinePlayers().isEmpty()) return;
+
         World eventWorld = Bukkit.getWorld("event");
         if (eventWorld == null) return;
 
@@ -46,7 +48,13 @@ public class ListenerEventPopulated implements Listener {
         if (allPlayersInEventWorld) {
             triggered = true;
             quest.buildQuestBeacon();
-            quest.advanceState(QuestState.TRIGGER_FOUND);
+            eventWorld.getPlayers().forEach(player ->
+                quest.getStateForPlayer(player.getUniqueId()).thenAccept(state -> {
+                    if (state == QuestState.NOT_STARTED) {
+                        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
+                    }
+                })
+            );
         }
     }
 }

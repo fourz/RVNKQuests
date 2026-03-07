@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__archon__find_projects"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "enabledMcpjsonServers": [
+    "archon"
+  ],
+  "enableAllProjectMcpServers": true
+}

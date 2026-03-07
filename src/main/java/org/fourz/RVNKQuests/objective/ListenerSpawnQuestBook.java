@@ -11,18 +11,22 @@ import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.rvnkcore.util.log.LogManager;
+import org.bukkit.Location;
 
 // Listener for when a player interacts with the quest book in the prophecy lectern
 
 public class ListenerSpawnQuestBook implements Listener {
-    private final RVNKQuests plugin;
     private final Quest quest;
     private final String requiredBookTitle;
+    private final Location lecternLocation;
+    private final LogManager logger;
 
-    public ListenerSpawnQuestBook(RVNKQuests plugin, Quest quest, String requiredBookTitle) {
-        this.plugin = plugin;
+    public ListenerSpawnQuestBook(RVNKQuests plugin, Quest quest, String requiredBookTitle, Location lecternLocation) {
         this.quest = quest;
         this.requiredBookTitle = requiredBookTitle;
+        this.lecternLocation = lecternLocation;
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @EventHandler
@@ -30,7 +34,7 @@ public class ListenerSpawnQuestBook implements Listener {
         Block block = event.getClickedBlock();
         if (block == null || block.getType() != Material.LECTERN) return;
 
-        if (!block.getLocation().equals(quest.getLecternLocation())) return;
+        if (!block.getLocation().equals(lecternLocation)) return;
 
         Lectern lectern = (Lectern) block.getState();
         ItemStack book = lectern.getInventory().getItem(0);
@@ -39,8 +43,8 @@ public class ListenerSpawnQuestBook implements Listener {
 
         BookMeta meta = (BookMeta) book.getItemMeta();
         if (meta != null && meta.getTitle().equals(requiredBookTitle)) {
-            plugin.getDebugger().debug("Player found quest pillar book: " + requiredBookTitle);
-            quest.advanceState(QuestState.TRIGGER_FOUND);
+            logger.debug("Player found quest pillar book: " + requiredBookTitle);
+            quest.advanceStateForPlayer(event.getPlayer().getUniqueId(), QuestState.TRIGGER_FOUND);
             event.getPlayer().sendMessage("§5The ancient text speaks to you...");
         }
     }

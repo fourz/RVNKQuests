@@ -15,19 +15,17 @@ import org.fourz.RVNKQuests.quest.QuestState;
 // Listener for the first city choice objective of the First City Prophecy quest
 
 public class ListenerFirstCityChoice implements Listener {
-    private final RVNKQuests plugin;
     private final QuestFirstCityProphecy quest;
     private boolean cityChosen = false;
 
     public ListenerFirstCityChoice(RVNKQuests plugin, QuestFirstCityProphecy quest) {
-        this.plugin = plugin;
         this.quest = quest;
     }
 
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event) {
         if (cityChosen) return;
-        if (quest.getCurrentState() != QuestState.QUEST_ACTIVE) return;
+        if (quest.getStateForPlayer(event.getPlayer()) != QuestState.QUEST_ACTIVE) return;
 
         Material placed = event.getBlock().getType();
         if (placed != Material.CAMPFIRE && placed != Material.LECTERN) return;
@@ -44,8 +42,9 @@ public class ListenerFirstCityChoice implements Listener {
 
         world.strikeLightningEffect(loc);
         player.sendMessage("§bThe spirits approve... The settlement is chosen!");
-        
+        player.sendMessage("§6The First City Prophecy is fulfilled.");
+        player.giveExp(500);
         world.spawnEntity(loc.clone().add(0, 10, 0), EntityType.PHANTOM);
-        quest.advanceState(QuestState.OBJECTIVE_FOUND);
+        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.COMPLETED);
     }
 }

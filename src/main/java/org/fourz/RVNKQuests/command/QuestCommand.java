@@ -1,131 +1,60 @@
 package org.fourz.RVNKQuests.command;
 
-import org.bukkit.ChatColor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 /**
  * Main command handler for the /quest command.
- * Dispatches to appropriate subcommands based on arguments.
+ * Extends BaseCommand to provide standardized command handling with subcommand support.
+ *
+ * This command serves as the primary entry point for all quest-related operations
+ * and delegates to appropriate subcommands based on arguments.
  */
-public class QuestCommand implements CommandExecutor, TabCompleter {
-    private final RVNKQuests plugin;
-    private final Debug debug;
-    private final Map<String, SubCommand> subCommands = new HashMap<>();
+public class QuestCommand extends BaseCommand {
 
     public QuestCommand(RVNKQuests plugin) {
-        this.plugin = plugin;
-        this.debug = Debug.createDebugger(plugin, "QuestCommand", Level.FINE);
-        registerSubCommands();
+        super(plugin, "quest", "Main quest management command", "/quest <subcommand>", "rvnkquests.command.quest");
+        registerCoreCommands();
     }
 
     /**
-     * Registers all subcommands
+     * Registers the core subcommands that are always available
      */
-    private void registerSubCommands() {
-        debug.debug("Registering subcommands...");
+    private void registerCoreCommands() {
+        logger.debug("Registering core subcommands");
+
+        // Create and register each subcommand directly
+        registerSubCommand("list", new QuestListSubCommand(plugin));
         registerSubCommand("item", new QuestItemSubCommand(plugin));
         registerSubCommand("state", new QuestStateSubCommand(plugin));
         registerSubCommand("reload", new QuestReloadSubCommand(plugin));
-        debug.debug("Subcommands registered successfully");
-    }
+        registerSubCommand("trigger", new QuestTriggerSubCommand(plugin));
+        registerSubCommand("debug", new QuestDebugSubCommand(plugin));
+        registerSubCommand("mobs", new QuestMobsSubCommand(plugin));
+        registerSubCommand("config", new QuestConfigSubCommand(plugin));
+        registerSubCommand("validate", new QuestValidateSubCommand(plugin));
+        registerSubCommand("start", new QuestStartSubCommand(plugin));
+        registerSubCommand("progress", new ProgressSubCommand(plugin));
+        registerSubCommand("abandon", new QuestAbandonSubCommand(plugin));
+        registerSubCommand("journal", new QuestJournalSubCommand(plugin));
+        registerSubCommand("leaderboard", new QuestLeaderboardSubCommand(plugin));
+        registerSubCommand("menu", new QuestMenuSubCommand(plugin, this));
 
-    /**
-     * Registers a subcommand
-     * 
-     * @param name The name of the subcommand
-     * @param subCommand The subcommand implementation
-     */
-    private void registerSubCommand(String name, SubCommand subCommand) {
-        debug.debug("Registering subcommand: " + name);
-        subCommands.put(name.toLowerCase(), subCommand);
-    }
+        // Admin commands (require elevated permissions)
+        registerSubCommand("reset", new QuestResetSubCommand(plugin));
+        registerSubCommand("forcecomplete", new QuestCompleteSubCommand(plugin));
+        registerSubCommand("setstate", new QuestSetStateSubCommand(plugin));
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length == 0) {
-            showHelp(sender);
-            return true;
-        }
+        // Player preference commands (Phase 4 - with database persistence)
+        registerSubCommand("prefs", new QuestPrefsSubCommand(plugin, plugin.getPreferenceRepository()));
 
-        String subCommandName = args[0].toLowerCase();
-        SubCommand subCommand = subCommands.get(subCommandName);
-
-        if (subCommand == null) {
-            sender.sendMessage(ChatColor.RED + "Unknown subcommand: " + subCommandName);
-            showHelp(sender);
-            return true;
-        }
-
-        if (!subCommand.hasPermission(sender)) {
-            sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
-            return true;
-        }
-
-        // Remove the subcommand name from args
-        String[] subCommandArgs = new String[args.length - 1];
-        System.arraycopy(args, 1, subCommandArgs, 0, args.length - 1);
-
-        debug.debug("Executing subcommand: " + subCommandName);
-        return subCommand.execute(sender, subCommandArgs);
-    }
-
-    /**
-     * Shows help information to the sender
-     * 
-     * @param sender Command sender to show help to
-     */
-    private void showHelp(CommandSender sender) {
-        sender.sendMessage(ChatColor.GOLD + "===== RVNKQuests Commands =====");
-        
-        for (Map.Entry<String, SubCommand> entry : subCommands.entrySet()) {
-            if (entry.getValue().hasPermission(sender)) {
-                sender.sendMessage(ChatColor.YELLOW + "/quest " + entry.getKey() + 
-                                   ChatColor.WHITE + " - " + entry.getValue().getDescription());
-            }
-        }
+        logger.debug("Core subcommands registered");
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        List<String> completions = new ArrayList<>();
-
-        if (args.length == 1) {
-            // Complete subcommand names
-            String partial = args[0].toLowerCase();
-            for (String subCommand : subCommands.keySet()) {
-                if (subCommands.get(subCommand).hasPermission(sender) && 
-                    subCommand.startsWith(partial)) {
-                    completions.add(subCommand);
-                }
-            }
-        } else if (args.length > 1) {
-            // Pass to subcommand for completion
-            String subCommandName = args[0].toLowerCase();
-            SubCommand subCommand = subCommands.get(subCommandName);
-            
-            if (subCommand != null && subCommand.hasPermission(sender)) {
-                String[] subCommandArgs = new String[args.length - 1];
-                System.arraycopy(args, 1, subCommandArgs, 0, args.length - 1);
-                
-                List<String> subCommandCompletions = subCommand.getTabCompletions(sender, subCommandArgs);
-                if (subCommandCompletions != null) {
-                    completions.addAll(subCommandCompletions);
-                }
-            }
-        }
-
-        return completions;
+    protected boolean executeCommand(CommandSender sender, String[] args) {
+        // If we get here, no subcommand was found
+        // The base class will handle showing the unknown subcommand message
+        return super.executeCommand(sender, args);
     }
 }

@@ -1,6 +1,7 @@
 package org.fourz.RVNKQuests.util;
 
 import org.bukkit.Location;
+import org.bukkit.World;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -17,18 +18,32 @@ public class IntervalChecker {
     }
     
     public boolean shouldCheck(UUID entityId, Location currentLocation) {
-        // First, check the counter frequency
         if (++counter % checkFrequency != 0) {
             return false;
         }
-        
-        // Then check the movement distance
+
         Location lastLocation = lastCheckLocations.get(entityId);
-        if (lastLocation != null && lastLocation.distance(currentLocation) < minMovementDistance) {
-            return false;
+        if (lastLocation != null) {
+            World lastWorld;
+            try {
+                lastWorld = lastLocation.getWorld();
+            } catch (IllegalArgumentException e) {
+                // Cached world was unloaded since last check — treat as world change
+                lastCheckLocations.put(entityId, currentLocation.clone());
+                return true;
+            }
+
+            if (lastWorld == null || currentLocation.getWorld() == null ||
+                    !lastWorld.equals(currentLocation.getWorld())) {
+                lastCheckLocations.put(entityId, currentLocation.clone());
+                return true;
+            }
+
+            if (lastLocation.distance(currentLocation) < minMovementDistance) {
+                return false;
+            }
         }
-        
-        // Update the last check location and return true
+
         lastCheckLocations.put(entityId, currentLocation.clone());
         return true;
     }

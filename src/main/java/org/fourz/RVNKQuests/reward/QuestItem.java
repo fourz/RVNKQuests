@@ -3,27 +3,78 @@ package org.fourz.RVNKQuests.reward;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Factory class for quest-related items and artifacts.
+ * 
+ * This class provides a centralized registry for all special items
+ * used in quests, including:
+ * - Quest journals and books
+ * - Special artifacts and quest triggers
+ * - Unique reward items
+ * 
+ * Items are cached after creation for performance and consistency.
+ * Always use getQuestItem() to retrieve items to ensure they are properly cloned.
+ */
 public class QuestItem {
+    /** Registry of all quest items indexed by identifier */
     private static final Map<String, ItemStack> questItems = new HashMap<>();
 
-    // Initialize all quest items
+    /** Optional lore integration for DB-backed quest books */
+    private static ILoreIntegration loreIntegration = null;
+
+    // Initialize all quest items at class load time
     static {
         initializeQuestItems();
     }
 
+    /**
+     * Set the lore integration instance for DB-backed book generation.
+     * Called from RVNKQuests.onEnable() after lore integration is initialized.
+     *
+     * @param integration The lore integration, or null to disable
+     */
+    public static void setLoreIntegration(ILoreIntegration integration) {
+        loreIntegration = integration;
+    }
+
+    /**
+     * Asynchronously pre-populates a quest book from the lore DB.
+     * If the entry doesn't exist it is auto-created with the provided seed data.
+     * When RVNKLore is unavailable this is a no-op; the hardcoded fallback remains.
+     *
+     * @param key   Quest item key (lore entry name)
+     * @param title Seed title for auto-creation
+     * @param desc  Seed description for auto-creation
+     */
+    public static void populateFromLoreAsync(String key, String title, String desc) {
+        if (loreIntegration == null || !loreIntegration.isLoreAvailable()) return;
+        loreIntegration.getOrCreateQuestBook(key, title, desc)
+                .thenAccept(opt -> opt.ifPresent(book -> questItems.put(key, book)));
+    }
+
+    /**
+     * Initializes and registers all quest items to the central registry
+     */
     private static void initializeQuestItems() {
-        // Add Grotsnout's journal
+        // Add quest journal items
         questItems.put("grotsnouts_journal", createGrotsnoutJournal());
         questItems.put("grotsnouts_last_stand", createGrotSnoutsLastStandBook());
         
-        // Add more quest items here following the pattern:
+        // Register more quest items following this pattern:
         // questItems.put("item_id", createItemMethod());
     }
 
+    /**
+     * Retrieves a quest item by its identifier
+     * 
+     * @param name The identifier of the quest item
+     * @return A clone of the requested item, or null if not found
+     */
     public static ItemStack getQuestItem(String name) {
         ItemStack item = questItems.get(name);
         if (item == null) {
@@ -32,6 +83,14 @@ public class QuestItem {
         return item.clone(); // Return a clone to prevent modifications to the original
     }
 
+    /**
+     * Creates GrotSnout's last stand journal - a quest item for the Piglin Far From Home quest
+     * This book contains the final entry describing GrotSnout's plan to fight the portal guardians
+     *
+     * @deprecated Use lore DB entry "grotsnouts_last_stand" instead (via {@link #populateFromLoreAsync})
+     * @return The written book item
+     */
+    @Deprecated
     private static ItemStack createGrotSnoutsLastStandBook() {
         ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
@@ -39,22 +98,24 @@ public class QuestItem {
         meta.setTitle("GrotSnout's Last Stand");
         meta.setAuthor("GrotSnout da Lost");
         
+        // Add narrative pages that tell GrotSnout's story
         meta.addPage(
-            "GrotSnout sat alone, starin’ at da broken portal.\n\n" +
+            "GrotSnout sat alone, starin' at da broken portal.\n\n" +
             "No fire. No gold. No boyz.\n\n" +
-            "Just cold wind whisperin’, stones too dead ta burn, an’ stars dat didn’t care.\n\n" +
-            "'Dis place is gonna be me zoggin’ grave,' he muttered."
+            "Just cold wind whisperin', stones too dead ta burn, an' stars dat didn't care.\n\n" +
+            "'Dis place is gonna be me zoggin' grave,' he muttered."
         );
         
+        // Additional pages...
         meta.addPage(
-            "He finks of da Bastions, da lootin’, da gold.\n\n" +
-            "How long he gotta sit ‘ere, waitin’ fer nothin’?\n\n" +
+            "He finks of da Bastions, da lootin', da gold.\n\n" +
+            "How long he gotta sit 'ere, waitin' fer nothin'?\n\n" +
             "'Is dere someone I can pay ta let me go?'\n\n" +
-            "But dere’s no one. Just da guards."
+            "But dere's no one. Just da guards."
         );
         
         meta.addPage(
-            "One big an’ dark. Two rattlin’ bone-boyz. Two tusked beasts, gruntin’ in da dark.\n\n" +
+            "One big an' dark. Two rattlin' bone-boyz. Two tusked beasts, gruntin' in da dark.\n\n" +
             "Dey don’t know his name.\n\n" +
             "Dey don’t care he’s stuck ‘ere.\n\n" +
             "Dey just stand, watchin’, waitin’, makin’ sure no one gets through."
@@ -78,12 +139,17 @@ public class QuestItem {
         );
         
         book.setItemMeta(meta);
-
         return book;
-        
     }
 
-    // Quest Item Creation Methods
+    /**
+     * Creates GrotSnout's journal - the main quest trigger for Piglin Far From Home
+     * This book contains clues about the quest objectives and backstory
+     *
+     * @deprecated Use lore DB entry "grotsnouts_journal" instead (via {@link #populateFromLoreAsync})
+     * @return The written book item
+     */
+    @Deprecated
     private static ItemStack createGrotsnoutJournal() {
         ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
@@ -91,6 +157,7 @@ public class QuestItem {
         meta.setTitle("DIS AIN'T RIGHT!");
         meta.setAuthor("GrotSnout da Lost");
         
+        // Create the journal with several pages of quest information
         String[] pages = {
             "Oi, you wot's readin' dis?\n" +
             "GrotSnout 'ere, da biggest an' loudest Piglin!\n\n" +
@@ -127,15 +194,12 @@ public class QuestItem {
         return book;
     }
 
-    // Template for adding new quest items:
-    /*
-    private static ItemStack createNewQuestItem() {
-        ItemStack item = new ItemStack(Material.YOUR_MATERIAL);
-        // Set item meta and properties
-        return item;
-    }
-    */
-
+    /**
+     * Attempts to load a quest item from the database if not found in memory
+     * 
+     * @param name The identifier of the quest item
+     * @return The loaded item or null if not found
+     */
     private static ItemStack loadFromDatabase(String name) {
         // TODO: Implement database retrieval
         return null;

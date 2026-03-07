@@ -1,114 +1,325 @@
 package org.fourz.RVNKQuests.quest;
 
+import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.util.Debug;
+import org.fourz.RVNKQuests.service.IQuestService;
+import org.fourz.rvnkcore.util.log.LogManager;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.fourz.RVNKQuests.util.PlayerAwareListener;
 import java.util.ArrayList;
 import java.util.List;
-import org.fourz.RVNKQuests.quest.*;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.stream.Collectors;
 
-public class QuestManager {
-    private static final String CLASS_NAME = "QuestManager";
+/**
+ * Core manager for quest registration, state management, and event handling.
+ *
+ * <p>This class manages the full quest lifecycle:</p>
+ * <ol>
+ *   <li>Registration and initialization of quest instances</li>
+ *   <li>Dynamic event listener registration based on quest state</li>
+ *   <li>Per-player listener management</li>
+ *   <li>Scheduled task management for quest-related activities</li>
+ *   <li>Cleanup and state validation</li>
+ * </ol>
+ *
+ * <p>The manager uses a state-based event listener model where each quest
+ * provides different listeners based on its current state. For per-player
+ * quests, listeners are registered once but check player-specific state
+ * within their event handlers.</p>
+ */
+public class QuestManager implements IQuestService {
     private final RVNKQuests plugin;
-    private final Debug debugger;
+    private final LogManager logger;
     private final Map<String, Quest> quests = new HashMap<>();
     private final Map<Quest, List<Listener>> activeListeners = new HashMap<>();
     private final Map<String, Integer> scheduledTasks = new HashMap<>();
 
+    // Track which players are actively engaged with each quest (for listener optimization)
+    private final Map<String, Set<UUID>> activePlayersByQuest = new ConcurrentHashMap<>();
+
+    // Idempotency guard: tracks in-flight completion requests (playerId:questId keys)
+    // Prevents double-reward from concurrent events firing before the first write completes.
+    private final Set<String> completionsInProgress = ConcurrentHashMap.newKeySet();
+
     public QuestManager(RVNKQuests plugin) {
         this.plugin = plugin;
-        this.debugger = new Debug(plugin, CLASS_NAME, plugin.getDebugger().getLogLevel()) {};
+        this.logger = LogManager.getInstance(plugin, getClass());
+    }
+
+    /**
+     * Updates the debug level for this manager
+     * @param level New log level
+     */
+    public void updateDebugLevel(Level level) {
+        logger.setLogLevel(level);
+        logger.debug("QuestManager log level updated to: " + level.getName());
     }
 
     public void registerQuest(Quest quest) {
-        debugger.debug("Registering quest: " + quest.getId());
-        quests.put(quest.getId(), quest);
-        quest.initialize();
-        updateQuestListeners(quest);
-        debugger.debug("Quest registered and initialized: " + quest.getId());
+        if (quest == null) {
+            logger.warning("Attempted to register null quest");
+            return;
+        }
+
+        String questId = quest.getId();
+        if (questId == null || questId.isEmpty()) {
+            logger.warning("Attempted to register quest with null or empty ID");
+            return;
+        }
+
+        if (quests.containsKey(questId)) {
+            logger.warning("Quest already registered with ID: " + questId);
+            return;
+        }
+
+        logger.debug("Registering quest: " + questId);
+        quests.put(questId, quest);
+        activePlayersByQuest.put(questId, ConcurrentHashMap.newKeySet());
+
+        try {
+            quest.initialize();
+            logger.debug("Quest initialized: " + questId);
+        } catch (Exception e) {
+            logger.error("Failed to initialize quest: " + questId, e);
+        }
+
+        try {
+            updateQuestListeners(quest);
+            logger.debug("Quest registered and listeners initialized: " + questId);
+        } catch (Exception e) {
+            logger.error("Failed to register listeners for quest: " + questId, e);
+        }
     }
 
-    public Quest getQuest(String id) {
-        Quest quest = quests.get(id);
-        debugger.debug("Quest lookup for ID '" + id + "': " + (quest != null ? "found" : "not found"));
-        return quest;
+    @Override
+    public Optional<Quest> getQuest(String questId) {
+        Quest quest = quests.get(questId);
+        logger.debug("Quest lookup for ID '" + questId + "': " + (quest != null ? "found" : "not found"));
+        return Optional.ofNullable(quest);
     }
 
     public void initializeQuests() {
-        debugger.debug("Beginning quest initialization");
-        //registerQuest(new QuestFirstCityProphecy(plugin));
-        registerQuest(new QuestPiglinFarFromHome(plugin));
-        //registerQuest(new QuestAncientGuardian(plugin)); // Add this line
-        debugger.debug("Quest initialization complete. Total quests: " + quests.size());
+        logger.debug("Beginning quest initialization");
+
+        try {
+            registerQuestIfEnabled(new QuestPiglinFarFromHome(plugin));
+            registerQuestIfEnabled(new QuestAncientGuardian(plugin));
+            logger.debug("Quest initialization complete. Total quests: " + quests.size());
+        } catch (Exception e) {
+            logger.error("Error during quest initialization", e);
+        }
+    }
+
+    /**
+     * Register a quest if it is enabled in the configuration
+     * @param quest The quest to register
+     */
+    private void registerQuestIfEnabled(Quest quest) {
+        String questId = quest.getId();
+        boolean enabled = plugin.getConfigManager().isQuestEnabled(questId);
+
+        if (enabled) {
+            logger.debug("Registering enabled quest: " + questId);
+            registerQuest(quest);
+        } else {
+            logger.info("Skipping disabled quest: " + questId);
+        }
     }
 
     public void cleanupQuests() {
-        debugger.debug("Starting quest cleanup process");
-        
+        logger.debug("Starting quest cleanup process");
+
         // Cancel all scheduled tasks
-        debugger.debug("Cancelling " + scheduledTasks.size() + " scheduled tasks");
+        logger.debug("Cancelling " + scheduledTasks.size() + " scheduled tasks");
         for (String taskId : new ArrayList<>(scheduledTasks.keySet())) {
             cancelTask(taskId);
         }
         scheduledTasks.clear();
-        
+
         // Unregister all listeners first
         activeListeners.forEach((quest, listeners) -> {
-            debugger.debug("Unregistering " + listeners.size() + " listeners for quest: " + quest.getId());
+            logger.debug("Unregistering " + listeners.size() + " listeners for quest: " + quest.getId());
             listeners.forEach(HandlerList::unregisterAll);
         });
         activeListeners.clear();
-        
+
+        // Clear active players tracking
+        activePlayersByQuest.clear();
+
         // Clean up quests
-        debugger.debug("Cleaning up " + quests.size() + " quests");
+        logger.debug("Cleaning up " + quests.size() + " quests");
         quests.values().forEach(quest -> {
-            debugger.debug("Cleaning up quest: " + quest.getId());
+            logger.debug("Cleaning up quest: " + quest.getId());
             quest.cleanup();
         });
         quests.clear();
-        debugger.debug("Quest cleanup complete");
+        logger.debug("Quest cleanup complete");
+    }
+
+    /**
+     * Fully resets the quest system by cleaning up all existing quests
+     * and reinitializing them. This simulates a plugin restart.
+     *
+     * <p>Note: In-memory caches are cleared but persisted data remains.
+     * Players will have their progress loaded from storage on next join.</p>
+     */
+    public void resetQuests() {
+        logger.debug("Resetting all quests");
+
+        // First clean up all existing quests
+        cleanupQuests();
+
+        // Then reinitialize quests
+        initializeQuests();
+
+        logger.debug("Quest reset complete");
     }
 
     public void registerQuestListeners(Quest quest, Listener... listeners) {
-        debugger.debug("Registering " + listeners.length + " listeners for quest: " + quest.getId());
+        logger.debug("Registering " + listeners.length + " listeners for quest: " + quest.getId());
         for (Listener listener : listeners) {
-            debugger.debug("Registering listener: " + listener.getClass().getSimpleName());
+            logger.debug("Registering listener: " + listener.getClass().getSimpleName());
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         }
     }
 
     public void unregisterQuestListeners(Listener... listeners) {
-        debugger.debug("Unregistering " + listeners.length + " listeners");
+        logger.debug("Unregistering " + listeners.length + " listeners");
         for (Listener listener : listeners) {
-            debugger.debug("Unregistering listener: " + listener.getClass().getSimpleName());
+            logger.debug("Unregistering listener: " + listener.getClass().getSimpleName());
             HandlerList.unregisterAll(listener);
         }
     }
 
+    /**
+     * Updates the event listeners for a quest.
+     *
+     * <p>For per-player quests, this registers listeners that handle events
+     * for all players. Individual event handlers should check player-specific
+     * state using {@link Quest#getStateForPlayer(Player)}.</p>
+     *
+     * @param quest The quest to update listeners for
+     */
     public void updateQuestListeners(Quest quest) {
-        debugger.debug("Updating listeners for quest: " + quest.getId() + " (State: " + quest.getCurrentState() + ")");
-        
+        if (quest == null) {
+            logger.warning("Attempted to update listeners for null quest");
+            return;
+        }
+
+        // For per-player quests, we register listeners for the most "advanced" state
+        // that any active player might be in. Individual handlers check per-player state.
+        // For simplicity, we register listeners for all possible states initially.
+        logger.debug("Updating listeners for quest: " + quest.getId());
+
         // Clean up existing listeners for this quest
         if (activeListeners.containsKey(quest)) {
             List<Listener> oldListeners = activeListeners.get(quest);
-            debugger.debug("Removing " + oldListeners.size() + " existing listeners");
+            logger.debug("Removing " + oldListeners.size() + " existing listeners");
             unregisterQuestListeners(oldListeners.toArray(new Listener[0]));
             oldListeners.clear();
         }
 
-        List<Listener> newListeners = quest.createListenersForState(quest.getCurrentState());
-        
-        // Register all new listeners
-        debugger.debug("Registering " + newListeners.size() + " new listeners");
-        for (Listener listener : newListeners) {
-            debugger.debug("Registering new listener: " + listener.getClass().getSimpleName());
-            plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        // Register listeners for all states that have active listeners
+        List<Listener> allListeners = new ArrayList<>();
+        for (QuestState state : QuestState.values()) {
+            try {
+                List<Listener> stateListeners = quest.createListenersForState(state);
+                if (stateListeners != null && !stateListeners.isEmpty()) {
+                    allListeners.addAll(stateListeners);
+                }
+            } catch (Exception e) {
+                logger.error("Error creating listeners for quest " + quest.getId() + " state " + state, e);
+            }
         }
-        activeListeners.put(quest, newListeners);
-        debugger.debug("Listener update complete for quest: " + quest.getId());
+
+        // Register all listeners
+        logger.debug("Registering " + allListeners.size() + " listeners for quest: " + quest.getId());
+        for (Listener listener : allListeners) {
+            if (listener == null) {
+                logger.warning("Null listener in list for quest: " + quest.getId());
+                continue;
+            }
+
+            try {
+                logger.debug("Registering listener: " + listener.getClass().getSimpleName());
+                plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+            } catch (Exception e) {
+                logger.error("Failed to register listener: " + listener.getClass().getSimpleName(), e);
+            }
+        }
+
+        activeListeners.put(quest, allListeners);
+        logger.debug("Listener update complete for quest: " + quest.getId());
+    }
+
+    /**
+     * Update listeners for a specific player's state change.
+     * Called when a player's quest state changes.
+     *
+     * @param quest The quest that changed
+     * @param playerUuid The player whose state changed
+     */
+    public void updateQuestListenersForPlayer(Quest quest, UUID playerUuid) {
+        // For now, this is a no-op since we register all listeners.
+        // In the future, this could be used to optimize listener registration
+        // based on which states have active players.
+        logger.debug("Player " + playerUuid + " state changed for quest: " + quest.getId());
+
+        // Track active players
+        Set<UUID> activePlayers = activePlayersByQuest.get(quest.getId());
+        if (activePlayers != null) {
+            quest.getStateForPlayer(playerUuid).thenAccept(state -> {
+                if (state != QuestState.NOT_STARTED && state != QuestState.COMPLETED) {
+                    activePlayers.add(playerUuid);
+                } else if (state == QuestState.COMPLETED) {
+                    activePlayers.remove(playerUuid);
+                }
+            });
+        }
+    }
+
+    /**
+     * Called when a player joins - track them for quest listener management.
+     *
+     * @param player The player who joined
+     */
+    public void onPlayerJoin(Player player) {
+        logger.debug("Player joined: " + player.getName());
+        // Progress loading is handled by PlayerJoinQuitListener
+    }
+
+    /**
+     * Called when a player quits - remove tracking.
+     *
+     * @param player The player who quit
+     */
+    public void onPlayerQuit(Player player) {
+        logger.debug("Player quit: " + player.getName());
+        UUID playerUuid = player.getUniqueId();
+
+        // Remove from active player tracking
+        for (Set<UUID> activePlayers : activePlayersByQuest.values()) {
+            activePlayers.remove(playerUuid);
+        }
+
+        // Notify listeners that hold per-player state
+        activeListeners.values().forEach(listeners ->
+            listeners.stream()
+                .filter(l -> l instanceof PlayerAwareListener)
+                .map(l -> (PlayerAwareListener) l)
+                .forEach(l -> l.clearPlayerData(playerUuid))
+        );
+
+        // Progress saving is handled by PlayerJoinQuitListener
     }
 
     /**
@@ -120,17 +331,17 @@ public class QuestManager {
      * @return The task ID from Bukkit scheduler
      */
     public int scheduleRepeatingTask(String taskId, Runnable task, long interval) {
-        debugger.debug("Scheduling repeating task: " + taskId + " (interval: " + interval + " ticks)");
+        logger.debug("Scheduling repeating task: " + taskId + " (interval: " + interval + " ticks)");
         int taskNumber = plugin.getServer().getScheduler()
             .scheduleSyncRepeatingTask(plugin, task, 0L, interval);
-        
+
         if (taskNumber != -1) {
             scheduledTasks.put(taskId, taskNumber);
-            debugger.debug("Task scheduled successfully: " + taskId + " (task#: " + taskNumber + ")");
+            logger.debug("Task scheduled successfully: " + taskId + " (task#: " + taskNumber + ")");
         } else {
-            debugger.warning("Failed to schedule task: " + taskId);
+            logger.warning("Failed to schedule task: " + taskId);
         }
-        
+
         return taskNumber;
     }
 
@@ -142,14 +353,14 @@ public class QuestManager {
     public void cancelTask(String taskId) {
         Integer taskNumber = scheduledTasks.remove(taskId);
         if (taskNumber != null) {
-            debugger.debug("Cancelling task: " + taskId + " (task#: " + taskNumber + ")");
+            logger.debug("Cancelling task: " + taskId + " (task#: " + taskNumber + ")");
             plugin.getServer().getScheduler().cancelTask(taskNumber);
         }
     }
 
     /**
      * Gets the IDs of all registered quests
-     * 
+     *
      * @return A list of quest IDs
      */
     public List<String> getQuestIds() {
@@ -158,10 +369,250 @@ public class QuestManager {
 
     /**
      * Gets all registered quests
-     * 
+     *
      * @return A list of quests
      */
     public List<Quest> getAllQuests() {
         return new ArrayList<>(quests.values());
+    }
+
+    /**
+     * Gets the set of players actively engaged with a quest.
+     *
+     * @param questId The quest ID
+     * @return Set of active player UUIDs, or empty set if quest not found
+     */
+    public Set<UUID> getActivePlayersForQuest(String questId) {
+        Set<UUID> players = activePlayersByQuest.get(questId);
+        return players != null ? Set.copyOf(players) : Set.of();
+    }
+
+    /**
+     * Validates all registered quests to catch configuration issues
+     * @return true if all quests are valid
+     */
+    public boolean validateQuests() {
+        logger.debug("Validating all registered quests...");
+        boolean allValid = true;
+
+        for (Quest quest : quests.values()) {
+            try {
+                // Basic validation
+                if (quest.getId() == null || quest.getId().isEmpty()) {
+                    logger.warning("Quest has null or empty ID");
+                    allValid = false;
+                }
+
+                if (quest.getName() == null || quest.getName().isEmpty()) {
+                    logger.warning("Quest has null or empty name: " + quest.getId());
+                    allValid = false;
+                }
+
+                // Check listener creation for each state
+                for (QuestState state : QuestState.values()) {
+                    List<Listener> listeners = quest.createListenersForState(state);
+                    if (listeners == null) {
+                        logger.warning(quest.getId() + " returned null listeners for state: " + state);
+                        allValid = false;
+                    }
+                }
+
+                logger.debug("Validated quest: " + quest.getId());
+            } catch (Exception e) {
+                logger.error("Exception during validation of quest: " + quest.getId(), e);
+                allValid = false;
+            }
+        }
+
+        logger.debug("Quest validation complete. All valid: " + allValid);
+        return allValid;
+    }
+
+    // ==================== IQuestService Implementation ====================
+
+    @Override
+    public boolean unregisterQuest(String questId) {
+        if (questId == null || questId.isEmpty()) {
+            logger.warning("Attempted to unregister quest with null or empty ID");
+            return false;
+        }
+
+        Quest quest = quests.remove(questId);
+        if (quest == null) {
+            logger.warning("Quest not found for unregistration: " + questId);
+            return false;
+        }
+
+        // Clean up listeners
+        if (activeListeners.containsKey(quest)) {
+            List<Listener> listeners = activeListeners.remove(quest);
+            listeners.forEach(HandlerList::unregisterAll);
+        }
+
+        // Clean up active players tracking
+        activePlayersByQuest.remove(questId);
+
+        // Clean up the quest
+        quest.cleanup();
+
+        logger.info("Unregistered quest: " + questId);
+        return true;
+    }
+
+    @Override
+    public List<Quest> getActiveQuests() {
+        return quests.values().stream()
+            .filter(quest -> !getActivePlayersForQuest(quest.getId()).isEmpty())
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public int getQuestCount() {
+        return quests.size();
+    }
+
+    @Override
+    public CompletableFuture<QuestState> getPlayerQuestState(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(QuestState.NOT_STARTED);
+        }
+        return quest.getStateForPlayer(playerId);
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePlayerQuestState(UUID playerId, String questId, QuestState newState) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Quest not found: " + questId));
+        }
+        return quest.advanceStateForPlayer(playerId, newState);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> startQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return quest.getStateForPlayer(playerId)
+            .thenCompose(currentState -> {
+                if (currentState != QuestState.NOT_STARTED) {
+                    logger.debug("Player " + playerId + " cannot start quest " + questId + " - already in state: " + currentState);
+                    return CompletableFuture.completedFuture(false);
+                }
+                return quest.advanceStateForPlayer(playerId, QuestState.QUEST_ACTIVE)
+                    .thenApply(v -> true);
+            });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> completeQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        // Idempotency guard: if a completion for this player+quest is already in-flight,
+        // drop the duplicate (e.g. two rapid event firings before the first DB write lands).
+        String inFlightKey = playerId.toString() + ":" + questId;
+        if (!completionsInProgress.add(inFlightKey)) {
+            logger.debug("Duplicate completion ignored for " + playerId + " on quest " + questId);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return quest.getStateForPlayer(playerId)
+            .thenCompose(currentState -> {
+                if (currentState == QuestState.COMPLETED) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return quest.advanceStateForPlayer(playerId, QuestState.COMPLETED)
+                    .thenApply(v -> true);
+            })
+            .whenComplete((result, ex) -> completionsInProgress.remove(inFlightKey));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> abandonQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return quest.getStateForPlayer(playerId)
+            .thenCompose(currentState -> {
+                if (currentState == QuestState.NOT_STARTED || currentState == QuestState.COMPLETED) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return quest.advanceStateForPlayer(playerId, QuestState.NOT_STARTED)
+                    .thenApply(v -> true);
+            });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> resetQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return plugin.getQuestProgressService().resetQuestProgress(playerId, questId);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPlayerActiveQuests(UUID playerId) {
+        List<CompletableFuture<String>> futures = quests.keySet().stream()
+            .map(questId -> getPlayerQuestState(playerId, questId)
+                .thenApply(state -> state == QuestState.QUEST_ACTIVE ? questId : null))
+            .collect(Collectors.toList());
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(v -> futures.stream()
+                .map(CompletableFuture::join)
+                .filter(id -> id != null)
+                .collect(Collectors.toList()));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPlayerCompletedQuests(UUID playerId) {
+        List<CompletableFuture<String>> futures = quests.keySet().stream()
+            .map(questId -> getPlayerQuestState(playerId, questId)
+                .thenApply(state -> state == QuestState.COMPLETED ? questId : null))
+            .collect(Collectors.toList());
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(v -> futures.stream()
+                .map(CompletableFuture::join)
+                .filter(id -> id != null)
+                .collect(Collectors.toList()));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> canStartQuest(UUID playerId, String questId) {
+        Quest quest = quests.get(questId);
+        if (quest == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return quest.getStateForPlayer(playerId)
+            .thenApply(state -> state == QuestState.NOT_STARTED);
+    }
+
+    @Override
+    public boolean isInFallbackMode() {
+        return plugin.getQuestProgressService().isInFallbackMode();
+    }
+
+    @Override
+    public void reloadQuests() {
+        logger.info("Reloading all quests");
+        resetQuests();
+    }
+
+    @Override
+    public void shutdown() {
+        logger.info("Shutting down QuestManager");
+        cleanupQuests();
     }
 }

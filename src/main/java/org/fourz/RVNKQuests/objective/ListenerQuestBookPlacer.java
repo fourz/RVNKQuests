@@ -1,8 +1,6 @@
 package org.fourz.RVNKQuests.objective;
 
 import org.bukkit.*;
-import org.bukkit.block.Block;
-import org.bukkit.block.Lectern;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -10,11 +8,11 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.quest.Quest;
-import org.fourz.RVNKQuests.util.Debug;
+// import org.fourz.RVNKQuests.quest.Quest; // not used
+import org.fourz.rvnkcore.util.log.LogManager;
 import org.bukkit.block.Block;
-import org.bukkit.block.Lectern;
-////import org.fourz.RVNKQuests.util.NMSUtil;
+// import org.bukkit.block.Lectern; // duplicate/unused
+//import org.fourz.RVNKQuests.util.NMSUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,16 +20,15 @@ import java.util.List;
 // Listener for placing the event book in the prophecy lectern when a player moves near it
 
 public class ListenerQuestBookPlacer implements Listener {
-    private static final String CLASS_NAME = "ListenerQuestBookPlacer";
     private final RVNKQuests plugin;
-    private final Debug debugger;
+    private final LogManager logger;
     private final Location lecternLocation;
     private boolean bookPlaced = false;
 
     public ListenerQuestBookPlacer(RVNKQuests plugin, Location lecternLocation) {
         this.plugin = plugin;
         this.lecternLocation = lecternLocation;
-        this.debugger = new Debug(plugin, CLASS_NAME, plugin.getDebugger().getLogLevel()) {};
+        this.logger = LogManager.getInstance(plugin, getClass());
     }
 
     @EventHandler
@@ -51,7 +48,7 @@ public class ListenerQuestBookPlacer implements Listener {
     }
 
     private void placeEventBook() {
-        debugger.debug("Creating and placing event book");
+        logger.debug("Creating and placing event book");
         ItemStack book = createProphecyBook();
         
         if (book != null) {
@@ -59,17 +56,17 @@ public class ListenerQuestBookPlacer implements Listener {
                 try {
                     Block block = lecternLocation.getBlock();
                     if (block.getType() == Material.LECTERN) {
-                        ////boolean success = NMSUtil.placeLecternBook();
+                        //boolean success = NMSUtil.placeLecternBook();
                         boolean success = true;
-                            ////lecternLocation.getWorld(),lecternLocation,book);                        
+                            //lecternLocation.getWorld(),lecternLocation,book);                        
                         if (success) {
-                            debugger.debug("Book placed successfully using NMS");
+                            logger.debug("Book placed successfully using NMS");
                         } else {
-                            debugger.debug("Failed to place book using NMS");
+                            logger.debug("Failed to place book using NMS");
                         }
                     }
                 } catch (Exception e) {
-                    debugger.debug("ERROR placing book: " + e.getMessage());
+                    logger.error("Error placing book", e);
                 }
             }, 2L);
         }

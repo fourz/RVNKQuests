@@ -14,7 +14,7 @@ import org.fourz.RVNKQuests.quest.QuestState;
 public class ListenerGuardianAwakening implements Listener {
     private final Quest quest;
     private ElderGuardian guardian;
-    private static final String EVENT_WORLD = "event";
+    public static final String EVENT_WORLD = "event";
     private static final int REQUIRED_DISTANCE = 50;
 
     public ListenerGuardianAwakening(Quest quest) {
@@ -47,7 +47,13 @@ public class ListenerGuardianAwakening implements Listener {
             guardian.setCustomName("Ancient Guardian");
             guardian.setCustomNameVisible(true);
             guardian.setRemoveWhenFarAway(false);
-            quest.advanceState(QuestState.TRIGGER_FOUND);
+            world.getPlayers().forEach(player ->
+                quest.getStateForPlayer(player.getUniqueId()).thenAccept(state -> {
+                    if (state == QuestState.NOT_STARTED) {
+                        quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
+                    }
+                })
+            );
         }
     }
 

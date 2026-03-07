@@ -1,43 +1,82 @@
 package org.fourz.RVNKQuests.command;
 
 import org.bukkit.command.CommandSender;
-
 import java.util.List;
 
 /**
- * Interface for subcommands of the main quest command
+ * Interface for subcommands within the RVNKQuests command framework.
+ * Subcommands are commands that are executed as part of a parent command.
+ * 
+ * This interface follows the RVNK ecosystem command framework pattern,
+ * providing consistent behavior across all RVNK plugins.
  */
 public interface SubCommand {
+    
     /**
-     * Executes the subcommand
+     * Execute the subcommand logic.
      * 
      * @param sender The command sender
-     * @param args Arguments for the subcommand
-     * @return True if the command was executed successfully
+     * @param args Subcommand arguments (excluding the parent command and subcommand name)
+     * @return true if the subcommand was handled successfully
      */
     boolean execute(CommandSender sender, String[] args);
     
     /**
-     * Gets a description of the subcommand
+     * Provide tab completion for the subcommand.
      * 
-     * @return The description
+     * @param sender The command sender
+     * @param args Subcommand arguments being completed
+     * @return List of possible completions
+     */
+    List<String> getTabCompletions(CommandSender sender, String[] args);
+    
+    /**
+     * Get the subcommand name.
+     * 
+     * @return The subcommand name
+     */
+    String getName();
+    
+    /**
+     * Get the subcommand description.
+     * 
+     * @return The subcommand description
      */
     String getDescription();
     
     /**
-     * Checks if the sender has permission to use this subcommand
+     * Get the subcommand usage string.
+     * 
+     * @return The usage string
+     */
+    String getUsage();
+    
+    /**
+     * Get the permission required to use this subcommand.
+     * 
+     * @return The permission string, or null if no permission is required
+     */
+    String getPermission();
+    
+    /**
+     * Check if the sender has permission to use this subcommand.
      * 
      * @param sender The command sender
-     * @return True if the sender has permission
+     * @return true if the sender has permission
      */
     boolean hasPermission(CommandSender sender);
     
     /**
-     * Gets tab completions for the current arguments
+     * Check if this subcommand is restricted to players only.
      * 
-     * @param sender The command sender
-     * @param args Current arguments
-     * @return List of tab completions
+     * @return true if only players can use this subcommand
      */
-    List<String> getTabCompletions(CommandSender sender, String[] args);
+    boolean isPlayerOnly();
+    
+    /**
+     * Get the parent command of this subcommand.
+     * 
+     * @return The parent command
+     */
+    RVNKCommand getParent();
 }

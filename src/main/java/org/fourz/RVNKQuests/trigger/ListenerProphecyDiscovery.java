@@ -10,28 +10,32 @@ import org.fourz.RVNKQuests.quest.QuestState;
 
 public class ListenerProphecyDiscovery implements Listener {
     private final QuestFirstCityProphecy quest;
+    private final Location lecternLocation;
     private boolean lightningTriggered = false;
 
-    public ListenerProphecyDiscovery(QuestFirstCityProphecy quest) {
+    public ListenerProphecyDiscovery(QuestFirstCityProphecy quest, Location lecternLocation) {
         this.quest = quest;
+        this.lecternLocation = lecternLocation;
     }
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (lightningTriggered || quest.getCurrentState() != QuestState.NOT_STARTED) return;
-
         Player player = event.getPlayer();
-        Location lecternLoc = quest.getLecternLocation();
-        if (lecternLoc == null) return;
+        if (lightningTriggered || quest.getStateForPlayer(player) != QuestState.NOT_STARTED) return;
+        if (lecternLocation == null) return;
 
-        if (player.getWorld().equals(lecternLoc.getWorld()) 
-            && player.getLocation().distance(lecternLoc) < 15) {
+        if (player.getWorld().equals(lecternLocation.getWorld()) 
+            && player.getLocation().distance(lecternLocation) < 15) {
 
-            player.getWorld().strikeLightningEffect(lecternLoc);
+            player.getWorld().strikeLightningEffect(lecternLocation);
             player.sendMessage("§6A sudden lightning flash reveals an ancient lectern...");
             
-            quest.advanceState(QuestState.TRIGGER_FOUND);
+            quest.advanceStateForPlayer(player.getUniqueId(), QuestState.TRIGGER_FOUND);
             lightningTriggered = true;
         }
+    }
+
+    public Location getLecternLocation() {
+        return lecternLocation;
     }
 }
