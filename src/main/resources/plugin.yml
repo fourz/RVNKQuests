@@ -90,3 +90,6 @@ permissions:
   rvnkquests.admin.seed:
     description: Seed quest data
     default: op
+  rvnkquests.command.objective:
+    description: Edit individual objective progress
+    default: op
