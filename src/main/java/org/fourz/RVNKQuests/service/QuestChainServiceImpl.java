@@ -15,7 +15,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
+import org.fourz.rvnkcore.util.log.LogManager;
 import java.util.stream.Collectors;
 
 /**
@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 public class QuestChainServiceImpl implements IQuestChainService {
 
     private final Plugin plugin;
-    private final Logger logger;
+    private final LogManager logger;
     private final IQuestProgressService questProgressService;
     private final IRewardService rewardService;
     
@@ -93,7 +93,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
         this.questProgressService = Objects.requireNonNull(questProgressService, "questProgressService cannot be null");
         this.rewardService = Objects.requireNonNull(rewardService, "rewardService cannot be null");
-        this.logger = plugin.getLogger();
+        this.logger = LogManager.getInstance(plugin, "QuestChainService");
     }
     
     // ==================== Chain Registration ====================
@@ -117,7 +117,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
                     .add(chainId);
             }
             
-            logger.info("Registered chain: " + chainId + " with " + 
+            logger.debug("Registered chain: " + chainId + " with " +
                        chain.getTotalQuestCount() + " quests");
             return true;
         });
@@ -142,7 +142,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
                 }
             }
             
-            logger.info("Unregistered chain: " + chainId);
+            logger.debug("Unregistered chain: " + chainId);
             return true;
         });
     }
@@ -247,7 +247,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
                 List<String> availableQuests = calculateAvailableQuests(chain, data);
                 data.activeQuests.addAll(availableQuests);
                 
-                logger.info("Player " + playerId + " started chain: " + chainId);
+                logger.debug("Player " + playerId + " started chain: " + chainId);
                 return ChainStartResult.success(chainId, availableQuests);
             });
         });
@@ -604,7 +604,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
                 }
             })
             .exceptionally(ex -> {
-                logger.severe("Failed to deliver chain rewards: " + ex.getMessage());
+                logger.error("Failed to deliver chain rewards: " + ex.getMessage());
                 return null;
             });
     }

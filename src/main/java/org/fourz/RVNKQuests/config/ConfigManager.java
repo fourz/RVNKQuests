@@ -64,7 +64,7 @@ public class ConfigManager {
         }
 
         config = YamlConfiguration.loadConfiguration(configFile);
-        logger.info("Configuration loaded from: " + configFile.getAbsolutePath());
+        logger.debug("Configuration loaded from: " + configFile.getAbsolutePath());
 
         String dbType = config.getString("database.type", "sqlite");
         if (!"yaml".equalsIgnoreCase(dbType)) {

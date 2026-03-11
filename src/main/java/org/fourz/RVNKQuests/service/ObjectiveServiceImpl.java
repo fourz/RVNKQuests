@@ -54,7 +54,6 @@ public class ObjectiveServiceImpl implements IObjectiveService {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, "ObjectiveService");
         this.progressService = plugin.getQuestProgressService();
-        logger.info("ObjectiveService initialized");
     }
 
     // ========================================

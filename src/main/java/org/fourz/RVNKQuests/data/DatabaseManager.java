@@ -89,10 +89,10 @@ public class DatabaseManager implements IQuestDatabaseService {
             this.tablePrefix = settings.getTablePrefix();
         }
         if (tablePrefix != null && !tablePrefix.isEmpty()) {
-            logger.info("Using table prefix: " + tablePrefix);
+            logger.debug("Using table prefix: " + tablePrefix);
         }
 
-        logger.info("Database type configured: " + type);
+        logger.debug("Database type configured: " + type);
     }
 
     /**
@@ -150,7 +150,6 @@ public class DatabaseManager implements IQuestDatabaseService {
             initializeSchema();
 
             initialized = true;
-            logger.info("DatabaseManager initialized successfully");
             return true;
 
         } catch (Exception e) {
@@ -334,8 +333,6 @@ public class DatabaseManager implements IQuestDatabaseService {
      * Shutdown the database manager and release resources.
      */
     public void shutdown() {
-        logger.info("Shutting down DatabaseManager");
-
         if (executor != null) {
             executor.shutdown();
             try {

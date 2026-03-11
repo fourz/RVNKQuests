@@ -387,7 +387,6 @@ public class RewardServiceImpl implements IRewardService {
      * Shutdown the service (cleanup resources).
      */
     public void shutdown() {
-        logger.info("RewardService shutting down");
         processors.clear();
     }
 }

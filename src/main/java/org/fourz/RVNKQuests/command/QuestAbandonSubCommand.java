@@ -127,9 +127,8 @@ public class QuestAbandonSubCommand extends BaseSubCommand {
                         sendInfoMessage(targetPlayer, "Quest abandoned: " + quest.getName());
                     }
 
-                    logger.info("Quest '" + questId + "' abandoned for player: " + playerName +
-                               " (by: " + sender.getName() + ") at " +
-                               java.time.Instant.now().toString());
+                    logger.debug("Quest '" + questId + "' abandoned for player: " + playerName +
+                               " (by: " + sender.getName() + ")");
                 });
             })
             .exceptionally(ex -> {

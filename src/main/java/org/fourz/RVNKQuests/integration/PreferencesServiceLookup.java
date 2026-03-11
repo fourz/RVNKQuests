@@ -47,7 +47,7 @@ public class PreferencesServiceLookup {
             }
 
             this.serviceAvailable = true;
-            logger.info("PlayerPreferencesService integration enabled");
+            logger.debug("PlayerPreferencesService integration enabled");
         } catch (Exception e) {
             logger.error("Failed to initialize PlayerPreferencesService: " + e.getMessage(), e);
         }

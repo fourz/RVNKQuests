@@ -612,7 +612,6 @@ public class QuestManager implements IQuestService {
 
     @Override
     public void shutdown() {
-        logger.info("Shutting down QuestManager");
         cleanupQuests();
     }
 }

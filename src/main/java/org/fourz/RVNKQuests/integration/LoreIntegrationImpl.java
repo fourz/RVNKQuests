@@ -96,16 +96,16 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                 loreBookService = getServiceMethod.invoke(serviceRegistry, bookServiceInterface);
                 getOrCreateQuestBookMethod = loreBookService.getClass()
                         .getMethod("getOrCreateQuestBook", String.class, String.class, String.class);
-                logger.info("RVNKLore book service available");
+                logger.debug("RVNKLore book service available");
             } catch (Exception e) {
                 logger.debug("ILoreBookService not registered - quest book integration unavailable: " + e.getMessage());
             }
 
             loreAvailable = true;
-            logger.info("RVNKLore integration enabled - lore services available");
+            logger.debug("RVNKLore integration enabled - lore services available");
 
         } catch (ClassNotFoundException e) {
-            logger.info("RVNKLore classes not found - lore integration disabled");
+            logger.debug("RVNKLore classes not found - lore integration disabled");
         } catch (Exception e) {
             logger.warning("Failed to initialize lore integration: " + e.getMessage());
         }

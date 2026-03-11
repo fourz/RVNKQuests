@@ -102,7 +102,7 @@ public class QuestStartSubCommand extends BaseSubCommand {
                         sendSuccessMessage(targetPlayer, "Quest started: " + quest.getName());
                     }
                     
-                    logger.info("Quest '" + questId + "' started for player: " + playerName + " (by: " + sender.getName() + ")");
+                    logger.debug("Quest '" + questId + "' started for player: " + playerName + " (by: " + sender.getName() + ")");
                 });
             })
             .exceptionally(ex -> {

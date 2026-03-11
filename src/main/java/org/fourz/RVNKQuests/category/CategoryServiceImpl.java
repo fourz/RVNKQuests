@@ -50,7 +50,6 @@ public class CategoryServiceImpl implements ICategoryService {
         this.logger = LogManager.getInstance(plugin, "CategoryService");
         this.categoryRepository = new CategoryRepository(dbManager, logger);
         this.tagRepository = new TagRepository(dbManager, logger);
-        logger.info("CategoryService initialized");
     }
 
     // ========================================
@@ -115,7 +114,7 @@ public class CategoryServiceImpl implements ICategoryService {
 
     @Override
     public CompletableFuture<Boolean> deleteTag(String name) {
-        logger.info("Deleting tag: " + name);
+        logger.debug("Deleting tag: " + name);
         return tagRepository.deleteTag(name);
     }
 
@@ -214,7 +213,7 @@ public class CategoryServiceImpl implements ICategoryService {
 
     @Override
     public CompletableFuture<Void> initializePredefinedTags() {
-        logger.info("Initializing predefined tags...");
+        logger.debug("Initializing predefined tags...");
 
         List<QuestTag> predefinedTags = List.of(
             QuestTag.PVE,
@@ -230,7 +229,7 @@ public class CategoryServiceImpl implements ICategoryService {
             .map(tag -> tagRepository.tagExists(tag.name())
                 .thenCompose(exists -> {
                     if (!exists) {
-                        logger.info("Creating predefined tag: " + tag.name());
+                        logger.debug("Creating predefined tag: " + tag.name());
                         return tagRepository.createTag(tag)
                             .thenApply(opt -> (Void) null);
                     } else {

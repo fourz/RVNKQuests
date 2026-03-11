@@ -64,7 +64,7 @@ public class PreferenceRepositoryImpl implements IPreferenceRepository {
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.executeUpdate();
-                logger.info("Preferences table initialized successfully");
+                logger.debug("Preferences table initialized successfully");
             }
         } catch (SQLException e) {
             logger.error("Failed to initialize preferences table", e);

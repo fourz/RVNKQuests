@@ -72,8 +72,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
             .getInt("database.autosave_interval", 300);
         this.autosaveScheduler = Executors.newSingleThreadScheduledExecutor();
         startAutosave();
-
-        logger.info("QuestProgressService initialized");
     }
 
     /**
@@ -408,8 +406,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
     @Override
     public void shutdown() {
-        logger.info("Shutting down QuestProgressService");
-
         // Stop autosave
         autosaveScheduler.shutdown();
         try {
@@ -420,8 +416,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
         // Final flush
         flush().join();
-
-        logger.info("QuestProgressService shutdown complete");
     }
 
     private void startAutosave() {

@@ -43,7 +43,6 @@ public class JournalServiceImpl implements IJournalService {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, "JournalService");
         this.journalRepository = new JournalRepositoryImpl(plugin, plugin.getDatabaseManager());
-        logger.info("JournalService initialized");
     }
 
     /**
@@ -57,7 +56,6 @@ public class JournalServiceImpl implements IJournalService {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, "JournalService");
         this.journalRepository = journalRepository;
-        logger.info("JournalService initialized with custom repository");
     }
 
     // ==================== Journal Entry Recording ====================
