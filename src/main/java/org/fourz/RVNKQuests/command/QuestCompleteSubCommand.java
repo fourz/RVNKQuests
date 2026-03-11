@@ -43,13 +43,19 @@ public class QuestCompleteSubCommand extends BaseSubCommand {
     @Override
     protected boolean executeSubCommand(CommandSender sender, String[] args) {
         if (!validateArgs(sender, args, 1)) {
-            sendMessage(sender, "&c▶ Usage: &e/quest complete <quest_id> <player>");
-            sendMessage(sender, "&7   Force completes a quest, bypassing objectives");
-            sendMessage(sender, "&7   Grants ALL rewards immediately");
             return true;
         }
 
         String questId = args[0].toLowerCase();
+
+        // Validate quest exists FIRST — so invalid IDs are reported even from console
+        IQuestService questService = plugin.getQuestManager();
+        Quest quest = questService.getQuest(questId).orElse(null);
+        if (quest == null) {
+            sendErrorMessage(sender, "Unknown quest: " + questId);
+            sendInfoMessage(sender, "Available quests: " + String.join(", ", plugin.getQuestManager().getQuestIds()));
+            return true;
+        }
 
         // Determine target player - MUST be specified for admin commands
         Player targetPlayer;
@@ -65,15 +71,6 @@ public class QuestCompleteSubCommand extends BaseSubCommand {
         } else {
             // Console must specify a player
             sendErrorMessage(sender, "Console must specify a player: /quest complete <quest_id> <player>");
-            return true;
-        }
-
-        // Validate quest exists
-        IQuestService questService = plugin.getQuestManager();
-        Quest quest = questService.getQuest(questId).orElse(null);
-        if (quest == null) {
-            sendErrorMessage(sender, "Unknown quest: " + questId);
-            sendInfoMessage(sender, "Available quests: " + String.join(", ", plugin.getQuestManager().getQuestIds()));
             return true;
         }
 

@@ -42,7 +42,7 @@ public class QuestCommand extends BaseCommand {
 
         // Admin commands (require elevated permissions)
         registerSubCommand("reset", new QuestResetSubCommand(plugin));
-        registerSubCommand("forcecomplete", new QuestCompleteSubCommand(plugin));
+        registerSubCommand("complete", new QuestCompleteSubCommand(plugin));
         registerSubCommand("setstate", new QuestSetStateSubCommand(plugin));
 
         // Player preference commands (Phase 4 - with database persistence)

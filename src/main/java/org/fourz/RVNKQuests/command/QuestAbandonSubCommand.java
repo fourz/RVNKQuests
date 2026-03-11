@@ -49,6 +49,18 @@ public class QuestAbandonSubCommand extends BaseSubCommand {
 
         String questId = args[0].toLowerCase();
 
+        // Validate quest exists FIRST — so invalid IDs are reported even from console
+        IQuestService questService = plugin.getQuestManager();
+        Quest quest = questService.getQuest(questId).orElse(null);
+        if (quest == null) {
+            sendErrorMessage(sender, "Unknown quest: " + questId);
+            List<String> questIds = questService.getAllQuests().stream()
+                .map(Quest::getId)
+                .collect(Collectors.toList());
+            sendInfoMessage(sender, "Available quests: " + String.join(", ", questIds));
+            return true;
+        }
+
         // Determine target player
         Player targetPlayer;
         if (args.length >= 2) {
@@ -64,18 +76,6 @@ public class QuestAbandonSubCommand extends BaseSubCommand {
         } else {
             // Console must specify a player
             sendErrorMessage(sender, "Console must specify a player: /quest abandon <quest_id> <player>");
-            return true;
-        }
-
-        // Validate quest exists
-        IQuestService questService = plugin.getQuestManager();
-        Quest quest = questService.getQuest(questId).orElse(null);
-        if (quest == null) {
-            sendErrorMessage(sender, "Unknown quest: " + questId);
-            List<String> questIds = questService.getAllQuests().stream()
-                .map(Quest::getId)
-                .collect(Collectors.toList());
-            sendInfoMessage(sender, "Available quests: " + String.join(", ", questIds));
             return true;
         }
 
