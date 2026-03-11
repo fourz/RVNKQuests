@@ -74,6 +74,18 @@ public enum ObjectiveType {
     DISCOVER,
     
     /**
+     * Escort an entity to a destination.
+     * Target: Entity identifier or context key
+     */
+    ESCORT,
+
+    /**
+     * Defeat a group of spawned mobs at a location.
+     * Target: Entity type to spawn and defeat
+     */
+    ENCOUNTER,
+
+    /**
      * Custom objective with plugin-defined behavior.
      * Target: Custom identifier
      */

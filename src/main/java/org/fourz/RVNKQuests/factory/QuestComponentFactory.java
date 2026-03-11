@@ -181,6 +181,8 @@ public class QuestComponentFactory {
             case REACH -> new GenericReachObjective(plugin, quest, config);
             case DISCOVER -> new GenericDiscoverObjective(plugin, quest, config);
             case INTERACT -> new GenericInteractObjective(plugin, quest, config);
+            case ESCORT -> new GenericEscortObjective(plugin, quest, config);
+            case ENCOUNTER -> new GenericEncounterObjective(plugin, quest, config);
             default -> {
                 logger.debug("Objective type " + type + " not yet implemented for component " + componentId);
                 yield null;
