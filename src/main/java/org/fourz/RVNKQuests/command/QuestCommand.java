@@ -46,6 +46,13 @@ public class QuestCommand extends BaseCommand {
         registerSubCommand("setstate", new QuestSetStateSubCommand(plugin));
         registerSubCommand("objective", new QuestObjectiveSubCommand(plugin));
 
+        // Quest definition admin commands (generic quest engine)
+        registerSubCommand("create", new QuestCreateSubCommand(plugin));
+        registerSubCommand("edit", new QuestEditSubCommand(plugin));
+        registerSubCommand("reward", new QuestRewardSubCommand(plugin));
+        registerSubCommand("export", new QuestExportSubCommand(plugin));
+        registerSubCommand("import", new QuestImportSubCommand(plugin));
+
         // Player preference commands (Phase 4 - with database persistence)
         registerSubCommand("prefs", new QuestPrefsSubCommand(plugin, plugin.getPreferenceRepository()));
 

@@ -2,6 +2,8 @@ package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.data.IQuestRepository;
+import org.fourz.RVNKQuests.data.dto.QuestDTO;
 import org.fourz.RVNKQuests.service.IQuestService;
 import org.fourz.rvnkcore.util.log.LogManager;
 import java.util.HashMap;
@@ -111,12 +113,91 @@ public class QuestManager implements IQuestService {
         logger.debug("Beginning quest initialization");
 
         try {
-            registerQuestIfEnabled(new QuestPiglinFarFromHome(plugin));
-            registerQuestIfEnabled(new QuestAncientGuardian(plugin));
+            // Load data-driven quests from repository first
+            loadQuestsFromRepository();
+
+            // Register hardcoded quests only if not already loaded from repository
+            if (!quests.containsKey("piglin_far_from_home")) {
+                registerQuestIfEnabled(new QuestPiglinFarFromHome(plugin));
+            }
+            if (!quests.containsKey("ancient_guardian")) {
+                registerQuestIfEnabled(new QuestAncientGuardian(plugin));
+            }
+
             logger.debug("Quest initialization complete. Total quests: " + quests.size());
         } catch (Exception e) {
             logger.error("Error during quest initialization", e);
         }
+    }
+
+    /**
+     * Loads quest definitions from the IQuestRepository and registers them
+     * as DataDrivenQuest instances.
+     */
+    public void loadQuestsFromRepository() {
+        IQuestRepository repository = plugin.getQuestRepository();
+        if (repository == null) {
+            logger.debug("No quest repository available — skipping data-driven quest loading");
+            return;
+        }
+
+        try {
+            List<QuestDTO> definitions = repository.findAll().join();
+            int loaded = 0;
+
+            for (QuestDTO definition : definitions) {
+                if (quests.containsKey(definition.questId())) {
+                    logger.debug("Skipping quest " + definition.questId() + " — already registered");
+                    continue;
+                }
+
+                if (!plugin.getConfigManager().isQuestEnabled(definition.questId())) {
+                    logger.debug("Skipping disabled quest: " + definition.questId());
+                    continue;
+                }
+
+                DataDrivenQuest quest = new DataDrivenQuest(plugin, definition);
+                registerQuest(quest);
+                loaded++;
+            }
+
+            logger.info("Loaded " + loaded + " data-driven quest(s) from repository" +
+                (repository.isInFallbackMode() ? " (YAML fallback)" : " (database)"));
+
+        } catch (Exception e) {
+            logger.error("Failed to load quests from repository", e);
+        }
+    }
+
+    /**
+     * Hot-reloads a single quest definition from the repository.
+     * Unregisters the existing quest and re-registers with updated definition.
+     *
+     * @param questId The quest ID to reload
+     * @return CompletableFuture that completes with true if reload succeeded
+     */
+    public CompletableFuture<Boolean> reloadQuest(String questId) {
+        IQuestRepository repository = plugin.getQuestRepository();
+        if (repository == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return repository.findById(questId).thenApply(optDef -> {
+            if (optDef.isEmpty()) {
+                logger.warning("Quest not found in repository for reload: " + questId);
+                return false;
+            }
+
+            // Unregister existing quest
+            unregisterQuest(questId);
+
+            // Re-register with updated definition
+            DataDrivenQuest quest = new DataDrivenQuest(plugin, optDef.get());
+            registerQuest(quest);
+
+            logger.info("Hot-reloaded quest: " + questId);
+            return true;
+        });
     }
 
     /**

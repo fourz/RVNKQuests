@@ -93,3 +93,15 @@ permissions:
   rvnkquests.command.objective:
     description: Edit individual objective progress
     default: op
+  rvnkquests.admin.create:
+    description: Create quest definitions
+    default: op
+  rvnkquests.admin.edit:
+    description: Edit quest definitions, objectives, and rewards
+    default: op
+  rvnkquests.admin.export:
+    description: Export quest definitions to YAML
+    default: op
+  rvnkquests.admin.import:
+    description: Import quest definitions from YAML
+    default: op

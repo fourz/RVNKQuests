@@ -5,6 +5,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.data.DatabaseManager;
+import org.fourz.RVNKQuests.data.IQuestRepository;
+import org.fourz.RVNKQuests.data.QuestDefinitionSeeder;
+import org.fourz.RVNKQuests.data.QuestRepositoryImpl;
+import org.fourz.RVNKQuests.data.QuestYamlRepository;
 import org.fourz.rvnkcore.data.FallbackTracker;
 import org.fourz.RVNKQuests.data.repository.IPreferenceRepository;
 import org.fourz.RVNKQuests.data.repository.PreferenceRepositoryImpl;
@@ -64,6 +68,7 @@ public class RVNKQuests extends JavaPlugin {
     // Database and persistence
     private FallbackTracker fallbackTracker;
     private DatabaseManager databaseManager;
+    private IQuestRepository questRepository;
     private IQuestProgressService questProgressService;
     private IPreferenceRepository preferenceRepository;
 
@@ -112,6 +117,15 @@ public class RVNKQuests extends JavaPlugin {
                 logger.warning("Database initialization failed - using YAML fallback");
             }
 
+            // Initialize quest definition repository (SQL primary, YAML fallback)
+            if (databaseManager.isAvailable()) {
+                questRepository = new QuestRepositoryImpl(this, databaseManager);
+                logger.info("Quest definition repository initialized (SQL)");
+            } else {
+                questRepository = new QuestYamlRepository(this);
+                logger.info("Quest definition repository initialized (YAML fallback)");
+            }
+
             // Initialize quest progress service
             questProgressService = new QuestProgressServiceImpl(this, databaseManager);
 
@@ -142,7 +156,10 @@ public class RVNKQuests extends JavaPlugin {
                 loreDatabase = new LoreDatabase(this, databaseManager);
             }
 
-            // Register quests
+            // Seed default quest definitions on first run
+            new QuestDefinitionSeeder(this).seedIfNeeded();
+
+            // Register quests (loads from repository + hardcoded fallbacks)
             questManager.initializeQuests();
 
             // Initialize lore integration and pre-populate quest books from lore DB
@@ -233,6 +250,14 @@ public class RVNKQuests extends JavaPlugin {
      */
     public DatabaseManager getDatabaseManager() {
         return databaseManager;
+    }
+
+    /**
+     * Gets the quest definition repository.
+     * @return The quest repository (SQL or YAML fallback)
+     */
+    public IQuestRepository getQuestRepository() {
+        return questRepository;
     }
 
     /**

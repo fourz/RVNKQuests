@@ -54,6 +54,64 @@ CREATE TABLE IF NOT EXISTS quest_rewards_claimed (
 
 CREATE INDEX IF NOT EXISTS idx_rewards_player_quest ON quest_rewards_claimed(player_uuid, quest_id);
 
+-- ==================== Quest Definition Tables ====================
+
+-- Quest definitions - the template/blueprint for each quest
+CREATE TABLE IF NOT EXISTS quest_definitions (
+    quest_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    repeatable INTEGER NOT NULL DEFAULT 0,
+    cooldown_minutes INTEGER NOT NULL DEFAULT 0,
+    prerequisites TEXT,
+    metadata TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_quest_def_category ON quest_definitions(category);
+CREATE INDEX IF NOT EXISTS idx_quest_def_name ON quest_definitions(name);
+
+-- Quest definition objectives - objectives belonging to a quest definition
+CREATE TABLE IF NOT EXISTS quest_definition_objectives (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quest_id TEXT NOT NULL,
+    objective_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    target TEXT,
+    required_amount INTEGER NOT NULL DEFAULT 1,
+    description TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    metadata TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (quest_id, objective_id),
+    FOREIGN KEY (quest_id) REFERENCES quest_definitions(quest_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_quest_def_obj_quest ON quest_definition_objectives(quest_id);
+
+-- Quest definition rewards - rewards belonging to a quest definition
+CREATE TABLE IF NOT EXISTS quest_definition_rewards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quest_id TEXT NOT NULL,
+    reward_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    value TEXT,
+    amount INTEGER NOT NULL DEFAULT 1,
+    description TEXT,
+    metadata TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (quest_id, reward_id),
+    FOREIGN KEY (quest_id) REFERENCES quest_definitions(quest_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_quest_def_rwd_quest ON quest_definition_rewards(quest_id);
+
 -- ==================== Quest Journal System Tables ====================
 
 -- Quest journal entries - tracks all quest actions with timestamps

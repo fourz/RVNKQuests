@@ -40,6 +40,9 @@ public class DatabaseManager implements IQuestDatabaseService {
 
     // Base table names (used for prefix replacement in schema files)
     private static final String[] BASE_TABLE_NAMES = {
+        "quest_definitions",
+        "quest_definition_objectives",
+        "quest_definition_rewards",
         "quest_progress",
         "quest_objective_progress",
         "quest_rewards_claimed",
