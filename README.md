@@ -30,31 +30,49 @@ For detailed workflow documentation, see [Development Workflow - MCP Integration
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/quest help` | Show quest help information | `rvnkquests.command.help` |
-| `/quest status` | View current quest status | `rvnkquests.command.status` |
+| `/quest list` | List all available quests | `rvnkquests.command.list` |
+| `/quest start <quest_id>` | Start a quest | `rvnkquests.command.start` |
+| `/quest abandon <quest_id>` | Abandon an active quest | `rvnkquests.command.abandon` |
+| `/quest progress <quest_id>` | View quest progress | `rvnkquests.command.progress` |
+| `/quest journal list` | List journal entries | `rvnkquests.command.journal` |
+| `/quest journal view <id>` | View journal entry detail | `rvnkquests.command.journal` |
+| `/quest menu` | Open quest browser GUI | `rvnkquests.command.menu` |
+| `/quest leaderboard` | View quest leaderboards | `rvnkquests.command.leaderboard` |
 
 ### Administrative Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/quest item <item_name>` | Spawn quest items for testing | `rvnkquests.command.item` |
 | `/quest state <quest_id> <state>` | Change quest state manually | `rvnkquests.command.state` |
+| `/quest complete <quest_id>` | Force-complete a quest | `rvnkquests.command.complete` |
 | `/quest trigger <quest_id> [here\|around]` | Trigger quest at location | `rvnkquests.command.trigger` |
-| `/quest reload` | Reload plugin configuration | `rvnkquests.command.reload` |
-| `/quest debug <quest_id>` | Show quest debug information | `rvnkquests.command.debug` |
+| `/quest mobs list` | List active quest mobs | `rvnkquests.command.mobs` |
+| `/quest mobs kill` | Kill all active quest mobs | `rvnkquests.command.mobs` |
 | `/quest validate` | Validate quest configurations | `rvnkquests.command.validate` |
+| `/quest config` | View/edit quest config | `rvnkquests.command.config` |
+| `/quest reload` | Reload plugin configuration | `rvnkquests.command.reload` |
+| `/quest reset <quest_id> [player]` | Reset quest progress | `rvnkquests.command.reset` |
+| `/quest seed` | Seed quest definitions from DB | `rvnkquests.command.seed` |
 
 ### Command Examples
 
 ```bash
-# Reload configuration
-/quest reload
+# List available quests
+/quest list
+
+# Start a quest and check progress
+/quest start ashen_pilgrim
+/quest progress ashen_pilgrim
+
+# View your quest journal
+/quest journal list
 
 # Trigger the piglin quest around current location
 /quest trigger piglin_far_from_home around
 
-# Check the state of the ancient guardian quest
-/quest debug ancient_guardian
+# List and manage quest mobs
+/quest mobs list
+/quest mobs kill
 
 # Manually advance a quest state (debugging)
 /quest state piglin_far_from_home QUEST_ACTIVE
@@ -115,14 +133,22 @@ public class MyQuestPlugin extends JavaPlugin {
 
 | Permission | Description | Default |
 |------------|-------------|---------|
-| `rvnkquests.command.help` | Access to help commands | `true` |
-| `rvnkquests.command.status` | View quest status | `true` |
-| `rvnkquests.command.item` | Spawn quest items | `op` |
+| `rvnkquests.command.list` | List available quests | `true` |
+| `rvnkquests.command.start` | Start quests | `true` |
+| `rvnkquests.command.abandon` | Abandon quests | `true` |
+| `rvnkquests.command.progress` | View quest progress | `true` |
+| `rvnkquests.command.journal` | Quest journal access | `true` |
+| `rvnkquests.command.menu` | Quest browser GUI | `true` |
+| `rvnkquests.command.leaderboard` | View leaderboards | `true` |
 | `rvnkquests.command.state` | Modify quest states | `op` |
+| `rvnkquests.command.complete` | Force-complete quests | `op` |
 | `rvnkquests.command.trigger` | Trigger quests manually | `op` |
-| `rvnkquests.command.reload` | Reload configuration | `op` |
-| `rvnkquests.command.debug` | Access debug information | `op` |
+| `rvnkquests.command.mobs` | Manage quest mobs | `op` |
 | `rvnkquests.command.validate` | Validate configurations | `op` |
+| `rvnkquests.command.config` | View/edit config | `op` |
+| `rvnkquests.command.reload` | Reload configuration | `op` |
+| `rvnkquests.command.reset` | Reset quest progress | `op` |
+| `rvnkquests.command.seed` | Seed quest definitions | `op` |
 
 ## Integration
 
@@ -191,12 +217,15 @@ RVNKQuests transforms traditional quest systems by creating dynamic, narrative-d
 
 ### Core Features
 
-- **🎭 Dynamic Quest System**: Event-triggered quests that adapt to player actions and server events
-- **📚 State-Based Management**: Sophisticated quest state tracking with automatic listener management
-- **🗣️ Narrative Integration**: Optional lore database for rich storytelling and world-building
-- **⚡ Server Event Integration**: Quests that respond to natural server events and player interactions
-- **🛠️ Admin Command Framework**: Comprehensive tools for quest management, debugging, and configuration
-- **🔗 RVNKCore Integration**: Optional integration with RVNKCore for shared data and services
+- **Dynamic Quest System**: Event-triggered quests that adapt to player actions and server events
+- **Generic Quest Engine**: Data-driven quest definitions via DataDrivenQuest + QuestComponentFactory -- no new Java classes needed for new quests
+- **State-Based Management**: Sophisticated quest state tracking with automatic listener management and per-player state cache
+- **Journal System**: Full quest history tracking with 7 action types (STARTED, COMPLETED, ABANDONED, FAILED, OBJECTIVE_COMPLETE, PATH_CHOSEN, REWARD_CLAIMED)
+- **Smart Mob Detection**: Name+type+world matching detects pre-existing quest mobs on restart or admin placement
+- **Narrative Integration**: Optional lore database for rich storytelling and world-building
+- **Server Event Integration**: Quests that respond to natural server events and player interactions
+- **Admin Command Framework**: Comprehensive tools for quest management, debugging, and configuration
+- **RVNKCore Integration**: Optional integration with RVNKCore for shared data and services
 
 ## Quest Philosophy
 
@@ -248,16 +277,32 @@ Listeners     Active          Processing     Distribution  & Archive
 ### Key Components
 
 - **QuestManager**: Central coordination of all quest activities
-- **Quest Interface**: Standardized quest implementation contract
-- **State-Based Listeners**: Dynamic event handling based on quest progression
+- **AbstractQuest**: Base class with per-player stateCache (ConcurrentHashMap), preload on join, evict on quit
+- **DataDrivenQuest**: Extends AbstractQuest, reads state_mapping from QuestDTO metadata for fully data-driven quests
+- **QuestComponentFactory**: Creates trigger and objective listeners from ObjectiveType + metadata -- 10 generic components
+- **QuestDefinitionSeeder**: Seeds data-driven quest definitions from database on startup
+- **JournalService**: Quest history with 7 action types, backed by quest_journal_entries table (MySQL BIGINT epoch millis)
 - **LoreDatabase**: Optional narrative content storage and retrieval
 - **CommandManager**: Administrative interface for quest management
+
+### Generic Components
+
+**Triggers** (activate quest states):
+- GenericMobSpawnTrigger -- spawns/detects mobs by name+type+world, safe spawn, beg mechanic
+- GenericStructureInteractTrigger
+- GenericEntityProximityTrigger
+- GenericItemDiscoveryTrigger
+
+**Objectives** (track progress):
+- GenericKillObjective, GenericReachObjective, GenericEscortObjective
+- GenericEncounterObjective, GenericInteractObjective, GenericDiscoverObjective
+- GenericCollectObjective
 
 ### Integration Architecture
 
 RVNKQuests supports multiple integration patterns:
 
-1. **Standalone Mode**: Complete local functionality with SQLite storage
+1. **Standalone Mode**: Complete local functionality with YAML fallback storage
 2. **RVNKCore Integration**: Shared services and cross-plugin data access
 3. **Ecosystem Integration**: Full RVNK plugin ecosystem coordination
 
@@ -265,9 +310,9 @@ RVNKQuests supports multiple integration patterns:
 
 ### Requirements
 
-- **Minecraft Server**: Bukkit/Spigot/Paper 1.17+
-- **Java**: Java 8 or higher
-- **Optional**: RVNKCore for enhanced features and cross-plugin integration
+- **Minecraft Server**: Bukkit/Spigot/Paper 1.20+
+- **Java**: Java 21 or higher
+- **Optional**: RVNKCore 1.3.0+ for enhanced features and cross-plugin integration
 
 ### Basic Installation
 
@@ -291,31 +336,37 @@ For enhanced features and cross-plugin integration:
 
 ```yaml
 general:
-  logLevel: INFO              # Logging level: OFF, SEVERE, WARNING, INFO, DEBUG
+  logLevel: WARNING           # OFF, SEVERE, WARNING, INFO, DEBUG, FINE
 
 quests:
+  announce_completion: true
+  default_world: event        # Used by seeded quest definitions
   piglin_far_from_home:
-    world: world               # Target world for quest
-    enable: true              # Enable/disable this quest
-  
+    enable: true
   ancient_guardian:
-    enable: true              # Enable/disable this quest
+    enable: true
+  ashen_pilgrim:
+    enable: true
 
-storage:
-  type: sqlite               # Storage type: sqlite, mysql, or rvnkcore
-  sqlite:
-    database: quests.db      # SQLite database file
-  mysql:                     # MySQL configuration (when type: mysql)
+database:
+  type: mysql                 # yaml | sqlite | mysql
+  autosave_interval: 300
+  mysql:
     host: localhost
     port: 3306
     username: questuser
-    password: password
+    password: ''
     database: rvnkquests
-    tablePrefix: quest_
+    useSSL: true
+    tablePrefix: ""
+  fallback:
+    enabled: true
+    consecutive_failures: 3
+    recovery_minutes: 5
 
-lore:
-  enabled: true              # Enable lore database integration
-  storage: local             # Local storage or rvnkcore integration
+mob_detection:
+  name_type_matching: true    # Detect pre-existing mobs by name+type+world
+  scan_interval_ms: 1000      # Scan throttle for entity scanning on move events
 ```
 
 ### RVNKCore Integration Configuration
@@ -413,13 +464,22 @@ A classic dungeon crawl scenario featuring a ghostly NPC and hidden treasure.
 
 | Command                                | Description                     | Permission                  |
 |----------------------------------------|---------------------------------|-----------------------------|
-| `/quest item <item_name>`              | Get a quest item               | `rvnkquests.command.item`   |
-| `/quest trigger <quest_id> [here|around]` | Trigger a quest                | `rvnkquests.command.trigger`|
-| `/quest state <quest_id> <state>`      | Change a quest's state         | `rvnkquests.command.state`  |
-| `/quest reload`                        | Reload plugin configuration    | `rvnkquests.command.reload` |
 | `/quest list`                          | List all available quests      | `rvnkquests.command.list`   |
-| `/quest info <quest_id>`               | Show detailed quest information| `rvnkquests.command.info`   |
+| `/quest start <quest_id>`              | Start a quest                  | `rvnkquests.command.start`  |
+| `/quest abandon <quest_id>`            | Abandon an active quest        | `rvnkquests.command.abandon`|
+| `/quest complete <quest_id>`           | Force-complete a quest (admin) | `rvnkquests.command.complete`|
+| `/quest state <quest_id> <state>`      | Change a quest's state         | `rvnkquests.command.state`  |
+| `/quest progress <quest_id> [player]`  | View quest progress            | `rvnkquests.command.progress`|
+| `/quest journal [list\|view\|remove]`  | Quest journal operations       | `rvnkquests.command.journal`|
+| `/quest mobs [list\|kill]`             | List/kill active quest mobs    | `rvnkquests.command.mobs`   |
+| `/quest trigger <quest_id> [here\|around]` | Trigger a quest            | `rvnkquests.command.trigger`|
+| `/quest validate`                      | Validate quest configurations  | `rvnkquests.command.validate`|
+| `/quest menu`                          | Open quest browser GUI         | `rvnkquests.command.menu`   |
+| `/quest leaderboard`                   | View quest leaderboards        | `rvnkquests.command.leaderboard`|
+| `/quest config`                        | View/edit quest config         | `rvnkquests.command.config` |
+| `/quest reload`                        | Reload plugin configuration    | `rvnkquests.command.reload` |
 | `/quest reset <quest_id> [player]`     | Reset quest progress           | `rvnkquests.command.reset`  |
+| `/quest seed`                          | Seed quest definitions from DB | `rvnkquests.command.seed`   |
 
 ## Configuration
 
@@ -427,14 +487,25 @@ A classic dungeon crawl scenario featuring a ghostly NPC and hidden treasure.
 
 ```yaml
 general:
-  logLevel: INFO
-  defaultQuestWorld: world
-  enableQuestParticles: true
-  questCooldownMinutes: 30
+  logLevel: WARNING   # OFF, SEVERE, WARNING, INFO, DEBUG, FINE
 
-storage:
-  type: sqlite
-  database: quests.db
+quests:
+  announce_completion: true
+  default_world: event
+
+database:
+  type: mysql         # yaml | sqlite | mysql
+  autosave_interval: 300
+  fallback:
+    enabled: true
+    consecutive_failures: 3
+    recovery_minutes: 5
+
+mob_detection:
+  # Detect pre-existing mobs by name+type+world for quest triggers
+  name_type_matching: true
+  # Scan throttle in ms (entity scanning on move events)
+  scan_interval_ms: 1000
 ```
 
 ### Quest-Specific Configuration
@@ -465,10 +536,9 @@ quests:
 
 ### Adding a New Quest
 
-1. **Create Quest Class**: Implement `Quest` or extend a base class like `AbstractQuest`.
-2. **Define States & Logic**: Outline triggers, objectives, and success/failure conditions.
-3. **Create Listeners**: Use custom or shared listeners to track relevant events.
-4. **Register & Configure**: In `QuestManager.initializeQuests()`, add your new quest, and configure it in `quests.yml`.
+**Data-Driven (preferred)**: Define quest in the database with QuestDefinitionSeeder. DataDrivenQuest reads `state_mapping` from QuestDTO metadata, and QuestComponentFactory wires generic trigger/objective components automatically. No new Java classes required.
+
+**Custom (for unique mechanics)**: Implement `Quest` or extend `AbstractQuest`, create custom listeners, and register in `QuestManager.initializeQuests()`.
 
 ### Building
 
@@ -481,7 +551,7 @@ The compiled JAR appears in `target/`.
 ## Requirements
 
 - Java 21+
-- Spigot/Paper 1.17+
+- Spigot/Paper 1.20+
 
 ## License
 

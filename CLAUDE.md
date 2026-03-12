@@ -25,7 +25,7 @@ mvn validate
 mvn dependency:tree
 ```
 
-**Output**: `target/RVNKQuests-1.0.12.jar`
+**Output**: `target/RVNKQuests-1.1.0.jar`
 
 **Current Status**: Active development — For plugin status and history, search Graph Memory: `search_nodes("RVNKQuests")`
 
@@ -74,11 +74,11 @@ org.fourz.RVNKQuests
 │   ├── QuestListSubCommand.java
 │   ├── QuestStateSubCommand.java
 │   ├── QuestSetStateSubCommand.java
-│   ├── QuestJournalSubCommand.java
+│   ├── QuestJournalSubCommand.java  # list/view/remove + console support
 │   ├── QuestLeaderboardSubCommand.java
 │   ├── QuestMenuSubCommand.java
 │   ├── QuestTriggerSubCommand.java
-│   ├── QuestMobsSubCommand.java
+│   ├── QuestMobsSubCommand.java     # list/kill — includes GenericMobSpawnTrigger mobs
 │   ├── QuestValidateSubCommand.java
 │   ├── QuestConfigSubCommand.java
 │   ├── QuestReloadSubCommand.java
@@ -92,19 +92,21 @@ org.fourz.RVNKQuests
 │   ├── IQuestRepository.java    # Quest definition repository interface
 │   ├── IQuestProgressRepository.java  # Player progress repository interface
 │   ├── QuestProgressYamlRepository.java  # YAML fallback implementation
+│   ├── QuestDefinitionSeeder.java  # Seeds data-driven quest definitions from DB
 │   ├── dto/
-│   │   ├── QuestDTO.java
+│   │   ├── QuestDTO.java            # Includes metadata map for state_mapping
 │   │   ├── QuestProgressDTO.java
 │   │   ├── ObjectiveDTO.java
 │   │   ├── EnhancedObjectiveDTO.java    # AND/OR/XOR objective logic
 │   │   ├── ObjectiveGroup.java
 │   │   ├── ObjectiveCondition.java
 │   │   ├── ObjectiveType.java
+│   │   ├── TriggerType.java            # Enum: MOB_SPAWN, STRUCTURE_INTERACT, ENTITY_PROXIMITY, ITEM_DISCOVERY
 │   │   ├── RewardDTO.java
 │   │   ├── RewardType.java
 │   │   ├── QuestChainDTO.java
 │   │   ├── QuestPrerequisite.java
-│   │   ├── JournalEntryDTO.java
+│   │   ├── JournalEntryDTO.java         # JournalAction enum (7 types), BIGINT epoch millis
 │   │   ├── QuestCategoryDTO.java
 │   │   ├── QuestTagDTO.java
 │   │   ├── LeaderboardEntryDTO.java
@@ -116,10 +118,12 @@ org.fourz.RVNKQuests
 │       ├── IPreferenceRepository.java
 │       ├── PreferenceRepositoryImpl.java
 │       ├── IJournalRepository.java
-│       ├── JournalRepositoryImpl.java
+│       ├── JournalRepositoryImpl.java   # quest_journal_entries table (MySQL BIGINT epoch millis)
 │       ├── ICategoryRepository.java
 │       ├── ITagRepository.java
 │       └── ILeaderboardRepository.java
+├── factory/
+│   └── QuestComponentFactory.java   # Creates listeners from ObjectiveType + metadata
 ├── service/
 │   ├── IQuestService.java            # Quest definitions and lifecycle
 │   ├── IQuestProgressService.java    # Player quest state and progress
@@ -127,7 +131,7 @@ org.fourz.RVNKQuests
 │   ├── IRewardService.java           # Reward delivery
 │   ├── IQuestChainService.java       # Quest chain management
 │   ├── IObjectiveService.java        # Objective management
-│   ├── IJournalService.java          # Quest history and statistics
+│   ├── IJournalService.java          # Quest history and statistics (7 JournalAction types)
 │   ├── IRepeatableQuestService.java  # Repeatability and cooldowns
 │   ├── INotificationService.java     # Quest notifications
 │   ├── IPlayerQuestService.java      # Player-facing quest operations
@@ -150,18 +154,34 @@ org.fourz.RVNKQuests
 │       ├── QuestUnlockRewardProcessor.java
 │       └── CustomRewardProcessor.java
 ├── quest/
+│   ├── Quest.java               # Quest interface
+│   ├── AbstractQuest.java       # Base class with per-player stateCache (ConcurrentHashMap)
+│   ├── DataDrivenQuest.java     # Extends AbstractQuest, reads state_mapping from QuestDTO metadata
 │   ├── QuestManager.java        # Quest registration, state tracking, event handling
 │   ├── QuestState.java          # State enum (6 states)
-│   └── QuestPiglinFarFromHome.java  # Example quest implementation
+│   └── QuestPiglinFarFromHome.java  # Legacy hardcoded quest implementation
 ├── objective/
 │   ├── ListenerLonePiglin.java
 │   ├── ListenerPreventMobInfighting.java
 │   ├── ListenerPreventPortalUse.java
-│   └── ListenerQuestBookPlacer.java
+│   ├── ListenerQuestBookPlacer.java
+│   └── generic/                     # Generic objective components (data-driven)
+│       ├── GenericKillObjective.java
+│       ├── GenericReachObjective.java
+│       ├── GenericEscortObjective.java
+│       ├── GenericEncounterObjective.java
+│       ├── GenericInteractObjective.java
+│       ├── GenericDiscoverObjective.java
+│       └── GenericCollectObjective.java
 ├── trigger/
-│   └── ListenerQuestPillarStart.java
+│   ├── ListenerQuestPillarStart.java
+│   └── generic/                     # Generic trigger components (data-driven)
+│       ├── GenericMobSpawnTrigger.java       # Name+type+world mob detection, safe spawn, beg mechanic
+│       ├── GenericStructureInteractTrigger.java
+│       ├── GenericEntityProximityTrigger.java
+│       └── GenericItemDiscoveryTrigger.java
 ├── event/
-│   └── PlayerJoinQuitListener.java  # Progress load/save on join/quit
+│   └── PlayerJoinQuitListener.java  # Progress load/save, stateCache preload/evict on join/quit
 ├── ui/
 │   ├── QuestMenuManager.java        # Inventory GUI for quest browsing
 │   ├── QuestDetailMenu.java         # Quest detail view
@@ -205,6 +225,11 @@ org.fourz.RVNKQuests
 **Subcommand Pattern**: RVNKCommand dispatches to Quest*SubCommand implementations
 **Quest State Machine**: 6-state lifecycle (see below)
 **Fallback Pattern**: MySQL primary with YAML fallback via QuestProgressYamlRepository (not SQLite)
+**Generic Quest Engine**: DataDrivenQuest extends AbstractQuest, reads `state_mapping` from QuestDTO metadata; QuestComponentFactory creates trigger/objective listeners from ObjectiveType + metadata; QuestDefinitionSeeder seeds quest definitions from database
+**Per-Player State Cache**: AbstractQuest.stateCache (ConcurrentHashMap) with `preloadStateForPlayer()` on join, `evictStateForPlayer()` on quit, async DB load with NOT_STARTED default
+**Mob Detection**: GenericMobSpawnTrigger scans for existing mobs by entity_type + custom_name + world; supports restart recovery and admin-placed mob adoption; config: `mob_detection.name_type_matching`, `mob_detection.scan_interval_ms`
+**Safe Spawn**: `world.getHighestBlockYAt(spawnLoc) + 1` prevents mob suffocation in GenericMobSpawnTrigger
+**Beg Mechanic**: `beg_on_attack` config with hit counting, knockback, and `beg_message` for quest mobs
 
 ### Quest State Machine
 
@@ -251,6 +276,22 @@ Tracker:   FallbackTracker (from RVNKCore) monitors failure count and recovery
 ```
 
 Note: RVNKQuests uses YAML as its fallback, not SQLite like some sibling plugins.
+
+### Journal System
+
+```
+IJournalService → JournalRepositoryImpl → quest_journal_entries (MySQL, BIGINT epoch millis)
+```
+
+**JournalAction types** (JournalEntryDTO enum): `STARTED`, `COMPLETED`, `ABANDONED`, `OBJECTIVE_COMPLETE`, `FAILED`, `PATH_CHOSEN`, `REWARD_CLAIMED`
+
+All 7 action types are wired into quest lifecycle events. `QuestJournalSubCommand` supports `list`, `view`, `remove` subcommands with console support.
+
+### Performance
+
+- 82 unit tests passing (QuestPerformanceTest suite)
+- Quest lookup avg 86ns (target: <1ms)
+- Concurrent lookup avg 1293ns
 
 ### RVNKLore Soft Integration
 
