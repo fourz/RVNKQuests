@@ -74,6 +74,12 @@ storage:
   sqlite:
     database: data.db
 
+mob_detection:
+  # Detect pre-existing mobs by name+type+world for quest triggers
+  name_type_matching: true
+  # Scan throttle in ms (entity scanning on move events)
+  scan_interval_ms: 1000
+
 messages:
   generic:
     error:

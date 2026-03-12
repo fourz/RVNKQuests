@@ -355,21 +355,8 @@ public class RVNKQuests extends JavaPlugin {
      * @param level The new logging level to apply
      */
     public void updateGlobalLogLevel(Level level) {
-        logger.debug("Updating global log level to: " + level.getName());
-        logger.setLogLevel(level);
-
-        // Update log level for all managers
-        if (configManager != null) {
-            configManager.updateDebugLevel(level);
-        }
-
-        if (questManager != null) {
-            questManager.updateDebugLevel(level);
-        }
-
-        if (loreDatabase != null) {
-            loreDatabase.updateDebugLevel(level);
-        }
+        // Set plugin-wide log level for all existing and future LogManager instances
+        LogManager.setPluginLogLevel(this, level);
     }
 
     // ==================== RVNKCore Integration ====================

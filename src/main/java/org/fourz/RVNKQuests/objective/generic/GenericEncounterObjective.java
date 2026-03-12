@@ -6,6 +6,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.PiglinAbstract;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -152,6 +153,11 @@ public class GenericEncounterObjective implements Listener {
                     living.setCustomNameVisible(true);
                 }
                 living.setRemoveWhenFarAway(false);
+
+                // Prevent piglins from zombifying in the overworld
+                if (living instanceof PiglinAbstract piglin) {
+                    piglin.setImmuneToZombification(true);
+                }
             }
             mob.setMetadata(QUEST_MOB_METADATA, new FixedMetadataValue(plugin, quest.getId()));
             mobs.add(mob);

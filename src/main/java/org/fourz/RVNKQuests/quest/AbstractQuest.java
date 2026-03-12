@@ -91,6 +91,11 @@ public abstract class AbstractQuest implements Quest {
         return QuestState.NOT_STARTED;
     }
 
+    @Override
+    public boolean isStateCached(Player player) {
+        return player != null && stateCache.containsKey(player.getUniqueId());
+    }
+
     /**
      * Preloads the state cache for a player from the database (async).
      * Call on player join to ensure move-based handlers have immediate state access.

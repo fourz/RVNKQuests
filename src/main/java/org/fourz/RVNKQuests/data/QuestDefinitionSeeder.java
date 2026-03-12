@@ -105,6 +105,11 @@ public class QuestDefinitionSeeder {
         triggerPiglinSpawn.put("world", world);
         triggerPiglinSpawn.put("radius", 50);
         triggerPiglinSpawn.put("context_key", "spawned_piglin");
+        triggerPiglinSpawn.put("interact_book", "grotsnouts_journal");
+        triggerPiglinSpawn.put("beg_on_attack", true);
+        triggerPiglinSpawn.put("beg_message", "OI! Don't 'it me! I ain't da enemy 'ere! Read me book first, ya git!");
+        triggerPiglinSpawn.put("beg_count", 1);
+        triggerPiglinSpawn.put("detect_existing", true);
 
         Map<String, Object> objPiglinDeath = new LinkedHashMap<>();
         objPiglinDeath.put("objective_type", "KILL");
