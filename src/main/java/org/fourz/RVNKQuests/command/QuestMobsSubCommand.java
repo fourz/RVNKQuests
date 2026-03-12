@@ -8,6 +8,7 @@ import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.objective.generic.GenericEncounterObjective;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.RVNKQuests.trigger.generic.GenericMobSpawnTrigger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 /**
  * Handles the /quest mobs command to manage quest mobs.
- * Scans GenericEncounterObjective listeners for tracked mobs.
+ * Scans GenericEncounterObjective and GenericMobSpawnTrigger listeners for tracked mobs.
  */
 public class QuestMobsSubCommand extends BaseSubCommand {
     private final List<String> VALID_OPERATIONS = Arrays.asList("kill", "list");
@@ -81,6 +82,15 @@ public class QuestMobsSubCommand extends BaseSubCommand {
                     }
                 }
             }
+            for (GenericMobSpawnTrigger trigger : findMobSpawnTriggers(quest)) {
+                Entity mob = trigger.getSpawnedEntity();
+                if (mob != null && mob.isValid()) {
+                    logger.debug("Removing trigger mob: " +
+                        (mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString()));
+                    mob.remove();
+                    killedCount++;
+                }
+            }
         }
 
         if (killedCount > 0) {
@@ -115,6 +125,19 @@ public class QuestMobsSubCommand extends BaseSubCommand {
                     }
                 }
             }
+            for (GenericMobSpawnTrigger trigger : findMobSpawnTriggers(quest)) {
+                Entity mob = trigger.getSpawnedEntity();
+                if (mob != null && mob.isValid()) {
+                    String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
+                    sender.sendMessage(ChatColor.YELLOW + "Quest: " +
+                        ChatColor.WHITE + quest.getName() +
+                        ChatColor.GRAY + " (trigger mob)");
+                    sender.sendMessage(ChatColor.GRAY + " - " +
+                        ChatColor.WHITE + mobName +
+                        ChatColor.GRAY + " at " + formatLocation(mob.getLocation()));
+                    totalCount++;
+                }
+            }
         }
 
         if (totalCount == 0) {
@@ -135,6 +158,21 @@ public class QuestMobsSubCommand extends BaseSubCommand {
             for (Listener listener : quest.createListenersForState(state)) {
                 if (listener instanceof GenericEncounterObjective geo) {
                     result.add(geo);
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Finds all GenericMobSpawnTrigger listeners across all states of a quest.
+     */
+    private List<GenericMobSpawnTrigger> findMobSpawnTriggers(Quest quest) {
+        List<GenericMobSpawnTrigger> result = new ArrayList<>();
+        for (QuestState state : QuestState.values()) {
+            for (Listener listener : quest.createListenersForState(state)) {
+                if (listener instanceof GenericMobSpawnTrigger trigger) {
+                    result.add(trigger);
                 }
             }
         }
