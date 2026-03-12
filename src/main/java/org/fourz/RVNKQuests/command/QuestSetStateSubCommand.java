@@ -6,8 +6,6 @@ import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.service.IQuestService;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -89,8 +87,7 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
         }
 
         // Validate quest exists
-        IQuestService questService = plugin.getQuestManager();
-        Quest quest = questService.getQuest(questId).orElse(null);
+        Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
         if (quest == null) {
             sendErrorMessage(sender, "Unknown quest: " + questId);
             sendInfoMessage(sender, "Available quests: " + String.join(", ", plugin.getQuestManager().getQuestIds()));
@@ -107,22 +104,20 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
         // Display warning about debug command
         sendMessage(sender, "&e⚠ Debug command - bypassing normal state transitions");
 
-        // Get current state for logging, then set new state
-        questService.getPlayerQuestState(playerId, questId)
-            .thenCompose(currentState -> {
-                logger.info("ADMIN DEBUG STATE CHANGE: " + adminName + " setting quest '" + questId +
-                           "' for " + playerName + " from " + currentState + " to " + targetState);
+        // Get current state for logging, then set new state via quest object
+        // (updates stateCache + DB + journal + listeners in one call)
+        QuestState previousState = quest.getStateForPlayer(targetPlayer);
 
-                // Set the state directly (bypassing validation)
-                return questService.updatePlayerQuestState(playerId, questId, targetState)
-                        .thenApply(v -> currentState);
-            })
-            .thenAccept(previousState -> {
+        logger.info("ADMIN DEBUG STATE CHANGE: " + adminName + " setting quest '" + questId +
+                   "' for " + playerName + " from " + previousState + " to " + targetState);
+
+        quest.advanceStateForPlayer(playerId, targetState)
+            .thenRun(() -> {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     sendSuccessMessage(sender, "Set quest '" + quest.getName() + "' state for " + playerName);
                     sendMessage(sender, "&7   Previous state: &e" + previousState);
                     sendMessage(sender, "&7   New state: &a" + targetState);
-                    sendMessage(sender, "&7   &oNo events/rewards triggered");
+                    sendMessage(sender, "&7   &oJournal entry recorded (no rewards triggered)");
 
                     // Notify target player if different from sender
                     if (!sender.equals(targetPlayer)) {

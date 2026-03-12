@@ -38,6 +38,13 @@ public class ProgressSubCommand extends BaseSubCommand {
 
         String questId = args[0].toLowerCase();
 
+        // Validate quest exists FIRST — so invalid IDs are reported even from console
+        Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
+        if (quest == null) {
+            sendErrorMessage(sender, "Unknown quest: " + questId);
+            return true;
+        }
+
         // Determine target player
         Player targetPlayer;
         if (args.length >= 2) {
@@ -57,13 +64,6 @@ public class ProgressSubCommand extends BaseSubCommand {
         }
 
         logger.debug("Checking quest progress for " + questId + " (player: " + targetPlayer.getName() + ")");
-
-        // Validate quest exists
-        Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
-        if (quest == null) {
-            sendErrorMessage(sender, "Unknown quest: " + questId);
-            return true;
-        }
 
         // Get progress service
         IQuestProgressService progressService = plugin.getQuestProgressService();

@@ -72,8 +72,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
             .getInt("database.autosave_interval", 300);
         this.autosaveScheduler = Executors.newSingleThreadScheduledExecutor();
         startAutosave();
-
-        logger.info("QuestProgressService initialized");
     }
 
     /**
@@ -213,6 +211,12 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
                 // Update cache
                 progressCache.computeIfAbsent(playerUuid, k -> new ConcurrentHashMap<>())
                     .put(questId, updated);
+
+                // Record journal entry
+                IJournalService journal = plugin.getJournalService();
+                if (journal != null && journal.isAvailable()) {
+                    journal.recordPathChoice(playerUuid, questId, pathChoice);
+                }
 
                 // Save to repository
                 return getActiveRepo().saveProgress(updated).thenApply(success -> updated);
@@ -408,8 +412,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
     @Override
     public void shutdown() {
-        logger.info("Shutting down QuestProgressService");
-
         // Stop autosave
         autosaveScheduler.shutdown();
         try {
@@ -420,8 +422,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
         // Final flush
         flush().join();
-
-        logger.info("QuestProgressService shutdown complete");
     }
 
     private void startAutosave() {

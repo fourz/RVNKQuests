@@ -40,6 +40,15 @@ public class QuestStartSubCommand extends BaseSubCommand {
 
         String questId = args[0].toLowerCase();
 
+        // Validate quest exists FIRST — so invalid IDs are reported even from console
+        IQuestService questService = plugin.getQuestManager();
+        Quest quest = questService.getQuest(questId).orElse(null);
+        if (quest == null) {
+            sendErrorMessage(sender, "Unknown quest: " + questId);
+            sendInfoMessage(sender, "Available quests: " + String.join(", ", plugin.getQuestManager().getQuestIds()));
+            return true;
+        }
+
         // Determine target player
         Player targetPlayer;
         if (args.length >= 2) {
@@ -55,15 +64,6 @@ public class QuestStartSubCommand extends BaseSubCommand {
         } else {
             // Console must specify a player
             sendErrorMessage(sender, "Console must specify a player: /quest start <quest_id> <player>");
-            return true;
-        }
-
-        // Validate quest exists
-        IQuestService questService = plugin.getQuestManager();
-        Quest quest = questService.getQuest(questId).orElse(null);
-        if (quest == null) {
-            sendErrorMessage(sender, "Unknown quest: " + questId);
-            sendInfoMessage(sender, "Available quests: " + String.join(", ", plugin.getQuestManager().getQuestIds()));
             return true;
         }
 
@@ -102,7 +102,7 @@ public class QuestStartSubCommand extends BaseSubCommand {
                         sendSuccessMessage(targetPlayer, "Quest started: " + quest.getName());
                     }
                     
-                    logger.info("Quest '" + questId + "' started for player: " + playerName + " (by: " + sender.getName() + ")");
+                    logger.debug("Quest '" + questId + "' started for player: " + playerName + " (by: " + sender.getName() + ")");
                 });
             })
             .exceptionally(ex -> {

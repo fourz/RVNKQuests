@@ -53,8 +53,6 @@ public class RepeatableQuestServiceImpl implements IRepeatableQuestService {
         this.databaseManager = databaseManager;
         this.questProgressService = questProgressService;
         this.tblRepeatConfig = databaseManager.table("quest_repeat_config");
-
-        logger.info("RepeatableQuestService initialized");
     }
 
     // ==================== Configuration Management ====================
@@ -405,7 +403,6 @@ public class RepeatableQuestServiceImpl implements IRepeatableQuestService {
 
     @Override
     public void shutdown() {
-        logger.info("Shutting down RepeatableQuestService");
         configCache.clear();
         playerCache.clear();
     }

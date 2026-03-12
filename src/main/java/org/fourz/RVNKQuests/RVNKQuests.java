@@ -5,6 +5,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.data.DatabaseManager;
+import org.fourz.RVNKQuests.data.IQuestRepository;
+import org.fourz.RVNKQuests.data.QuestDefinitionSeeder;
+import org.fourz.RVNKQuests.data.QuestRepositoryImpl;
+import org.fourz.RVNKQuests.data.QuestYamlRepository;
 import org.fourz.rvnkcore.data.FallbackTracker;
 import org.fourz.RVNKQuests.data.repository.IPreferenceRepository;
 import org.fourz.RVNKQuests.data.repository.PreferenceRepositoryImpl;
@@ -64,6 +68,7 @@ public class RVNKQuests extends JavaPlugin {
     // Database and persistence
     private FallbackTracker fallbackTracker;
     private DatabaseManager databaseManager;
+    private IQuestRepository questRepository;
     private IQuestProgressService questProgressService;
     private IPreferenceRepository preferenceRepository;
 
@@ -112,14 +117,20 @@ public class RVNKQuests extends JavaPlugin {
                 logger.warning("Database initialization failed - using YAML fallback");
             }
 
+            // Initialize quest definition repository (SQL primary, YAML fallback)
+            if (databaseManager.isAvailable()) {
+                questRepository = new QuestRepositoryImpl(this, databaseManager);
+                logger.info("Quest definition repository initialized (SQL)");
+            } else {
+                questRepository = new QuestYamlRepository(this);
+                logger.info("Quest definition repository initialized (YAML fallback)");
+            }
+
             // Initialize quest progress service
             questProgressService = new QuestProgressServiceImpl(this, databaseManager);
-            logger.info("Quest persistence service initialized (fallback mode: " +
-                questProgressService.isInFallbackMode() + ")");
 
             // Initialize preference repository
             preferenceRepository = new PreferenceRepositoryImpl(this, databaseManager);
-            logger.info("Preference repository initialized");
 
             // Initialize managers in correct dependency order
             questManager = new QuestManager(this);
@@ -128,40 +139,27 @@ public class RVNKQuests extends JavaPlugin {
 
             // Initialize service layer
             rewardService = new RewardServiceImpl(this);
-            logger.info("Reward service initialized");
-
             questChainService = new QuestChainServiceImpl(this, questProgressService, rewardService);
-            logger.info("Quest chain service initialized");
-
             objectiveService = new ObjectiveServiceImpl(this);
-            logger.info("Objective service initialized");
-
             journalService = new JournalServiceImpl(this);
-            logger.info("Journal service initialized");
-
             notificationService = new NotificationServiceImpl(this);
-            logger.info("Notification service initialized");
-
-            // Initialize repeatable quest service (feat-31)
             repeatableQuestService = new RepeatableQuestServiceImpl(this, databaseManager, questProgressService);
-            logger.info("Repeatable quest service initialized");
 
             // Register player join/quit listener for progress loading/saving
             getServer().getPluginManager().registerEvents(new PlayerJoinQuitListener(this), this);
 
             // Register quest menu listener for GUI interactions (feat-24)
             getServer().getPluginManager().registerEvents(new QuestMenuListener(this), this);
-            logger.info("Quest menu listener registered");
 
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
                 loreDatabase = new LoreDatabase(this, databaseManager);
-                logger.info("Lore database initialized");
-            } else {
-                logger.info("Lore database disabled in config");
             }
 
-            // Register quests
+            // Seed default quest definitions on first run
+            new QuestDefinitionSeeder(this).seedIfNeeded();
+
+            // Register quests (loads from repository + hardcoded fallbacks)
             questManager.initializeQuests();
 
             // Initialize lore integration and pre-populate quest books from lore DB
@@ -252,6 +250,14 @@ public class RVNKQuests extends JavaPlugin {
      */
     public DatabaseManager getDatabaseManager() {
         return databaseManager;
+    }
+
+    /**
+     * Gets the quest definition repository.
+     * @return The quest repository (SQL or YAML fallback)
+     */
+    public IQuestRepository getQuestRepository() {
+        return questRepository;
     }
 
     /**
@@ -349,21 +355,8 @@ public class RVNKQuests extends JavaPlugin {
      * @param level The new logging level to apply
      */
     public void updateGlobalLogLevel(Level level) {
-        logger.info("Updating global log level to: " + level.getName());
-        logger.setLogLevel(level);
-
-        // Update log level for all managers
-        if (configManager != null) {
-            configManager.updateDebugLevel(level);
-        }
-
-        if (questManager != null) {
-            questManager.updateDebugLevel(level);
-        }
-
-        if (loreDatabase != null) {
-            loreDatabase.updateDebugLevel(level);
-        }
+        // Set plugin-wide log level for all existing and future LogManager instances
+        LogManager.setPluginLogLevel(this, level);
     }
 
     // ==================== RVNKCore Integration ====================
@@ -407,41 +400,19 @@ public class RVNKQuests extends JavaPlugin {
             Class<?> registryClass = serviceRegistry.getClass();
             java.lang.reflect.Method registerMethod = registryClass.getMethod("registerService", Class.class, Object.class);
 
-            // Register IQuestService (quest definitions and lifecycle)
+            // Register all services with RVNKCore ServiceRegistry
             registerMethod.invoke(serviceRegistry, IQuestService.class, questManager);
-            logger.info("Registered IQuestService with RVNKCore");
-
-            // Register IQuestProgressService (player quest state and progress)
             registerMethod.invoke(serviceRegistry, IQuestProgressService.class, questProgressService);
-            logger.info("Registered IQuestProgressService with RVNKCore");
-
-            // Register IQuestDatabaseService (database access)
             registerMethod.invoke(serviceRegistry, IQuestDatabaseService.class, databaseManager);
-            logger.info("Registered IQuestDatabaseService with RVNKCore");
-
-            // Register IRewardService (reward delivery)
             registerMethod.invoke(serviceRegistry, IRewardService.class, rewardService);
-            logger.info("Registered IRewardService with RVNKCore");
-
-            // Register IQuestChainService (chain management)
             registerMethod.invoke(serviceRegistry, IQuestChainService.class, questChainService);
-            logger.info("Registered IQuestChainService with RVNKCore");
-
-            // Register IObjectiveService (objective management)
             registerMethod.invoke(serviceRegistry, IObjectiveService.class, objectiveService);
-            logger.info("Registered IObjectiveService with RVNKCore");
-
-            // Register IJournalService (quest history and statistics)
             registerMethod.invoke(serviceRegistry, IJournalService.class, journalService);
-            logger.info("Registered IJournalService with RVNKCore");
-
-            // Register IRepeatableQuestService (repeatability and cooldowns)
             registerMethod.invoke(serviceRegistry, IRepeatableQuestService.class, repeatableQuestService);
-            logger.info("Registered IRepeatableQuestService with RVNKCore");
 
             rvnkCoreAvailable = true;
             rvnkCoreInstance = coreInstance;
-            logger.info("RVNKCore integration enabled - services registered");
+            logger.info("RVNKCore integration enabled — 8 services registered");
 
             // Register notification types with PlayerPreferencesService
             registerNotificationTypes();

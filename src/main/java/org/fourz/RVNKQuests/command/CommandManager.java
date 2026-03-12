@@ -39,12 +39,8 @@ public class CommandManager {
      * This should be called during plugin initialization to set up all commands.
      */
     public void initializeCommands() {
-        logger.info("Initializing RVNKQuests commands...");
-
         // Register main quest command
         registerCommand(new QuestCommand(plugin));
-
-        logger.info("Command initialization complete!");
     }
     
     /**
@@ -104,7 +100,7 @@ public class CommandManager {
         
         // Store in our registry
         commands.put(name, command);
-        logger.info("Registered command: /" + name);
+        logger.debug("Registered command: /" + name);
         
         return true;
     }
@@ -126,7 +122,7 @@ public class CommandManager {
         }
         
         parentCommand.registerSubCommand(subCommandName, subCommand);
-        logger.info("Registered subcommand: " + parentCommandName + " -> " + subCommandName);
+        logger.debug("Registered subcommand: " + parentCommandName + " -> " + subCommandName);
         return true;
     }
     
@@ -152,7 +148,7 @@ public class CommandManager {
             pluginCommand.setTabCompleter(null);
         }
         
-        logger.info("Unregistered command: /" + name);
+        logger.debug("Unregistered command: /" + name);
         return true;
     }
     
@@ -281,7 +277,6 @@ public class CommandManager {
      * This should be called during plugin startup.
      */
     public void initialize() {
-        logger.info("Initializing CommandManager...");
         initializeCommands();
         logger.info("CommandManager initialized with " + commands.size() + " commands");
     }
@@ -291,14 +286,11 @@ public class CommandManager {
      * This should be called during plugin shutdown.
      */
     public void shutdown() {
-        logger.info("Shutting down CommandManager...");
-        
         // Unregister all commands
         for (String commandName : commands.keySet()) {
             unregisterCommand(commandName);
         }
-        
+
         aliases.clear();
-        logger.info("CommandManager shutdown complete");
     }
 }

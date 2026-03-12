@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.service.IQuestService;
@@ -43,13 +44,19 @@ public class QuestCompleteSubCommand extends BaseSubCommand {
     @Override
     protected boolean executeSubCommand(CommandSender sender, String[] args) {
         if (!validateArgs(sender, args, 1)) {
-            sendMessage(sender, "&c▶ Usage: &e/quest complete <quest_id> <player>");
-            sendMessage(sender, "&7   Force completes a quest, bypassing objectives");
-            sendMessage(sender, "&7   Grants ALL rewards immediately");
             return true;
         }
 
         String questId = args[0].toLowerCase();
+
+        // Validate quest exists FIRST — so invalid IDs are reported even from console
+        IQuestService questService = plugin.getQuestManager();
+        Quest quest = questService.getQuest(questId).orElse(null);
+        if (quest == null) {
+            sendErrorMessage(sender, "Unknown quest: " + questId);
+            sendInfoMessage(sender, "Available quests: " + String.join(", ", plugin.getQuestManager().getQuestIds()));
+            return true;
+        }
 
         // Determine target player - MUST be specified for admin commands
         Player targetPlayer;
@@ -65,15 +72,6 @@ public class QuestCompleteSubCommand extends BaseSubCommand {
         } else {
             // Console must specify a player
             sendErrorMessage(sender, "Console must specify a player: /quest complete <quest_id> <player>");
-            return true;
-        }
-
-        // Validate quest exists
-        IQuestService questService = plugin.getQuestManager();
-        Quest quest = questService.getQuest(questId).orElse(null);
-        if (quest == null) {
-            sendErrorMessage(sender, "Unknown quest: " + questId);
-            sendInfoMessage(sender, "Available quests: " + String.join(", ", plugin.getQuestManager().getQuestIds()));
             return true;
         }
 
@@ -101,7 +99,11 @@ public class QuestCompleteSubCommand extends BaseSubCommand {
                     if (success) {
                         sendSuccessMessage(sender, "Force completed quest '" + quest.getName() + "' for " + playerName);
                         sendMessage(sender, "&7   All objectives bypassed");
-                        sendMessage(sender, "&7   Rewards granted");
+                        if (quest instanceof DataDrivenQuest ddq && !ddq.getDefinition().rewards().isEmpty()) {
+                            sendMessage(sender, "&7   Rewards granted (" + ddq.getDefinition().rewards().size() + " reward(s))");
+                        } else if (!(quest instanceof DataDrivenQuest)) {
+                            sendMessage(sender, "&7   Rewards granted (if configured)");
+                        }
 
                         // Notify target player if different from sender
                         if (!sender.equals(targetPlayer)) {

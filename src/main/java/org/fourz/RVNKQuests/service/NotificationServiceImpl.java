@@ -55,7 +55,6 @@ public class NotificationServiceImpl implements INotificationService {
         this.logger = LogManager.getInstance(plugin, getClass());
         this.prefsLookup = new PreferencesServiceLookup(plugin);
         initializeDefaultCooldowns();
-        logger.info("NotificationService initialized");
     }
 
     private void initializeDefaultCooldowns() {
@@ -523,8 +522,6 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void shutdown() {
-        logger.info("Shutting down NotificationService");
-
         // Remove all boss bars
         for (Map.Entry<UUID, BossBar> entry : playerBossBars.entrySet()) {
             BossBar bar = entry.getValue();
@@ -535,7 +532,5 @@ public class NotificationServiceImpl implements INotificationService {
 
         // Clear cooldown tracking
         cooldownTracker.clear();
-
-        logger.info("NotificationService shutdown complete");
     }
 }

@@ -54,7 +54,13 @@ public class QuestItem {
     public static void populateFromLoreAsync(String key, String title, String desc) {
         if (loreIntegration == null || !loreIntegration.isLoreAvailable()) return;
         loreIntegration.getOrCreateQuestBook(key, title, desc)
-                .thenAccept(opt -> opt.ifPresent(book -> questItems.put(key, book)));
+                .thenAccept(opt -> opt.ifPresent(book -> {
+                    // Only replace hardcoded book if the lore DB version has real content
+                    // (auto-created stubs have 1 page; rich content has multiple)
+                    if (book.getItemMeta() instanceof BookMeta meta && meta.getPageCount() > 1) {
+                        questItems.put(key, book);
+                    }
+                }));
     }
 
     /**

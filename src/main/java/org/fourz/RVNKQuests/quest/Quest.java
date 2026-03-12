@@ -72,6 +72,16 @@ public interface Quest {
     QuestState getStateForPlayer(Player player);
 
     /**
+     * Checks whether the state cache has been populated for a player.
+     * Use before acting on NOT_STARTED from {@link #getStateForPlayer(Player)} —
+     * an uncached NOT_STARTED is a default, not a confirmed database state.
+     *
+     * @param player The player
+     * @return true if the player's state has been loaded from the database
+     */
+    boolean isStateCached(Player player);
+
+    /**
      * Returns the current state of the quest.
      * @deprecated Use {@link #getStateForPlayer(UUID)} for per-player state.
      *             This method exists for backwards compatibility and returns

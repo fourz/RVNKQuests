@@ -32,6 +32,13 @@ public class QuestStateSubCommand extends BaseSubCommand {
         String questId = args[0].toLowerCase();
         String stateStr = args[1].toUpperCase();
 
+        // Validate quest exists FIRST — so invalid IDs are reported even from console
+        Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
+        if (quest == null) {
+            sendErrorMessage(sender, "Unknown quest: " + questId);
+            return true;
+        }
+
         // Determine target player
         Player targetPlayer;
         if (args.length >= 3) {
@@ -51,12 +58,6 @@ public class QuestStateSubCommand extends BaseSubCommand {
         }
 
         logger.debug("Attempting to change quest state: " + stateStr + " for " + questId + " (player: " + targetPlayer.getName() + ")");
-
-        Quest quest = plugin.getQuestManager().getQuest(questId).orElse(null);
-        if (quest == null) {
-            sendErrorMessage(sender, "Unknown quest: " + questId);
-            return true;
-        }
 
         QuestState currentState = quest.getStateForPlayer(targetPlayer);
         QuestState newState;

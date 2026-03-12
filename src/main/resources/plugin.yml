@@ -13,30 +13,95 @@ commands:
     description: Main command for the RVNKQuests plugin
     usage: |
       §6=== RVNKQuests Commands ===
-      §e/quest menu [filter]§7 - Open quest GUI menu
-      §e/quest item <item_name>§7 - Get a quest item
-      §e/quest trigger <quest_id> [here|around]§7 - Trigger a quest
-      §e/quest state <quest_id> <state>§7 - Change quest state
-      §e/quest reload§7 - Reload plugin configuration
+      §e/quest list§7 - List available quests
+      §e/quest start <quest_id> [player]§7 - Start a quest
+      §e/quest progress <quest_id> [player]§7 - Check quest progress
+      §e/quest abandon <quest_id> [player]§7 - Abandon a quest
+      §e/quest journal [player]§7 - View quest journal
+      §e/quest menu [filter] [player]§7 - Open quest GUI menu
+      §e/quest leaderboard [type]§7 - View leaderboards
+      §e/quest prefs§7 - Notification preferences
       §7Use TAB for autocomplete
     aliases: [quests, q]
 
 permissions:
+  # Player commands
+  rvnkquests.command.quest:
+    description: Base permission for /quest command
+    default: true
+  rvnkquests.command.list:
+    description: List available quests
+    default: true
+  rvnkquests.command.menu:
+    description: Open quest GUI menu
+    default: true
+  rvnkquests.command.start:
+    description: Start a quest
+    default: true
+  rvnkquests.command.abandon:
+    description: Abandon an active quest
+    default: true
+  rvnkquests.command.progress:
+    description: Check quest progress
+    default: true
+  rvnkquests.command.journal:
+    description: View quest journal
+    default: true
+  rvnkquests.command.leaderboard:
+    description: View quest leaderboards
+    default: true
+  rvnkquests.prefs:
+    description: Manage quest notification preferences
+    default: true
+  rvnkquests.player:
+    description: General player quest access (alternative to individual permissions)
+    default: true
+
+  # Staff commands
   rvnkquests.command.item:
-    description: Allows players to get quest items
+    description: Get quest items
     default: op
   rvnkquests.command.state:
-    description: Allows players to change quest states
+    description: Change quest states
     default: op
   rvnkquests.command.trigger:
-    description: Allows players to trigger quests at specific locations
+    description: Trigger quests at specific locations
     default: op
-  rvnkquests.command.reload:
-    description: Allows players to reload the plugin configuration
-    default: op
-  rvnkquests.command.menu:
-    description: Allows players to open the quest GUI menu
-    default: true
   rvnkquests.menu.other:
-    description: Allows opening quest menu for other players
+    description: Open quest menu for other players
+    default: op
+  rvnkquests.journal.other:
+    description: View quest journal for other players
+    default: op
+
+  # Admin commands
+  rvnkquests.admin:
+    description: Admin access (debug, config, mobs, reload, validate)
+    default: op
+  rvnkquests.admin.complete:
+    description: Force complete quests for players
+    default: op
+  rvnkquests.admin.reset:
+    description: Reset quest progress for players
+    default: op
+  rvnkquests.admin.debug:
+    description: Debug setstate command
+    default: op
+  rvnkquests.admin.seed:
+    description: Seed quest data
+    default: op
+  rvnkquests.command.objective:
+    description: Edit individual objective progress
+    default: op
+  rvnkquests.admin.create:
+    description: Create quest definitions
+    default: op
+  rvnkquests.admin.edit:
+    description: Edit quest definitions, objectives, and rewards
+    default: op
+  rvnkquests.admin.export:
+    description: Export quest definitions to YAML
+    default: op
+  rvnkquests.admin.import:
+    description: Import quest definitions from YAML
     default: op

@@ -147,6 +147,7 @@ class QuestPerformanceTest {
         @Override public org.fourz.RVNKQuests.RVNKQuests getPlugin() { return null; }
         @Override public List<org.bukkit.event.Listener> createListenersForState(QuestState state) { return List.of(); }
         @Override public QuestState getStateForPlayer(org.bukkit.entity.Player player) { return QuestState.NOT_STARTED; }
+        @Override public boolean isStateCached(org.bukkit.entity.Player player) { return true; }
         @Override public java.util.concurrent.CompletableFuture<QuestState> getStateForPlayer(UUID uuid) { 
             return java.util.concurrent.CompletableFuture.completedFuture(QuestState.NOT_STARTED); 
         }

@@ -4,12 +4,15 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.event.QuestCompleteEvent;
+import org.fourz.RVNKQuests.service.IJournalService;
 import org.fourz.RVNKQuests.service.INotificationService;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 
 /**
@@ -18,14 +21,22 @@ import java.util.concurrent.CompletableFuture;
  * <p>Provides common functionality and enforces structure for all quest implementations.
  * Quest state is now tracked PER-PLAYER and persisted via the QuestProgressService.</p>
  *
- * <p>Migration note: The global {@code state} field has been removed. Use
- * {@link #getStateForPlayer(Player)} or {@link #getStateForPlayer(UUID)} instead.</p>
+ * <p>State lookups use a local in-memory cache to avoid blocking the main thread.
+ * The cache is eagerly updated on state transitions and lazily populated on first
+ * access via an async DB query. Event handlers (especially PlayerMoveEvent) will
+ * see NOT_STARTED for at most a few ticks until the async load completes.</p>
  */
 public abstract class AbstractQuest implements Quest {
     protected final RVNKQuests plugin;
     protected final String questId;
     protected final String name;
     protected final LogManager logger;
+
+    /**
+     * Local state cache — avoids blocking main thread on PlayerMoveEvent handlers.
+     * Eagerly updated by advanceStateForPlayer(); lazily populated on first read.
+     */
+    private final Map<UUID, QuestState> stateCache = new ConcurrentHashMap<>();
 
     /**
      * Creates a new quest with the specified ID and name.
@@ -66,13 +77,38 @@ public abstract class AbstractQuest implements Quest {
         if (player == null) {
             return QuestState.NOT_STARTED;
         }
-        try {
-            // Synchronous call for convenience - use async version when possible
-            return getStateForPlayer(player.getUniqueId()).join();
-        } catch (Exception e) {
-            logger.warning("Failed to get state for player " + player.getName() + ": " + e.getMessage());
-            return QuestState.NOT_STARTED;
+
+        UUID uuid = player.getUniqueId();
+        QuestState cached = stateCache.get(uuid);
+        if (cached != null) {
+            return cached;
         }
+
+        // Not cached yet — kick off async load and return NOT_STARTED for now.
+        // The cache will be populated within a few ticks; move-based handlers
+        // will re-check on the next event and pick up the loaded state.
+        getStateForPlayer(uuid).thenAccept(state -> stateCache.put(uuid, state));
+        return QuestState.NOT_STARTED;
+    }
+
+    @Override
+    public boolean isStateCached(Player player) {
+        return player != null && stateCache.containsKey(player.getUniqueId());
+    }
+
+    /**
+     * Preloads the state cache for a player from the database (async).
+     * Call on player join to ensure move-based handlers have immediate state access.
+     */
+    public void preloadStateForPlayer(UUID playerUuid) {
+        getStateForPlayer(playerUuid).thenAccept(state -> stateCache.put(playerUuid, state));
+    }
+
+    /**
+     * Evicts a player's cached state. Call on player quit to prevent memory leaks.
+     */
+    public void evictStateForPlayer(UUID playerUuid) {
+        stateCache.remove(playerUuid);
     }
 
     @Override
@@ -90,15 +126,45 @@ public abstract class AbstractQuest implements Quest {
             return CompletableFuture.completedFuture(null);
         }
 
+        // Eagerly update local cache so event handlers see the new state immediately
+        QuestState previousCached = stateCache.put(playerUuid, newState);
+
         return getStateForPlayer(playerUuid)
             .thenCompose(currentState -> {
                 logger.debug("Advancing state for " + playerUuid + " from " + currentState + " to " + newState);
-                return service.updateQuestState(playerUuid, questId, newState);
-            })
-            .thenAccept(progress -> {
-                // Update listeners if needed
-                plugin.getQuestManager().updateQuestListenersForPlayer(this, playerUuid);
+                return service.updateQuestState(playerUuid, questId, newState)
+                    .thenAccept(progress -> {
+                        // Record journal entry for the state transition
+                        recordStateTransitionJournal(playerUuid, currentState, newState);
+
+                        // Update listeners if needed
+                        plugin.getQuestManager().updateQuestListenersForPlayer(this, playerUuid);
+                    });
             });
+    }
+
+    /**
+     * Records a journal entry based on the quest state transition.
+     * This is the single recording point for ALL state changes — generic objectives,
+     * triggers, admin commands, and QuestManager methods all flow through here.
+     */
+    private void recordStateTransitionJournal(UUID playerUuid, QuestState fromState, QuestState toState) {
+        IJournalService journal = plugin.getJournalService();
+        if (journal == null || !journal.isAvailable()) return;
+
+        switch (toState) {
+            case QUEST_ACTIVE -> journal.recordQuestStart(playerUuid, questId);
+            case COMPLETED -> journal.recordQuestComplete(playerUuid, questId);
+            case NOT_STARTED -> {
+                // Only record abandon if transitioning FROM an active state
+                if (fromState != QuestState.NOT_STARTED) {
+                    journal.recordQuestAbandon(playerUuid, questId);
+                }
+            }
+            case ABANDONED -> journal.recordQuestAbandon(playerUuid, questId);
+            case TRIGGER_FOUND -> journal.recordObjectiveComplete(playerUuid, questId, "state:trigger_found");
+            case OBJECTIVE_FOUND -> journal.recordObjectiveComplete(playerUuid, questId, "state:objective_found");
+        }
     }
 
     @Override

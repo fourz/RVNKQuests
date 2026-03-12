@@ -3,9 +3,12 @@ package org.fourz.RVNKQuests.command;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
+import org.bukkit.event.Listener;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.objective.ListenerEncounterPortal;
+import org.fourz.RVNKQuests.objective.generic.GenericEncounterObjective;
 import org.fourz.RVNKQuests.quest.Quest;
+import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.RVNKQuests.trigger.generic.GenericMobSpawnTrigger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,13 +18,13 @@ import java.util.stream.Collectors;
 
 /**
  * Handles the /quest mobs command to manage quest mobs.
- * Extends BaseSubCommand to provide standardized subcommand functionality.
+ * Scans GenericEncounterObjective and GenericMobSpawnTrigger listeners for tracked mobs.
  */
 public class QuestMobsSubCommand extends BaseSubCommand {
     private final List<String> VALID_OPERATIONS = Arrays.asList("kill", "list");
 
     public QuestMobsSubCommand(RVNKQuests plugin) {
-        super(plugin, "mobs", "Manage quest mobs (kill, list)", 
+        super(plugin, "mobs", "Manage quest mobs (kill, list)",
               "/quest mobs <operation>", "rvnkquests.admin", false);
     }
 
@@ -31,9 +34,9 @@ public class QuestMobsSubCommand extends BaseSubCommand {
             sendErrorMessage(sender, "Please specify an operation: kill, list");
             return true;
         }
-        
+
         String operation = args[0].toLowerCase();
-        
+
         if (!VALID_OPERATIONS.contains(operation)) {
             sendErrorMessage(sender, "Unknown operation: " + operation);
             sendErrorMessage(sender, "Valid operations: " + String.join(", ", VALID_OPERATIONS));
@@ -45,7 +48,7 @@ public class QuestMobsSubCommand extends BaseSubCommand {
         } else if (operation.equals("list")) {
             return listQuestMobs(sender);
         }
-        
+
         return true;
     }
 
@@ -64,117 +67,121 @@ public class QuestMobsSubCommand extends BaseSubCommand {
     public boolean hasPermission(CommandSender sender) {
         return sender.hasPermission("rvnkquests.admin") || sender.isOp();
     }
-    
-    /**
-     * Kills all tracked quest mobs
-     */
+
     private boolean killQuestMobs(CommandSender sender) {
         int killedCount = 0;
-        
-        // Loop through all active quests and find encounter portals
+
         for (Quest quest : plugin.getQuestManager().getAllQuests()) {
-            try {
-                // Try to find ListenerEncounterPortal among quest listeners
-                for (ListenerEncounterPortal portalListener : findPortalListeners(quest)) {
-                    List<Entity> mobs = portalListener.getSpawnedMobs();
-                    
-                    if (mobs != null && !mobs.isEmpty()) {
-                        for (Entity mob : new ArrayList<>(mobs)) {
-                            if (mob != null && mob.isValid()) {
-                                String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
-                                logger.debug("Removing quest mob: " + mobName);
-                                mob.remove();
-                                killedCount++;
-                            }
-                        }
+            for (GenericEncounterObjective encounter : findEncounterObjectives(quest)) {
+                for (Entity mob : new ArrayList<>(encounter.getAllSpawnedMobs())) {
+                    if (mob != null && mob.isValid()) {
+                        logger.debug("Removing quest mob: " +
+                            (mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString()));
+                        mob.remove();
+                        killedCount++;
                     }
                 }
-            } catch (Exception e) {
-                logger.error("Error killing mobs for quest: " + quest.getId(), e);
+            }
+            for (GenericMobSpawnTrigger trigger : findMobSpawnTriggers(quest)) {
+                Entity mob = trigger.getSpawnedEntity();
+                if (mob != null && mob.isValid()) {
+                    logger.debug("Removing trigger mob: " +
+                        (mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString()));
+                    mob.remove();
+                    killedCount++;
+                }
             }
         }
-        
+
         if (killedCount > 0) {
             sendSuccessMessage(sender, "Successfully removed " + killedCount + " quest mobs.");
             logger.info("Admin " + sender.getName() + " removed " + killedCount + " quest mobs");
         } else {
             sendInfoMessage(sender, "No active quest mobs found to remove.");
         }
-        
+
         return true;
     }
-    
-    /**
-     * Lists all tracked quest mobs
-     */
+
     private boolean listQuestMobs(CommandSender sender) {
         int totalCount = 0;
-        
+
         sender.sendMessage(ChatColor.GOLD + "===== Active Quest Mobs =====");
-        
-        // Loop through all active quests and find encounter portals
+
         for (Quest quest : plugin.getQuestManager().getAllQuests()) {
-            try {
-                for (ListenerEncounterPortal portalListener : findPortalListeners(quest)) {
-                    List<Entity> mobs = portalListener.getSpawnedMobs();
-                    
-                    if (mobs != null && !mobs.isEmpty()) {
-                        sender.sendMessage(ChatColor.YELLOW + "Quest: " + 
-                                          ChatColor.WHITE + quest.getName() + 
-                                          ChatColor.GRAY + " (" + mobs.size() + " mobs)");
-                        
-                        for (Entity mob : mobs) {
-                            if (mob != null && mob.isValid()) {
-                                String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
-                                sender.sendMessage(ChatColor.GRAY + " - " + 
-                                                 ChatColor.WHITE + mobName + 
-                                                 ChatColor.GRAY + " at " + 
-                                                 formatLocation(mob.getLocation()));
-                                totalCount++;
-                            }
-                        }
+            for (GenericEncounterObjective encounter : findEncounterObjectives(quest)) {
+                List<Entity> mobs = encounter.getAllSpawnedMobs();
+                if (!mobs.isEmpty()) {
+                    sender.sendMessage(ChatColor.YELLOW + "Quest: " +
+                        ChatColor.WHITE + quest.getName() +
+                        ChatColor.GRAY + " (" + mobs.size() + " mobs)");
+
+                    for (Entity mob : mobs) {
+                        String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
+                        sender.sendMessage(ChatColor.GRAY + " - " +
+                            ChatColor.WHITE + mobName +
+                            ChatColor.GRAY + " at " + formatLocation(mob.getLocation()));
+                        totalCount++;
                     }
                 }
-            } catch (Exception e) {
-                logger.error("Error listing mobs for quest: " + quest.getId(), e);
+            }
+            for (GenericMobSpawnTrigger trigger : findMobSpawnTriggers(quest)) {
+                Entity mob = trigger.getSpawnedEntity();
+                if (mob != null && mob.isValid()) {
+                    String mobName = mob.getCustomName() != null ? mob.getCustomName() : mob.getType().toString();
+                    sender.sendMessage(ChatColor.YELLOW + "Quest: " +
+                        ChatColor.WHITE + quest.getName() +
+                        ChatColor.GRAY + " (trigger mob)");
+                    sender.sendMessage(ChatColor.GRAY + " - " +
+                        ChatColor.WHITE + mobName +
+                        ChatColor.GRAY + " at " + formatLocation(mob.getLocation()));
+                    totalCount++;
+                }
             }
         }
-        
+
         if (totalCount == 0) {
             sendInfoMessage(sender, "No active quest mobs found.");
         } else {
             sendSuccessMessage(sender, "Total quest mobs: " + totalCount);
         }
-        
+
         return true;
     }
-    
+
     /**
-     * Helper method to find all EncounterPortal listeners in a quest
+     * Finds all GenericEncounterObjective listeners across all states of a quest.
      */
-    private List<ListenerEncounterPortal> findPortalListeners(Quest quest) {
-        List<ListenerEncounterPortal> result = new ArrayList<>();
-        
-        try {
-            // This is a bit of a hack but we're looking through active listeners for the quest
-            // and finding any that are EncounterPortal listeners
-            Object listener = quest.getClass().getDeclaredField("portalListener").get(quest);
-            if (listener instanceof ListenerEncounterPortal) {
-                result.add((ListenerEncounterPortal) listener);
+    private List<GenericEncounterObjective> findEncounterObjectives(Quest quest) {
+        List<GenericEncounterObjective> result = new ArrayList<>();
+        for (QuestState state : QuestState.values()) {
+            for (Listener listener : quest.createListenersForState(state)) {
+                if (listener instanceof GenericEncounterObjective geo) {
+                    result.add(geo);
+                }
             }
-        } catch (Exception e) {
-            // Not all quests will have this field, so ignore exceptions
         }
-        
         return result;
     }
-    
+
     /**
-     * Format location for display
+     * Finds all GenericMobSpawnTrigger listeners across all states of a quest.
      */
+    private List<GenericMobSpawnTrigger> findMobSpawnTriggers(Quest quest) {
+        List<GenericMobSpawnTrigger> result = new ArrayList<>();
+        for (QuestState state : QuestState.values()) {
+            for (Listener listener : quest.createListenersForState(state)) {
+                if (listener instanceof GenericMobSpawnTrigger trigger) {
+                    result.add(trigger);
+                }
+            }
+        }
+        return result;
+    }
+
     private String formatLocation(org.bukkit.Location loc) {
         if (loc == null) return "unknown";
-        return String.format("%s (%d,%d,%d)", 
+        return String.format("%s (%d,%d,%d)",
             loc.getWorld().getName(),
             loc.getBlockX(),
             loc.getBlockY(),

@@ -64,7 +64,7 @@ public class ConfigManager {
         }
 
         config = YamlConfiguration.loadConfiguration(configFile);
-        logger.info("Configuration loaded from: " + configFile.getAbsolutePath());
+        logger.debug("Configuration loaded from: " + configFile.getAbsolutePath());
 
         String dbType = config.getString("database.type", "sqlite");
         if (!"yaml".equalsIgnoreCase(dbType)) {
@@ -337,6 +337,22 @@ public class ConfigManager {
         return config.getDouble(path, defaultValue);
     }
     
+    /**
+     * Checks if name+type+world mob detection is enabled for quest triggers
+     * @return true if mob detection should scan for existing mobs
+     */
+    public boolean isMobNameTypeMatchingEnabled() {
+        return config.getBoolean("mob_detection.name_type_matching", true);
+    }
+
+    /**
+     * Gets the scan throttle interval for mob detection
+     * @return scan interval in milliseconds
+     */
+    public long getMobScanIntervalMs() {
+        return config.getLong("mob_detection.scan_interval_ms", 1000);
+    }
+
     /**
      * Checks if a quest is enabled in the configuration
      * @param questId The quest identifier

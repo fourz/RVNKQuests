@@ -51,6 +51,62 @@ CREATE TABLE IF NOT EXISTS quest_rewards_claimed (
     INDEX idx_player_quest (player_uuid, quest_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ==================== Quest Definition Tables ====================
+
+-- Quest definitions - the template/blueprint for each quest
+CREATE TABLE IF NOT EXISTS quest_definitions (
+    quest_id VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    repeatable BOOLEAN NOT NULL DEFAULT FALSE,
+    cooldown_minutes INT NOT NULL DEFAULT 0,
+    prerequisites JSON,
+    metadata JSON,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_quest_def_category (category),
+    INDEX idx_quest_def_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Quest definition objectives - objectives belonging to a quest definition
+CREATE TABLE IF NOT EXISTS quest_definition_objectives (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    quest_id VARCHAR(100) NOT NULL,
+    objective_id VARCHAR(100) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    target VARCHAR(200),
+    required_amount INT NOT NULL DEFAULT 1,
+    description TEXT,
+    sort_order INT NOT NULL DEFAULT 0,
+    metadata JSON,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_quest_objective (quest_id, objective_id),
+    INDEX idx_quest_def_obj_quest (quest_id),
+    FOREIGN KEY (quest_id) REFERENCES quest_definitions(quest_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Quest definition rewards - rewards belonging to a quest definition
+CREATE TABLE IF NOT EXISTS quest_definition_rewards (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    quest_id VARCHAR(100) NOT NULL,
+    reward_id VARCHAR(100) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    value VARCHAR(500),
+    amount INT NOT NULL DEFAULT 1,
+    description TEXT,
+    metadata JSON,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_quest_reward (quest_id, reward_id),
+    INDEX idx_quest_def_rwd_quest (quest_id),
+    FOREIGN KEY (quest_id) REFERENCES quest_definitions(quest_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ==================== Quest Journal System Tables ====================
 
 -- Quest journal entries - tracks all quest actions with timestamps

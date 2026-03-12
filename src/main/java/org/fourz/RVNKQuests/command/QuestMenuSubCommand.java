@@ -77,7 +77,7 @@ public class QuestMenuSubCommand extends BaseSubCommand {
         }
 
         // Open menu
-        logger.info("Opening quest menu for " + targetPlayer.getName() +
+        logger.debug("Opening quest menu for " + targetPlayer.getName() +
                    " (filter: " + filter + ", requested by: " + sender.getName() + ")");
 
         QuestMenuManager menu = new QuestMenuManager(plugin, targetPlayer, filter);

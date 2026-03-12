@@ -257,7 +257,7 @@ public class QuestDetailMenu implements InventoryHolder {
      * Handles accept quest action.
      */
     public void handleAccept(Player player) {
-        logger.info("Player " + player.getName() + " accepting quest: " + quest.getId());
+        logger.debug("Player " + player.getName() + " accepting quest: " + quest.getId());
 
         // Start the quest
         quest.advanceStateForPlayer(player.getUniqueId(), QuestState.QUEST_ACTIVE)
@@ -281,7 +281,7 @@ public class QuestDetailMenu implements InventoryHolder {
      * Handles abandon quest action.
      */
     public void handleAbandon(Player player) {
-        logger.info("Player " + player.getName() + " abandoning quest: " + quest.getId());
+        logger.debug("Player " + player.getName() + " abandoning quest: " + quest.getId());
 
         // Reset quest progress
         plugin.getQuestProgressService().resetQuestProgress(player.getUniqueId(), quest.getId())
@@ -309,7 +309,7 @@ public class QuestDetailMenu implements InventoryHolder {
      * Handles claim rewards action (completes quest).
      */
     public void handleClaimRewards(Player player) {
-        logger.info("Player " + player.getName() + " claiming rewards for quest: " + quest.getId());
+        logger.debug("Player " + player.getName() + " claiming rewards for quest: " + quest.getId());
 
         // Advance to completed state (triggers reward delivery)
         quest.advanceStateForPlayer(player.getUniqueId(), QuestState.COMPLETED)
