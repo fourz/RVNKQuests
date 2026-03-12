@@ -212,6 +212,12 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
                 progressCache.computeIfAbsent(playerUuid, k -> new ConcurrentHashMap<>())
                     .put(questId, updated);
 
+                // Record journal entry
+                IJournalService journal = plugin.getJournalService();
+                if (journal != null && journal.isAvailable()) {
+                    journal.recordPathChoice(playerUuid, questId, pathChoice);
+                }
+
                 // Save to repository
                 return getActiveRepo().saveProgress(updated).thenApply(success -> updated);
             });

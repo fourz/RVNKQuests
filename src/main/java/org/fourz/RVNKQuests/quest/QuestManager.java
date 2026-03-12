@@ -704,6 +704,7 @@ public class QuestManager implements IQuestService {
             case "start" -> journal.recordQuestStart(playerId, questId);
             case "complete" -> journal.recordQuestComplete(playerId, questId);
             case "abandon" -> journal.recordQuestAbandon(playerId, questId);
+            case "failed" -> journal.recordQuestFailed(playerId, questId);
         }
     }
 

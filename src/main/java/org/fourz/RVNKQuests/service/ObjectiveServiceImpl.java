@@ -106,7 +106,13 @@ public class ObjectiveServiceImpl implements IObjectiveService {
     public CompletableFuture<Void> markCompleted(UUID playerUuid, String questId, String objectiveId) {
         logger.debug("Marking objective completed: " + playerUuid + "/" + questId + "/" + objectiveId);
         return progressService.completeObjective(playerUuid, questId, objectiveId)
-            .thenApply(v -> null);
+            .thenApply(v -> {
+                IJournalService journal = plugin.getJournalService();
+                if (journal != null && journal.isAvailable()) {
+                    journal.recordObjectiveComplete(playerUuid, questId, objectiveId);
+                }
+                return null;
+            });
     }
 
     @Override

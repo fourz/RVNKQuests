@@ -7,6 +7,7 @@ import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.data.dto.QuestDTO;
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
+import org.fourz.RVNKQuests.service.IJournalService;
 import org.fourz.RVNKQuests.service.IRewardService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
@@ -122,6 +123,13 @@ public class DataDrivenQuest extends AbstractQuest {
                     .thenAccept(result -> {
                         logger.debug("Rewards delivered for " + player.getName() + " on quest " + questId +
                             ": " + result.successCount() + " successful, " + result.failureCount() + " failed");
+                        if (result.successCount() > 0) {
+                            IJournalService journal = plugin.getJournalService();
+                            if (journal != null && journal.isAvailable()) {
+                                journal.recordRewardClaimed(player.getUniqueId(), questId,
+                                    result.successCount() + " reward(s) delivered");
+                            }
+                        }
                     })
                     .exceptionally(ex -> {
                         logger.error("Failed to deliver rewards for " + player.getName() + " on quest " + questId, (Exception) ex);
