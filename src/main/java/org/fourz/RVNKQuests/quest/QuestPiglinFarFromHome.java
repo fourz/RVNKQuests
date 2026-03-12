@@ -1,314 +1,137 @@
 package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.BookMeta;
 import org.fourz.RVNKQuests.RVNKQuests;
-import org.fourz.RVNKQuests.trigger.ListenerLonePiglinTrigger;
-import org.fourz.RVNKQuests.objective.*;
-import org.fourz.RVNKQuests.reward.QuestLoot;
-import org.fourz.RVNKQuests.lore.LoreDatabase;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
+/**
+ * EXAMPLE: Hardcoded quest class demonstrating path-choice branching.
+ *
+ * <p>This class is kept as a reference for how to extend the data-driven quest
+ * system when a quest requires runtime branching logic that cannot be expressed
+ * purely via metadata. The data-driven version (seeded as "piglin_far_from_home"
+ * in QuestDefinitionSeeder) handles the standard quest flow; this class shows
+ * the COMBAT_PATH vs ESCORT_PATH pattern as an extension point.</p>
+ *
+ * <h3>When to use hardcoded quest classes:</h3>
+ * <ul>
+ *   <li>Player-driven path branching (different objectives based on player action)</li>
+ *   <li>Complex inter-component state (one objective's outcome affects another)</li>
+ *   <li>Custom game mechanics not covered by generic objectives</li>
+ * </ul>
+ *
+ * <p><strong>NOTE:</strong> This class is NOT registered by QuestManager when
+ * the data-driven version exists in the repository. It serves as documentation
+ * of the branching pattern only.</p>
+ */
 public class QuestPiglinFarFromHome extends AbstractQuest {
-    private ListenerLonePiglinTrigger lonePiglinTrigger;
-    private ListenerEncounterPortal portalListener;
-    private ListenerPiglinEscort piglinEscortListener;
-    private Location spawnLocation;
-    
-    // Track which path the player has chosen
+
     private final Map<UUID, QuestPath> playerPaths = new HashMap<>();
-    
-    // Constants for the quest
-    private static final String PIGLIN_NAME = "GrotSnout da Lost";
-    
+
+    /**
+     * Path choices available to the player. The quest branches when the player
+     * either kills the quest NPC (COMBAT_PATH) or interacts with it (ESCORT_PATH).
+     *
+     * <p>In a data-driven implementation, this could be expressed via:</p>
+     * <ul>
+     *   <li>A "path_choice" field in QuestProgressDTO (already supported)</li>
+     *   <li>Conditional components in state_mapping based on path_choice</li>
+     *   <li>A future GenericBranchObjective that reads conditions from metadata</li>
+     * </ul>
+     */
     public enum QuestPath {
+        /** Player killed the quest NPC — proceeds through combat objectives. */
         COMBAT_PATH,
+        /** Player escorted the quest NPC — proceeds through escort objectives. */
         ESCORT_PATH
     }
 
     public QuestPiglinFarFromHome(RVNKQuests plugin) {
-        // Call the parent constructor with the plugin, quest ID, and display name
         super(plugin, "piglin_far_from_home", "Piglin Far From Home");
     }
 
     @Override
     public void initialize() {
-        logger.debug("Initializing Piglin Far From Home quest");
-        
-        // Create the listener with custom location parameters from config
-        String worldName = getPlugin().getConfigManager().getQuestConfigString(
-                getId(), "world", "event");
-        double spawnRadius = getPlugin().getConfigManager().getQuestConfigDouble(
-                getId(), "spawn_radius", 30.0);
-        
-        // Initialize the ListenerLonePiglinTrigger with specific world and radius
-        this.lonePiglinTrigger = new ListenerLonePiglinTrigger(this, getPlugin(), worldName, null, spawnRadius);
-        this.lonePiglinTrigger.setPiglinName(PIGLIN_NAME);
-
-        // Set up portal encounter mobs
-        Map<EntityType, Integer> portalMobs = new HashMap<>();
-        portalMobs.put(EntityType.WITHER_SKELETON, 1);
-        portalMobs.put(EntityType.SKELETON, 2);
-        portalMobs.put(EntityType.HOGLIN, 2);        
-        this.portalListener = new ListenerEncounterPortal(this, portalMobs);
-        
-        // Initialize the piglin escort listener with ListenerLonePiglinTrigger
-        this.piglinEscortListener = new ListenerPiglinEscort(this, lonePiglinTrigger);
-        
-        logger.debug("Piglin Far From Home quest initialized");
+        logger.debug("QuestPiglinFarFromHome initialized (branching example — not actively registered)");
     }
 
     @Override
     public void cleanup() {
-        logger.debug("Cleaning up Piglin Far From Home quest");
-        
-        // Clean up any remaining entities and listeners
-        cleanupPortalPrevention();
-        
-        if (lonePiglinTrigger != null) {
-            lonePiglinTrigger.cleanup();
-        }
-        
-        if (piglinEscortListener != null) {
-            piglinEscortListener.cleanup();
-        }
-        
         playerPaths.clear();
     }
 
     /**
-     * Cleans up the portal prevention listeners if they exist
-     */
-    private void cleanupPortalPrevention() {
-        if (portalListener != null) {
-            if (portalListener.getPortalPreventionListener() != null) {
-                portalListener.getPortalPreventionListener().unregister();
-            }
-            if (portalListener.getInfightingPreventionListener() != null) {
-                portalListener.getInfightingPreventionListener().unregister();
-            }
-        }
-    }
-
-    @Override
-    public Location getStartLocation() {
-        return spawnLocation; // May be null until the piglin spawns
-    }
-
-    @Override
-    public String getStartTrigger() {
-        return PIGLIN_NAME;
-    }
-
-    // Add setter for spawnLocation
-    public void setSpawnLocation(Location location) {
-        this.spawnLocation = location;
-    }
-
-    /**
-     * Creates the standard portal loot for the combat path
-     */
-    private QuestLoot createPortalLoot() {
-        return () -> Arrays.asList(
-            new ItemStack(Material.GOLDEN_APPLE, 3),
-            new ItemStack(Material.NETHERITE_SCRAP, 1),
-            new ItemStack(Material.DIAMOND, 5),
-            new ItemStack(Material.EMERALD, 10)            
-        );
-    }
-    
-    /**
-     * Creates special loot for the escort path (when GrotSnout reaches the portal)
-     */
-    private QuestLoot createSpecialLoot() {
-        return () -> {
-            List<ItemStack> items = new ArrayList<>(createPortalLoot().generateLoot());
-            // Add GrotSnout's special gratitude item
-            ItemStack gratitude = createGrotsnoutGratitudeItem();
-            items.add(gratitude);
-            return items;
-        };
-    }
-    
-    /**
-     * Creates GrotSnout's special gratitude item
-     */
-    private ItemStack createGrotsnoutGratitudeItem() {
-        ItemStack item = new ItemStack(Material.GILDED_BLACKSTONE, 1);
-        // Set custom meta for the item - this would be expanded in a real implementation
-        return item;
-    }
-    
-    /**
-     * Creates GrotSnout's journal book item
-     */
-    private ItemStack createGrotsnoutJournal() {
-        ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
-        BookMeta meta = (BookMeta) book.getItemMeta();
-        
-        if (meta != null) {
-            meta.setTitle("GrotSnout's Journal");
-            meta.setAuthor("GrotSnout da Lost");
-            
-            meta.addPage("I'z stuck 'ere, starin' at dis broken portal.\n\nNo fire. No gold. Just cold wind an' dead stones.\n\n'Dis place gonna be me grave,' I growlz.");
-            meta.addPage("I fink 'bout da Bastions, da loot, da shiny gold.\n\nHow long I gotta wait 'ere?\n\nNo one ta trade wif. Just dem stupid guards.");
-            meta.addPage("Big dark one. Two bone-walkers. Two tusked beasts.\n\nDey guard da portal up high in the hills.\n\nDey don't know me name. Dey don't care.");
-            meta.addPage("'Dey fink dey got me beat.'\n\nI grin.\n\n'Well, I ain't stayin' 'ere.'\n\nI'z gonna smash 'em, fix da gate, an' bring back da fire.");
-            meta.addPage("If it don't work?\n\nAt least I'z goin' down swingin'.\n\nBlade drawn.\n\n'Let's see who's still standin'!' WAAAGH!");
-            
-            book.setItemMeta(meta);
-        }
-        
-        return book;
-    }
-    
-    /**
-     * Set the quest path for a player
+     * BRANCHING PATTERN: Set the quest path for a player based on their action.
+     *
+     * <p>Called by the objective listener that detects the player's choice.
+     * For example, a kill listener sets COMBAT_PATH, while an interact/escort
+     * listener sets ESCORT_PATH.</p>
      */
     public void setPlayerPath(Player player, QuestPath path) {
         playerPaths.put(player.getUniqueId(), path);
-        logger.debug("Player " + player.getName() + " has chosen the " + path + " path");
+        // Also persist to DB via the pathChoice field on QuestProgressDTO
+        setPathChoice(player, path.name());
+        logger.debug(player.getName() + " chose " + path);
     }
-    
-    /**
-     * Get the quest path for a player
-     */
+
     public QuestPath getPlayerPath(Player player) {
         return playerPaths.getOrDefault(player.getUniqueId(), QuestPath.COMBAT_PATH);
     }
 
     /**
-     * Checks if any player has chosen the escort path
+     * BRANCHING PATTERN: Different listeners per state AND per path.
+     *
+     * <p>This is the key extension point that data-driven quests cannot express yet.
+     * The state_mapping in metadata maps states → component IDs, but cannot
+     * conditionally include components based on runtime player choices.</p>
+     *
+     * <p>Example of what a branching state mapping would look like if supported:</p>
+     * <pre>
+     * "state_mapping": {
+     *   "TRIGGER_FOUND": {
+     *     "always": ["obj_kill_npc"],
+     *     "if_path:ESCORT_PATH": ["obj_escort_npc"]
+     *   },
+     *   "QUEST_ACTIVE": {
+     *     "always": ["obj_portal_encounter"],
+     *     "if_path:ESCORT_PATH": ["obj_escort_npc"]
+     *   }
+     * }
+     * </pre>
      */
-    private boolean hasActiveEscorter() {
-        return playerPaths.containsValue(QuestPath.ESCORT_PATH) && 
-               piglinEscortListener.getActiveEscorter() != null;
+    @Override
+    public List<Listener> createListenersForState(QuestState state) {
+        // Intentionally empty — this class is a documentation/example skeleton.
+        // The data-driven version (quest ID "piglin_far_from_home") handles
+        // the actual quest flow via QuestDefinitionSeeder metadata.
+        return List.of();
     }
 
     @Override
-    public List<Listener> createListenersForState(QuestState state) {
-        List<Listener> listeners = new ArrayList<>();
-        
-        switch (state) {
-            case NOT_STARTED:
-                listeners.add(lonePiglinTrigger);
-                break;
-                
-            case TRIGGER_FOUND:
-                // Add both path options - players can either kill the piglin or escort it
-                listeners.add(new ListenerLonePiglinDeath(this, lonePiglinTrigger, createGrotsnoutJournal()));
-                listeners.add(piglinEscortListener);
-                break;
-                
-            case QUEST_ACTIVE:
-                // Add portal listener for detecting the portal location
-                listeners.add(portalListener);
-                
-                // IMPORTANT FIX: Keep piglin escort listener active if escort path is chosen
-                // This ensures the piglin continues to follow the player
-                if (hasActiveEscorter()) {
-                    logger.debug("Maintaining piglin escort listener for active escort path");
-                    listeners.add(piglinEscortListener);
-                }
-                break;
-                
-            case OBJECTIVE_FOUND:
-                // The combat path just needs to defeat the portal guards
-                listeners.add(new ListenerEncounterPortalDefeated(this, portalListener, createPortalLoot()));
-                
-                // IMPORTANT FIX: Keep escort listener active during this state too
-                if (hasActiveEscorter()) {
-                    listeners.add(piglinEscortListener);
-                    // The escort path also needs to track if GrotSnout reaches the portal
-                    listeners.add(new ListenerPiglinPortalReunion(this, piglinEscortListener, portalListener, createSpecialLoot()));
-                }
-                break;
-                
-            //case OBJECTIVE_COMPLETE:
-            case COMPLETED:
-                // Keep minimal listeners for completed quests if needed
-                break;
-        }
-        
-        return listeners;
+    public Location getStartLocation() {
+        return null;
     }
-    
+
+    @Override
+    public String getStartTrigger() {
+        return "GrotSnout da Lost";
+    }
+
     @Override
     protected boolean onStart(Player player) {
-        logger.debug("Starting Piglin Far From Home quest for " + player.getName());
-        
-        // Record the discovery in the lore database
-        LoreDatabase loreDb = getPlugin().getLoreDatabase();
-        if (loreDb != null && spawnLocation != null) {
-            loreDb.recordDiscovery(
-                "lost_piglin",
-                spawnLocation.getWorld().getName(),
-                spawnLocation.getBlockX(),
-                spawnLocation.getBlockY(),
-                spawnLocation.getBlockZ(),
-                "A lost piglin named " + PIGLIN_NAME + " was discovered far from the Nether."
-            );
-            logger.debug("Recorded lost piglin discovery in lore database");
-        }
-        
         return true;
     }
-    
+
     @Override
     protected boolean onComplete(Player player) {
-        logger.debug("Completing Piglin Far From Home quest for " + player.getName());
-        
-        // Cleanup quest-specific resources
-        cleanupPortalPrevention();
-        
-        // Award additional rewards if needed beyond the loot
-        player.giveExp(500); // Give player some XP as completion reward
-        
-        // Record quest completion in lore database
-        QuestPath path = getPlayerPath(player);
-        LoreDatabase loreDb = getPlugin().getLoreDatabase();
-        if (loreDb != null && portalListener != null) {
-            String description;
-            if (path == QuestPath.ESCORT_PATH) {
-                description = "Helped " + PIGLIN_NAME + " return home through a restored Nether portal.";
-            } else {
-                description = "Defeated the guardians of a Nether portal after finding the journal of " + PIGLIN_NAME + ".";
-            }
-            
-            // Record the completion at the portal location
-            Location portalLoc = portalListener.getPortalLocation();
-            if (portalLoc != null) {
-                loreDb.recordDiscovery(
-                    "quest_completion",
-                    portalLoc.getWorld().getName(),
-                    portalLoc.getBlockX(),
-                    portalLoc.getBlockY(),
-                    portalLoc.getBlockZ(),
-                    description
-                );
-                logger.debug("Recorded quest completion in lore database");
-            }
-        }
-        
         return true;
     }
-    
+
     @Override
     public boolean update(Player player) {
-        // This quest doesn't need periodic updates, but we could implement progress tracking here
-        QuestState state = getStateForPlayer(player);
-        logger.debug("Update requested for player: " + player.getName() + ", state: " + state);
-        return false; // No updates performed
+        return false;
     }
 }

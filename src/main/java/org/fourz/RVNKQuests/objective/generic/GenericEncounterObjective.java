@@ -1,15 +1,20 @@
 package org.fourz.RVNKQuests.objective.generic;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPortalEvent;
+import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
@@ -37,6 +42,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code custom_name} — Optional display name for spawned mobs</li>
  *   <li>{@code required_state} — QuestState player must be in (default: "QUEST_ACTIVE")</li>
  *   <li>{@code advance_state} — State to advance to on completion (default: "OBJECTIVE_FOUND")</li>
+ *   <li>{@code prevent_infighting} — If true, quest mobs won't target each other (default: false)</li>
+ *   <li>{@code block_portals} — If true, quest mobs are blocked from using portals (default: false)</li>
+ *   <li>{@code loot_drops} — Map of Material name to count, added to the last mob's death drops (optional)</li>
  * </ul>
  */
 public class GenericEncounterObjective implements Listener {
@@ -60,6 +68,9 @@ public class GenericEncounterObjective implements Listener {
     private final String customName;
     private final QuestState requiredState;
     private final QuestState advanceState;
+    private final boolean preventInfighting;
+    private final boolean blockPortals;
+    private final Map<Material, Integer> lootDrops;
 
     /** Track spawned entities per player encounter. */
     private final Map<UUID, List<Entity>> spawnedMobs = new ConcurrentHashMap<>();
@@ -86,6 +97,25 @@ public class GenericEncounterObjective implements Listener {
         this.customName = QuestComponentFactory.getStringConfig(config, "custom_name", null);
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "QUEST_ACTIVE"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "OBJECTIVE_FOUND"));
+        this.preventInfighting = QuestComponentFactory.getBoolConfig(config, "prevent_infighting", false);
+        this.blockPortals = QuestComponentFactory.getBoolConfig(config, "block_portals", false);
+
+        // Parse loot drops
+        this.lootDrops = new LinkedHashMap<>();
+        Object lootObj = config.get("loot_drops");
+        if (lootObj instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> lootMap = (Map<String, Object>) lootObj;
+            for (Map.Entry<String, Object> entry : lootMap.entrySet()) {
+                try {
+                    Material mat = Material.valueOf(entry.getKey().toUpperCase());
+                    int count = entry.getValue() instanceof Number n ? n.intValue() : 1;
+                    lootDrops.put(mat, count);
+                } catch (IllegalArgumentException e) {
+                    logger.warning("Unknown loot material: " + entry.getKey());
+                }
+            }
+        }
     }
 
     @EventHandler
@@ -157,6 +187,13 @@ public class GenericEncounterObjective implements Listener {
         logger.debug(killer.getName() + " killed encounter mob (" + count + "/" + requiredKills + ")");
 
         if (count >= requiredKills) {
+            // Add loot drops to the last mob's death
+            if (!lootDrops.isEmpty()) {
+                for (Map.Entry<Material, Integer> loot : lootDrops.entrySet()) {
+                    event.getDrops().add(new ItemStack(loot.getKey(), loot.getValue()));
+                }
+            }
+
             // Clean up remaining mobs
             for (Entity remaining : mobs) {
                 if (remaining.isValid() && !remaining.isDead()) {
@@ -170,6 +207,61 @@ public class GenericEncounterObjective implements Listener {
             quest.advanceStateForPlayer(playerId, advanceState);
             logger.debug(killer.getName() + " completed encounter objective for quest " + quest.getId());
         }
+    }
+
+    /**
+     * Prevents quest mobs from targeting each other when {@code prevent_infighting} is enabled.
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onEntityTarget(EntityTargetLivingEntityEvent event) {
+        if (!preventInfighting) return;
+        if (event.getTarget() == null) return;
+
+        boolean sourceIsQuestMob = event.getEntity().hasMetadata(QUEST_MOB_METADATA);
+        boolean targetIsQuestMob = event.getTarget().hasMetadata(QUEST_MOB_METADATA);
+
+        if (sourceIsQuestMob && targetIsQuestMob) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Prevents quest mobs from entering portals when {@code block_portals} is enabled.
+     * Nudges the mob away from the portal to prevent re-triggering.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityPortal(EntityPortalEvent event) {
+        if (!blockPortals) return;
+        if (!event.getEntity().hasMetadata(QUEST_MOB_METADATA)) return;
+
+        event.setCancelled(true);
+
+        // Nudge entity away from portal to prevent re-triggering
+        Entity entity = event.getEntity();
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (entity.isValid()) {
+                Random rng = new Random();
+                Location loc = entity.getLocation();
+                loc.add(rng.nextDouble() * 2 - 1, 0, rng.nextDouble() * 2 - 1);
+                entity.teleport(loc);
+            }
+        }, 1L);
+    }
+
+    /**
+     * Returns all currently tracked spawned mobs across all player encounters.
+     * Used by admin commands to list/kill quest mobs.
+     */
+    public List<Entity> getAllSpawnedMobs() {
+        List<Entity> all = new ArrayList<>();
+        for (List<Entity> mobs : spawnedMobs.values()) {
+            for (Entity mob : mobs) {
+                if (mob != null && mob.isValid()) {
+                    all.add(mob);
+                }
+            }
+        }
+        return all;
     }
 
     private Location getSpawnLocation(Player player) {

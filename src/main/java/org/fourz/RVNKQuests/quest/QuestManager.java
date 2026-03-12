@@ -113,16 +113,8 @@ public class QuestManager implements IQuestService {
         logger.debug("Beginning quest initialization");
 
         try {
-            // Load data-driven quests from repository first
+            // Load all quests from the data-driven repository (seeded definitions)
             loadQuestsFromRepository();
-
-            // Register hardcoded quests only if not already loaded from repository
-            if (!quests.containsKey("piglin_far_from_home")) {
-                registerQuestIfEnabled(new QuestPiglinFarFromHome(plugin));
-            }
-            if (!quests.containsKey("ancient_guardian")) {
-                registerQuestIfEnabled(new QuestAncientGuardian(plugin));
-            }
 
             logger.debug("Quest initialization complete. Total quests: " + quests.size());
         } catch (Exception e) {
