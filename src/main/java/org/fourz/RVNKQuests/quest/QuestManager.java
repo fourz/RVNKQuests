@@ -378,6 +378,13 @@ public class QuestManager implements IQuestService {
     public void onPlayerJoin(Player player) {
         logger.debug("Player joined: " + player.getName());
         // Progress loading is handled by PlayerJoinQuitListener
+        // Preload state caches so move-based handlers don't block
+        UUID uuid = player.getUniqueId();
+        for (Quest q : quests.values()) {
+            if (q instanceof AbstractQuest aq) {
+                aq.preloadStateForPlayer(uuid);
+            }
+        }
     }
 
     /**
@@ -392,6 +399,13 @@ public class QuestManager implements IQuestService {
         // Remove from active player tracking
         for (Set<UUID> activePlayers : activePlayersByQuest.values()) {
             activePlayers.remove(playerUuid);
+        }
+
+        // Evict state caches to prevent memory leaks
+        for (Quest q : quests.values()) {
+            if (q instanceof AbstractQuest aq) {
+                aq.evictStateForPlayer(playerUuid);
+            }
         }
 
         // Notify listeners that hold per-player state
