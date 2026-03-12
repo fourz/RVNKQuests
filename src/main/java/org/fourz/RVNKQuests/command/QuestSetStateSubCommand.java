@@ -122,7 +122,7 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
                     sendSuccessMessage(sender, "Set quest '" + quest.getName() + "' state for " + playerName);
                     sendMessage(sender, "&7   Previous state: &e" + previousState);
                     sendMessage(sender, "&7   New state: &a" + targetState);
-                    sendMessage(sender, "&7   &oNo events/rewards triggered");
+                    sendMessage(sender, "&7   &oJournal entry recorded (no rewards triggered)");
 
                     // Notify target player if different from sender
                     if (!sender.equals(targetPlayer)) {
