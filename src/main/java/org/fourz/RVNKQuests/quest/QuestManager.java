@@ -20,6 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import org.fourz.RVNKQuests.service.IJournalService;
 
 /**
  * Core manager for quest registration, state management, and event handling.
@@ -586,7 +587,10 @@ public class QuestManager implements IQuestService {
                     return CompletableFuture.completedFuture(false);
                 }
                 return quest.advanceStateForPlayer(playerId, QuestState.QUEST_ACTIVE)
-                    .thenApply(v -> true);
+                    .thenApply(v -> {
+                        recordJournal(playerId, questId, "start");
+                        return true;
+                    });
             });
     }
 
@@ -611,7 +615,10 @@ public class QuestManager implements IQuestService {
                     return CompletableFuture.completedFuture(false);
                 }
                 return quest.advanceStateForPlayer(playerId, QuestState.COMPLETED)
-                    .thenApply(v -> true);
+                    .thenApply(v -> {
+                        recordJournal(playerId, questId, "complete");
+                        return true;
+                    });
             })
             .whenComplete((result, ex) -> completionsInProgress.remove(inFlightKey));
     }
@@ -629,7 +636,10 @@ public class QuestManager implements IQuestService {
                     return CompletableFuture.completedFuture(false);
                 }
                 return quest.advanceStateForPlayer(playerId, QuestState.NOT_STARTED)
-                    .thenApply(v -> true);
+                    .thenApply(v -> {
+                        recordJournal(playerId, questId, "abandon");
+                        return true;
+                    });
             });
     }
 
@@ -680,6 +690,21 @@ public class QuestManager implements IQuestService {
 
         return quest.getStateForPlayer(playerId)
             .thenApply(state -> state == QuestState.NOT_STARTED);
+    }
+
+    /**
+     * Records a journal entry for a quest state change.
+     * Fire-and-forget — failures are logged but do not affect quest flow.
+     */
+    private void recordJournal(UUID playerId, String questId, String action) {
+        IJournalService journal = plugin.getJournalService();
+        if (journal == null || !journal.isAvailable()) return;
+
+        switch (action) {
+            case "start" -> journal.recordQuestStart(playerId, questId);
+            case "complete" -> journal.recordQuestComplete(playerId, questId);
+            case "abandon" -> journal.recordQuestAbandon(playerId, questId);
+        }
     }
 
     @Override

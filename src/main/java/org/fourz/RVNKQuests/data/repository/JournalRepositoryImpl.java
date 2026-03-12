@@ -6,7 +6,11 @@ import org.fourz.RVNKQuests.data.dto.JournalEntryDTO;
 import org.fourz.RVNKQuests.data.dto.JournalEntryDTO.JournalAction;
 import org.fourz.rvnkcore.util.log.LogManager;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,12 +64,8 @@ public class JournalRepositoryImpl implements IJournalRepository {
                 stmt.setString(2, entry.questId());
                 stmt.setString(3, entry.action().name());
 
-                // Handle timestamp based on database type
-                if (databaseManager.isMySQL()) {
-                    stmt.setTimestamp(4, Timestamp.from(entry.timestamp()));
-                } else {
-                    stmt.setString(4, entry.timestamp().toString());
-                }
+                // Schema uses BIGINT for timestamp (epoch millis)
+                stmt.setLong(4, entry.timestamp().toEpochMilli());
 
                 stmt.setString(5, entry.details());
 
@@ -181,14 +181,8 @@ public class JournalRepositoryImpl implements IJournalRepository {
 
                 stmt.setString(1, playerUuid.toString());
 
-                // Handle timestamp based on database type
-                if (databaseManager.isMySQL()) {
-                    stmt.setTimestamp(2, Timestamp.from(startTime));
-                    stmt.setTimestamp(3, Timestamp.from(endTime));
-                } else {
-                    stmt.setString(2, startTime.toString());
-                    stmt.setString(3, endTime.toString());
-                }
+                stmt.setLong(2, startTime.toEpochMilli());
+                stmt.setLong(3, endTime.toEpochMilli());
 
                 try (ResultSet rs = stmt.executeQuery()) {
                     return mapResultSet(rs);
@@ -277,12 +271,7 @@ public class JournalRepositoryImpl implements IJournalRepository {
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-                // Handle timestamp based on database type
-                if (databaseManager.isMySQL()) {
-                    stmt.setTimestamp(1, Timestamp.from(beforeTime));
-                } else {
-                    stmt.setString(1, beforeTime.toString());
-                }
+                stmt.setLong(1, beforeTime.toEpochMilli());
 
                 int deleted = stmt.executeUpdate();
                 logger.info("Deleted " + deleted + " journal entries older than " + beforeTime);
@@ -340,13 +329,8 @@ public class JournalRepositoryImpl implements IJournalRepository {
             String questId = rs.getString("quest_id");
             JournalAction action = JournalAction.valueOf(rs.getString("action"));
 
-            // Handle timestamp based on database type
-            Instant timestamp;
-            if (databaseManager.isMySQL()) {
-                timestamp = rs.getTimestamp("timestamp").toInstant();
-            } else {
-                timestamp = Instant.parse(rs.getString("timestamp"));
-            }
+            // Schema uses BIGINT (epoch millis) for timestamp
+            Instant timestamp = Instant.ofEpochMilli(rs.getLong("timestamp"));
 
             String details = rs.getString("details");
 
