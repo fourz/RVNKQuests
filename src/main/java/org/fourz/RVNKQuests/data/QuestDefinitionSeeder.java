@@ -24,6 +24,14 @@ public class QuestDefinitionSeeder {
     }
 
     /**
+     * Gets the configured default world for quest definitions.
+     */
+    private String getDefaultWorld() {
+        return plugin.getConfigManager().getConfig()
+            .getString("quests.default_world", "event");
+    }
+
+    /**
      * Seeds quest definitions if they don't already exist.
      * Safe to call on every startup — skips existing quests.
      */
@@ -41,21 +49,48 @@ public class QuestDefinitionSeeder {
                 return;
             }
 
-            logger.info("Seeding quest definitions...");
-            int seeded = 0;
-
-            if (Boolean.TRUE.equals(repo.save(createPiglinFarFromHome()).join())) seeded++;
-            if (Boolean.TRUE.equals(repo.save(createAncientGuardian()).join())) seeded++;
-            if (Boolean.TRUE.equals(repo.save(createFirstCityProphecy()).join())) seeded++;
-
-            logger.info("Seeded " + seeded + " quest definition(s)");
-
+            seed(repo);
         } catch (Exception e) {
             logger.error("Failed to seed quest definitions", e);
         }
     }
 
+    /**
+     * Force re-seeds all quest definitions, overwriting existing ones.
+     * Useful after changing quests.default_world or other config.
+     *
+     * @return Number of quests seeded
+     */
+    public int reseed() {
+        IQuestRepository repo = plugin.getQuestRepository();
+        if (repo == null) {
+            logger.warning("Quest repository not available — cannot reseed");
+            return 0;
+        }
+
+        try {
+            return seed(repo);
+        } catch (Exception e) {
+            logger.error("Failed to reseed quest definitions", e);
+            return 0;
+        }
+    }
+
+    private int seed(IQuestRepository repo) {
+        logger.info("Seeding quest definitions (world: " + getDefaultWorld() + ")...");
+        int seeded = 0;
+
+        if (Boolean.TRUE.equals(repo.save(createPiglinFarFromHome()).join())) seeded++;
+        if (Boolean.TRUE.equals(repo.save(createAncientGuardian()).join())) seeded++;
+        if (Boolean.TRUE.equals(repo.save(createFirstCityProphecy()).join())) seeded++;
+
+        logger.info("Seeded " + seeded + " quest definition(s)");
+        return seeded;
+    }
+
     private QuestDTO createPiglinFarFromHome() {
+        String world = getDefaultWorld();
+
         Map<String, Object> stateMapping = new LinkedHashMap<>();
         stateMapping.put("NOT_STARTED", List.of("trigger_piglin_spawn"));
         stateMapping.put("TRIGGER_FOUND", List.of("obj_piglin_death", "obj_piglin_escort"));
@@ -66,7 +101,7 @@ public class QuestDefinitionSeeder {
         triggerPiglinSpawn.put("type", "PROXIMITY_MOB_SPAWN");
         triggerPiglinSpawn.put("entity_type", "PIGLIN");
         triggerPiglinSpawn.put("custom_name", "GrotSnout da Lost");
-        triggerPiglinSpawn.put("world", "event");
+        triggerPiglinSpawn.put("world", world);
         triggerPiglinSpawn.put("radius", 50);
         triggerPiglinSpawn.put("context_key", "spawned_piglin");
 
@@ -140,6 +175,8 @@ public class QuestDefinitionSeeder {
     }
 
     private QuestDTO createAncientGuardian() {
+        String world = getDefaultWorld();
+
         Map<String, Object> stateMapping = new LinkedHashMap<>();
         stateMapping.put("NOT_STARTED", List.of("trigger_guardian_proximity"));
         stateMapping.put("TRIGGER_FOUND", List.of("obj_guardian_defeat"));
@@ -149,7 +186,7 @@ public class QuestDefinitionSeeder {
         Map<String, Object> triggerGuardian = new LinkedHashMap<>();
         triggerGuardian.put("type", "ENTITY_PROXIMITY");
         triggerGuardian.put("entity_type", "ELDER_GUARDIAN");
-        triggerGuardian.put("world", "event");
+        triggerGuardian.put("world", world);
         triggerGuardian.put("radius", 50);
 
         Map<String, Object> objGuardianDefeat = new LinkedHashMap<>();
@@ -161,7 +198,7 @@ public class QuestDefinitionSeeder {
 
         Map<String, Object> objForgottenSite = new LinkedHashMap<>();
         objForgottenSite.put("objective_type", "DISCOVER");
-        objForgottenSite.put("world", "event");
+        objForgottenSite.put("world", world);
         objForgottenSite.put("detection_radius", 30);
         objForgottenSite.put("detection_materials", "PRISMARINE,PRISMARINE_BRICKS,DARK_PRISMARINE,SEA_LANTERN");
         objForgottenSite.put("min_blocks", 5);
@@ -214,6 +251,8 @@ public class QuestDefinitionSeeder {
     }
 
     private QuestDTO createFirstCityProphecy() {
+        String world = getDefaultWorld();
+
         Map<String, Object> stateMapping = new LinkedHashMap<>();
         stateMapping.put("NOT_STARTED", List.of("trigger_prophecy_discovery"));
         stateMapping.put("TRIGGER_FOUND", List.of("obj_pillar_interact"));
@@ -223,19 +262,19 @@ public class QuestDefinitionSeeder {
         triggerProphecy.put("type", "ITEM_DISCOVERY");
         triggerProphecy.put("item_type", "WRITTEN_BOOK");
         triggerProphecy.put("item_name", "The First City Prophecy");
-        triggerProphecy.put("world", "event");
+        triggerProphecy.put("world", world);
 
         Map<String, Object> objPillarInteract = new LinkedHashMap<>();
         objPillarInteract.put("objective_type", "INTERACT");
         objPillarInteract.put("block_type", "LECTERN");
-        objPillarInteract.put("world", "event");
+        objPillarInteract.put("world", world);
         objPillarInteract.put("required_state", "TRIGGER_FOUND");
         objPillarInteract.put("advance_state", "QUEST_ACTIVE");
 
         Map<String, Object> objCityChoice = new LinkedHashMap<>();
         objCityChoice.put("objective_type", "INTERACT");
         objCityChoice.put("block_type", "LODESTONE");
-        objCityChoice.put("world", "event");
+        objCityChoice.put("world", world);
         objCityChoice.put("required_state", "QUEST_ACTIVE");
         objCityChoice.put("advance_state", "COMPLETED");
 

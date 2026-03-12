@@ -3,6 +3,7 @@ package org.fourz.RVNKQuests.command;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.data.QuestDefinitionSeeder;
 
 import java.util.Collections;
 import java.util.List;
@@ -16,45 +17,59 @@ import java.util.logging.Level;
 public class QuestReloadSubCommand extends BaseSubCommand {
 
     public QuestReloadSubCommand(RVNKQuests plugin) {
-        super(plugin, "reload", "Reload the plugin configuration. Add 'reset' to reset all quests.", 
-              "/quest reload [reset]", "rvnkquests.admin", false);
+        super(plugin, "reload", "Reload config. Args: reset (reset quests), reseed (re-seed definitions from config)",
+              "/quest reload [reset|reseed]", "rvnkquests.admin", false);
     }
 
     @Override
     protected boolean executeSubCommand(CommandSender sender, String[] args) {
-        // Check if this is a reset reload
+        // Check sub-args
         boolean resetReload = args.length > 0 && "reset".equalsIgnoreCase(args[0]);
-        
+        boolean reseedReload = args.length > 0 && "reseed".equalsIgnoreCase(args[0]);
+
         if (resetReload) {
             sendErrorMessage(sender, "Performing reset reload - resetting all quests and reloading configuration...");
             logger.info("Reset reload initiated by " + sender.getName() + " - all quests will be reset");
+        } else if (reseedReload) {
+            sendInfoMessage(sender, "Re-seeding quest definitions from config...");
         } else {
             sendInfoMessage(sender, "Reloading RVNKQuests configuration...");
         }
-        
+
         try {
             // First reload the configuration - this will update the quest enable status
             plugin.getConfigManager().reloadConfig();
-            
+
             // Display quest status after reload
             if (resetReload) {
                 displayQuestStatus(sender);
             }
-            
+
             // Update the log level based on new config using the global method
             Level newLogLevel = plugin.getConfigManager().getLogLevel();
             plugin.updateGlobalLogLevel(newLogLevel);
-            
+
+            // Re-seed quest definitions if requested
+            if (reseedReload) {
+                QuestDefinitionSeeder seeder = new QuestDefinitionSeeder(plugin);
+                int count = seeder.reseed();
+                sendSuccessMessage(sender, "Re-seeded " + count + " quest definition(s) (world: " +
+                    plugin.getConfigManager().getConfig().getString("quests.default_world", "event") + ")");
+                // Reset quests to pick up new definitions
+                resetQuests(sender);
+            }
+
             // If this is a reset reload, reset all quests
             if (resetReload) {
                 resetQuests(sender);
             }
-            
-            logger.info("Configuration reloaded by " + sender.getName() + " " + (resetReload ? "with quest reset" : ""));
+
+            logger.info("Configuration reloaded by " + sender.getName() + " " +
+                (resetReload ? "with quest reset" : reseedReload ? "with reseed" : ""));
             sendSuccessMessage(sender, "Configuration reloaded successfully!");
             sendInfoMessage(sender, "Current log level: " + ChatColor.GREEN + getLevelName(newLogLevel));
         } catch (Exception e) {
-            logger.error("Error during " + (resetReload ? "reset reload" : "reload"), e);
+            logger.error("Error during reload", e);
             sendErrorMessage(sender, "Error reloading configuration: " + e.getMessage());
         }
         
@@ -65,7 +80,7 @@ public class QuestReloadSubCommand extends BaseSubCommand {
     protected List<String> getTabCompletionOptions(CommandSender sender, String[] args) {
         // Return "reset" as a tab completion option for the first argument
         if (args.length == 1) {
-            return Collections.singletonList("reset");
+            return List.of("reset", "reseed");
         }
         return Collections.emptyList();
     }

@@ -8,11 +8,16 @@ quests:
   # Announce quest completions server-wide
   announce_completion: true
 
+  # Default world for quest triggers and objectives
+  # Used by seeded quest definitions — change before first startup or reseed
+  default_world: event
+
   # Individual quest configuration
   piglin_far_from_home:
-    world: event
     enable: true
   ancient_guardian:
+    enable: true
+  first_city_prophecy:
     enable: true
 
 # Database configuration for quest progress persistence
