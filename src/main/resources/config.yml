@@ -19,6 +19,8 @@ quests:
     enable: true
   first_city_prophecy:
     enable: true
+  ashen_pilgrim:
+    enable: true
 
 # Database configuration for quest progress persistence
 database:

@@ -183,6 +183,7 @@ public class QuestComponentFactory {
             case INTERACT -> new GenericInteractObjective(plugin, quest, config);
             case ESCORT -> new GenericEscortObjective(plugin, quest, config);
             case ENCOUNTER -> new GenericEncounterObjective(plugin, quest, config);
+            case COLLECT -> new GenericCollectObjective(plugin, quest, config);
             default -> {
                 logger.debug("Objective type " + type + " not yet implemented for component " + componentId);
                 yield null;
