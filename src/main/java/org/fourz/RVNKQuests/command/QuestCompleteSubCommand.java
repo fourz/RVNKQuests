@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.service.IQuestService;
@@ -98,7 +99,11 @@ public class QuestCompleteSubCommand extends BaseSubCommand {
                     if (success) {
                         sendSuccessMessage(sender, "Force completed quest '" + quest.getName() + "' for " + playerName);
                         sendMessage(sender, "&7   All objectives bypassed");
-                        sendMessage(sender, "&7   Rewards granted");
+                        if (quest instanceof DataDrivenQuest ddq && !ddq.getDefinition().rewards().isEmpty()) {
+                            sendMessage(sender, "&7   Rewards granted (" + ddq.getDefinition().rewards().size() + " reward(s))");
+                        } else if (!(quest instanceof DataDrivenQuest)) {
+                            sendMessage(sender, "&7   Rewards granted (if configured)");
+                        }
 
                         // Notify target player if different from sender
                         if (!sender.equals(targetPlayer)) {

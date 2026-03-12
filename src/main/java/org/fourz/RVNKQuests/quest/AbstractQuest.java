@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.event.QuestCompleteEvent;
+import org.fourz.RVNKQuests.service.IJournalService;
 import org.fourz.RVNKQuests.service.INotificationService;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
 import org.fourz.rvnkcore.util.log.LogManager;
@@ -93,12 +94,39 @@ public abstract class AbstractQuest implements Quest {
         return getStateForPlayer(playerUuid)
             .thenCompose(currentState -> {
                 logger.debug("Advancing state for " + playerUuid + " from " + currentState + " to " + newState);
-                return service.updateQuestState(playerUuid, questId, newState);
-            })
-            .thenAccept(progress -> {
-                // Update listeners if needed
-                plugin.getQuestManager().updateQuestListenersForPlayer(this, playerUuid);
+                return service.updateQuestState(playerUuid, questId, newState)
+                    .thenAccept(progress -> {
+                        // Record journal entry for the state transition
+                        recordStateTransitionJournal(playerUuid, currentState, newState);
+
+                        // Update listeners if needed
+                        plugin.getQuestManager().updateQuestListenersForPlayer(this, playerUuid);
+                    });
             });
+    }
+
+    /**
+     * Records a journal entry based on the quest state transition.
+     * This is the single recording point for ALL state changes — generic objectives,
+     * triggers, admin commands, and QuestManager methods all flow through here.
+     */
+    private void recordStateTransitionJournal(UUID playerUuid, QuestState fromState, QuestState toState) {
+        IJournalService journal = plugin.getJournalService();
+        if (journal == null || !journal.isAvailable()) return;
+
+        switch (toState) {
+            case QUEST_ACTIVE -> journal.recordQuestStart(playerUuid, questId);
+            case COMPLETED -> journal.recordQuestComplete(playerUuid, questId);
+            case NOT_STARTED -> {
+                // Only record abandon if transitioning FROM an active state
+                if (fromState != QuestState.NOT_STARTED) {
+                    journal.recordQuestAbandon(playerUuid, questId);
+                }
+            }
+            case ABANDONED -> journal.recordQuestAbandon(playerUuid, questId);
+            case TRIGGER_FOUND -> journal.recordObjectiveComplete(playerUuid, questId, "state:trigger_found");
+            case OBJECTIVE_FOUND -> journal.recordObjectiveComplete(playerUuid, questId, "state:objective_found");
+        }
     }
 
     @Override
