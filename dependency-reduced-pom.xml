@@ -4,7 +4,7 @@
   <groupId>org.fourz.RVNKQuests</groupId>
   <artifactId>RVNKQuests</artifactId>
   <name>RVNKQuests</name>
-  <version>1.0.15</version>
+  <version>1.0.16</version>
   <url>http://www.example.com</url>
   <build>
     <resources>
