@@ -39,7 +39,8 @@ public class QuestRewardSubCommand extends BaseSubCommand {
         switch (action) {
             case "add" -> handleAdd(sender, questId, args, repo);
             case "remove" -> handleRemove(sender, questId, args, repo);
-            default -> sendErrorMessage(sender, "Unknown action: " + action + ". Use 'add' or 'remove'.");
+            case "list" -> handleList(sender, questId, repo);
+            default -> sendErrorMessage(sender, "Unknown action: " + action + ". Use 'add', 'remove', or 'list'.");
         }
 
         return true;
@@ -76,6 +77,19 @@ public class QuestRewardSubCommand extends BaseSubCommand {
         });
     }
 
+    private void handleList(CommandSender sender, String questId, IQuestRepository repo) {
+        repo.findRewards(questId).thenAccept(rewards -> {
+            if (rewards.isEmpty()) {
+                sendMessage(sender, "&eNo rewards configured for quest " + questId);
+                return;
+            }
+            sendMessage(sender, "&6Rewards for &f" + questId + " &7(" + rewards.size() + "):");
+            for (RewardDTO reward : rewards) {
+                sendMessage(sender, "&7  - &f" + reward.rewardId() + " &7| " + reward.type() + " &7| value=&f" + reward.value() + " &7| amount=&f" + reward.amount());
+            }
+        });
+    }
+
     private void handleRemove(CommandSender sender, String questId, String[] args, IQuestRepository repo) {
         // /quest reward remove <quest_id> <reward_id>
         if (args.length < 3) {
@@ -104,7 +118,7 @@ public class QuestRewardSubCommand extends BaseSubCommand {
     @Override
     protected List<String> getTabCompletionOptions(CommandSender sender, String[] args) {
         if (args.length == 1) {
-            return List.of("add", "remove").stream()
+            return List.of("add", "remove", "list").stream()
                 .filter(a -> a.startsWith(args[0].toLowerCase()))
                 .collect(Collectors.toList());
         }

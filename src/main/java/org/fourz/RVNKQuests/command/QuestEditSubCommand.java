@@ -30,7 +30,7 @@ public class QuestEditSubCommand extends BaseSubCommand {
 
         String questId = args[0];
         String property = args[1].toLowerCase();
-        String value = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+        String value = stripQuotes(String.join(" ", Arrays.copyOfRange(args, 2, args.length)));
 
         if (!PROPERTIES.contains(property)) {
             sendErrorMessage(sender, "Unknown property: " + property + ". Valid: " + String.join(", ", PROPERTIES));
@@ -75,6 +75,8 @@ public class QuestEditSubCommand extends BaseSubCommand {
 
             repo.save(updated).thenAccept(success -> {
                 if (success) {
+                    // Hot-reload the quest so in-memory state matches DB
+                    plugin.getQuestManager().reloadQuest(questId);
                     sendSuccessMessage(sender, "Updated " + property + " for quest " + questId);
                 } else {
                     sendErrorMessage(sender, "Failed to save changes.");
@@ -83,6 +85,13 @@ public class QuestEditSubCommand extends BaseSubCommand {
         });
 
         return true;
+    }
+
+    private String stripQuotes(String s) {
+        if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
+            return s.substring(1, s.length() - 1);
+        }
+        return s;
     }
 
     @Override

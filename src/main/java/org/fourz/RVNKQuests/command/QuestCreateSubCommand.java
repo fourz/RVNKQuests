@@ -23,7 +23,7 @@ public class QuestCreateSubCommand extends BaseSubCommand {
         if (!validateArgs(sender, args, 2)) return true;
 
         String questId = args[0].toLowerCase();
-        String name = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+        String name = stripQuotes(String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
 
         IQuestRepository repo = plugin.getQuestRepository();
         if (repo == null) {
@@ -40,6 +40,8 @@ public class QuestCreateSubCommand extends BaseSubCommand {
             QuestDTO quest = QuestDTO.create(questId, name, "");
             repo.save(quest).thenAccept(success -> {
                 if (success) {
+                    // Register the new quest with QuestManager so it's immediately available
+                    plugin.getQuestManager().reloadQuest(questId);
                     sendSuccessMessage(sender, "Created quest: " + questId + " (" + name + ")");
                     logger.info("Quest created: " + questId + " by " + sender.getName());
                 } else {
@@ -49,6 +51,13 @@ public class QuestCreateSubCommand extends BaseSubCommand {
         });
 
         return true;
+    }
+
+    private String stripQuotes(String s) {
+        if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
+            return s.substring(1, s.length() - 1);
+        }
+        return s;
     }
 
     @Override

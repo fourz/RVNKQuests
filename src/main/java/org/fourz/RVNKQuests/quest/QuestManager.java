@@ -188,8 +188,10 @@ public class QuestManager implements IQuestService {
                 return false;
             }
 
-            // Unregister existing quest
-            unregisterQuest(questId);
+            // Unregister existing quest (skip if not yet registered — e.g. first import)
+            if (quests.containsKey(questId)) {
+                unregisterQuest(questId);
+            }
 
             // Re-register with updated definition
             DataDrivenQuest quest = new DataDrivenQuest(plugin, optDef.get());
