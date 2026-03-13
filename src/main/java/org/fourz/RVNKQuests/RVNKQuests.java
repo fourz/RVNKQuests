@@ -12,6 +12,7 @@ import org.fourz.RVNKQuests.data.QuestYamlRepository;
 import org.fourz.rvnkcore.data.FallbackTracker;
 import org.fourz.RVNKQuests.data.repository.IPreferenceRepository;
 import org.fourz.RVNKQuests.data.repository.PreferenceRepositoryImpl;
+import org.fourz.RVNKQuests.event.ChainProgressListener;
 import org.fourz.RVNKQuests.event.PlayerJoinQuitListener;
 import org.fourz.RVNKQuests.quest.QuestManager;
 import org.fourz.RVNKQuests.service.IObjectiveService;
@@ -150,6 +151,17 @@ public class RVNKQuests extends JavaPlugin {
 
             // Register quest menu listener for GUI interactions (feat-24)
             getServer().getPluginManager().registerEvents(new QuestMenuListener(this), this);
+
+            // Register chain progress listener — bridges quest completion to chain service
+            getServer().getPluginManager().registerEvents(new ChainProgressListener(this), this);
+
+            // Wire QuestUnlockRewardProcessor to actually start quests via QuestManager
+            org.fourz.RVNKQuests.service.RewardProcessor unlockProc =
+                rewardService.getProcessor(org.fourz.RVNKQuests.data.dto.RewardType.QUEST_UNLOCK);
+            if (unlockProc instanceof org.fourz.RVNKQuests.service.reward.QuestUnlockRewardProcessor questUnlock) {
+                questUnlock.setUnlockCallback((playerId, questId) ->
+                    questManager.startQuest(playerId, questId));
+            }
 
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
