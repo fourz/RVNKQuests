@@ -119,6 +119,7 @@ public class QuestDefinitionSeeder {
         objPiglinDeath.put("quest_mob_only", true);
         objPiglinDeath.put("required_state", "TRIGGER_FOUND");
         objPiglinDeath.put("advance_state", "QUEST_ACTIVE");
+        objPiglinDeath.put("sets_path", "COMBAT_PATH");
 
         Map<String, Object> objPiglinEscort = new LinkedHashMap<>();
         objPiglinEscort.put("objective_type", "REACH");
@@ -126,6 +127,7 @@ public class QuestDefinitionSeeder {
         objPiglinEscort.put("radius", 10.0);
         objPiglinEscort.put("required_state", "TRIGGER_FOUND");
         objPiglinEscort.put("advance_state", "QUEST_ACTIVE");
+        objPiglinEscort.put("sets_path", "ESCORT_PATH");
 
         Map<String, Object> objPortalEncounter = new LinkedHashMap<>();
         objPortalEncounter.put("objective_type", "KILL");

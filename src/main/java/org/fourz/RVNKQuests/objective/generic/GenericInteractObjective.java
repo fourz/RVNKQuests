@@ -27,6 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code world} — World restriction (optional)</li>
  *   <li>{@code required_state} — QuestState player must be in (default: "QUEST_ACTIVE")</li>
  *   <li>{@code advance_state} — State to advance to (default: "OBJECTIVE_FOUND")</li>
+ *   <li>{@code requires_path} — Only active when player's pathChoice matches (optional)</li>
+ *   <li>{@code sets_path} — Sets pathChoice on completion (optional)</li>
  * </ul>
  */
 public class GenericInteractObjective implements Listener {
@@ -40,6 +42,8 @@ public class GenericInteractObjective implements Listener {
     private final String worldName;
     private final QuestState requiredState;
     private final QuestState advanceState;
+    private final String requiresPath;
+    private final String setsPath;
 
     private final Map<UUID, Integer> interactCounts = new ConcurrentHashMap<>();
 
@@ -53,12 +57,20 @@ public class GenericInteractObjective implements Listener {
         this.worldName = QuestComponentFactory.getStringConfig(config, "world", null);
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "QUEST_ACTIVE"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "OBJECTIVE_FOUND"));
+        this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
+        this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
     }
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         if (quest.getStateForPlayer(player) != requiredState) return;
+
+        // Check path restriction
+        if (requiresPath != null) {
+            String playerPath = quest.getPathChoiceCached(player);
+            if (!requiresPath.equals(playerPath)) return;
+        }
 
         if (worldName != null && !player.getWorld().getName().equalsIgnoreCase(worldName)) return;
 
@@ -86,6 +98,9 @@ public class GenericInteractObjective implements Listener {
 
         if (count >= requiredCount) {
             interactCounts.remove(playerId);
+            if (setsPath != null) {
+                quest.setPathChoice(player, setsPath);
+            }
             quest.advanceStateForPlayer(playerId, advanceState);
             logger.debug(player.getName() + " completed interact objective for quest " + quest.getId());
         }

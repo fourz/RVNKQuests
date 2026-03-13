@@ -30,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code context_location_key} — Runtime context key for location (optional, overrides x/y/z)</li>
  *   <li>{@code required_state} — QuestState player must be in (default: "QUEST_ACTIVE")</li>
  *   <li>{@code advance_state} — State to advance to (default: "OBJECTIVE_FOUND")</li>
+ *   <li>{@code requires_path} — Only active when player's pathChoice matches (optional)</li>
+ *   <li>{@code sets_path} — Sets pathChoice on completion (optional)</li>
  * </ul>
  */
 public class GenericCollectObjective implements Listener {
@@ -48,6 +50,8 @@ public class GenericCollectObjective implements Listener {
     private final String contextLocationKey;
     private final QuestState requiredState;
     private final QuestState advanceState;
+    private final String requiresPath;
+    private final String setsPath;
 
     /** Cooldown to avoid spamming action bar messages every tick. */
     private final Map<UUID, Long> lastMessageTime = new ConcurrentHashMap<>();
@@ -68,6 +72,8 @@ public class GenericCollectObjective implements Listener {
         this.contextLocationKey = QuestComponentFactory.getStringConfig(config, "context_location_key", null);
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "QUEST_ACTIVE"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "OBJECTIVE_FOUND"));
+        this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
+        this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
 
         // Parse items map
         this.requiredItems = new LinkedHashMap<>();
@@ -100,6 +106,12 @@ public class GenericCollectObjective implements Listener {
         Player player = event.getPlayer();
         if (quest.getStateForPlayer(player) != requiredState) return;
 
+        // Check path restriction
+        if (requiresPath != null) {
+            String playerPath = quest.getPathChoiceCached(player);
+            if (!requiresPath.equals(playerPath)) return;
+        }
+
         // World check
         if (worldName != null && !player.getWorld().getName().equalsIgnoreCase(worldName)) return;
 
@@ -121,6 +133,9 @@ public class GenericCollectObjective implements Listener {
             }
 
             lastMessageTime.remove(player.getUniqueId());
+            if (setsPath != null) {
+                quest.setPathChoice(player, setsPath);
+            }
             quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
             logger.debug(player.getName() + " completed collect objective for quest " + quest.getId());
         } else {

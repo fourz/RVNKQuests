@@ -28,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code required_state} — QuestState player must be in (default: "QUEST_ACTIVE")</li>
  *   <li>{@code advance_state} — State to advance to on completion (default: "OBJECTIVE_FOUND")</li>
  *   <li>{@code context_key} — Runtime context key for kill count (default: "kill_count")</li>
+ *   <li>{@code requires_path} — Only active when player's pathChoice matches (optional)</li>
+ *   <li>{@code sets_path} — Sets pathChoice on completion (optional)</li>
  * </ul>
  */
 public class GenericKillObjective implements Listener {
@@ -45,6 +47,8 @@ public class GenericKillObjective implements Listener {
     private final QuestState requiredState;
     private final QuestState advanceState;
     private final String contextKey;
+    private final String requiresPath;
+    private final String setsPath;
 
     private final Map<UUID, Integer> killCounts = new ConcurrentHashMap<>();
 
@@ -60,6 +64,8 @@ public class GenericKillObjective implements Listener {
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "QUEST_ACTIVE"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "OBJECTIVE_FOUND"));
         this.contextKey = QuestComponentFactory.getStringConfig(config, "context_key", "kill_count");
+        this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
+        this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
     }
 
     @EventHandler
@@ -69,6 +75,12 @@ public class GenericKillObjective implements Listener {
         if (killer == null) return;
 
         if (quest.getStateForPlayer(killer) != requiredState) return;
+
+        // Check path restriction
+        if (requiresPath != null) {
+            String playerPath = quest.getPathChoiceCached(killer);
+            if (!requiresPath.equals(playerPath)) return;
+        }
 
         // Check entity type
         if (entity.getType() != entityType) return;
@@ -91,6 +103,10 @@ public class GenericKillObjective implements Listener {
 
         if (count >= requiredKills) {
             killCounts.remove(playerId);
+            // Set path choice if configured
+            if (setsPath != null) {
+                quest.setPathChoice(killer, setsPath);
+            }
             quest.advanceStateForPlayer(playerId, advanceState);
         }
     }
