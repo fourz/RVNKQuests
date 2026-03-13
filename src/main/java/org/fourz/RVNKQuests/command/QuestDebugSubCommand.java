@@ -101,13 +101,16 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             sendMessage(sender, "&7  Registered Quests: &f" + quests.size());
             sendMessage(sender, "&7  Quest IDs: &f" + String.join(", ", questIds));
 
-            // Count quests by state
+            // Count quests by state — use per-player state when sender is a player
             int activeCount = 0;
             int notStartedCount = 0;
             int completedCount = 0;
+            boolean hasPlayerContext = sender instanceof Player;
+            Player playerSender = hasPlayerContext ? (Player) sender : null;
             for (Quest quest : quests) {
-                // TODO: no player context — getCurrentState() deprecated; diagnostics counts may not reflect per-player state
-                QuestState state = quest.getCurrentState();
+                QuestState state = hasPlayerContext
+                    ? quest.getStateForPlayer(playerSender)
+                    : quest.getCurrentState();
                 if (state == QuestState.QUEST_ACTIVE || state == QuestState.OBJECTIVE_FOUND ||
                     state == QuestState.TRIGGER_FOUND) {
                     activeCount++;
@@ -117,8 +120,9 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                     notStartedCount++;
                 }
             }
+            String contextLabel = hasPlayerContext ? " (for " + playerSender.getName() + ")" : " (global)";
             sendMessage(sender, "&7  Active: &a" + activeCount + "&7, Not Started: &e" + notStartedCount +
-                       "&7, Completed: &b" + completedCount);
+                       "&7, Completed: &b" + completedCount + "&7" + contextLabel);
         } else {
             sendMessage(sender, "&7Quest Manager: &cNOT INITIALIZED");
         }
@@ -174,11 +178,18 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             return true;
         }
 
+        boolean hasPlayerContext = sender instanceof Player;
+        Player listPlayer = hasPlayerContext ? (Player) sender : null;
+        if (hasPlayerContext) {
+            sendMessage(sender, "&7(Showing state for: &f" + listPlayer.getName() + "&7)");
+        }
+
         for (Quest quest : quests) {
             String id = quest.getId();
             String name = quest.getName();
-            // TODO: no player context — getCurrentState() deprecated; list shows global/default state only
-            QuestState state = quest.getCurrentState();
+            QuestState state = hasPlayerContext
+                ? quest.getStateForPlayer(listPlayer)
+                : quest.getCurrentState();
             String trigger = quest.getStartTrigger();
 
             // Color-code based on state
