@@ -43,7 +43,7 @@ public class QuestCommand extends BaseCommand {
         // Admin commands (require elevated permissions)
         registerSubCommand("reset", new QuestResetSubCommand(plugin));
         registerSubCommand("complete", new QuestCompleteSubCommand(plugin));
-        registerSubCommand("setstate", new QuestSetStateSubCommand(plugin));
+        // setstate moved under /quest debug setstate (#448)
         registerSubCommand("objective", new QuestObjectiveSubCommand(plugin));
 
         // Quest definition admin commands (generic quest engine)

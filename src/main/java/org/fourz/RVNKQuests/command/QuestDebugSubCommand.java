@@ -28,10 +28,11 @@ import java.util.logging.Level;
 public class QuestDebugSubCommand extends BaseSubCommand {
 
     private static final List<String> SUB_COMMANDS = Arrays.asList(
-        "diagnostics", "list", "player", "loglevel", "seed"
+        "diagnostics", "list", "player", "loglevel", "seed", "setstate"
     );
 
     private SeedSubCommand seedSubCommand;
+    private QuestSetStateSubCommand setStateSubCommand;
 
     private static final List<String> LOG_LEVELS = Arrays.asList("DEBUG", "INFO", "WARN", "OFF");
 
@@ -39,6 +40,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         super(plugin, "debug", "Debug and diagnostics commands",
               "/quest debug <subcommand>", "rvnkquests.admin", false);
         this.seedSubCommand = new SeedSubCommand(plugin);
+        this.setStateSubCommand = new QuestSetStateSubCommand(plugin);
     }
 
     @Override
@@ -66,6 +68,8 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 return handleLogLevel(sender, subArgs);
             case "seed":
                 return seedSubCommand.execute(sender, subArgs);
+            case "setstate":
+                return setStateSubCommand.execute(sender, subArgs);
             default:
                 sendErrorMessage(sender, "Unknown debug command: " + subCommand);
                 showUsage(sender);
@@ -80,6 +84,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug player [name] &8- Show player quest progress");
         sendMessage(sender, "&7/quest debug loglevel [level] &8- View or change log level");
         sendMessage(sender, "&7/quest debug seed <action> &8- Seed/cleanup test data");
+        sendMessage(sender, "&7/quest debug setstate <quest> <state> [player] &8- Set quest state (bypasses validation)");
     }
 
     /**
@@ -343,6 +348,10 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             } else if (subCmd.equals("seed")) {
                 // Delegate to seed subcommand
                 return seedSubCommand.getTabCompletions(sender,
+                    Arrays.copyOfRange(args, 1, args.length));
+            } else if (subCmd.equals("setstate")) {
+                // Delegate to setstate subcommand
+                return setStateSubCommand.getTabCompletions(sender,
                     Arrays.copyOfRange(args, 1, args.length));
             }
         }
