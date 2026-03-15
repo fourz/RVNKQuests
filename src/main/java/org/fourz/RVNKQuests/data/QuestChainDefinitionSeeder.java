@@ -39,9 +39,12 @@ public class QuestChainDefinitionSeeder {
             return;
         }
 
+        logger.info("Checking quest chain definitions...");
         try {
-            if (!chainService.getAllChains().join().isEmpty()) {
-                logger.debug("Quest chains already exist — skipping seed");
+            List<QuestChainDTO> existing = chainService.getAllChains()
+                .get(5, java.util.concurrent.TimeUnit.SECONDS);
+            if (!existing.isEmpty()) {
+                logger.info("Quest chains already exist (" + existing.size() + ") — skipping seed");
                 return;
             }
 
@@ -87,13 +90,18 @@ public class QuestChainDefinitionSeeder {
 
     private boolean registerChain(IQuestChainService chainService, QuestChainDTO chain) {
         try {
-            boolean success = chainService.registerChain(chain).join();
+            // Use get() with timeout instead of join() to avoid potential deadlock
+            // during onEnable() when ForkJoinPool may be constrained
+            boolean success = chainService.registerChain(chain).get(5, java.util.concurrent.TimeUnit.SECONDS);
             if (success) {
                 logger.info("Registered chain: " + chain.chainId() + " (" + chain.name() + ")");
             } else {
                 logger.warning("Failed to register chain: " + chain.chainId());
             }
             return success;
+        } catch (java.util.concurrent.TimeoutException e) {
+            logger.warning("Timeout registering chain: " + chain.chainId() + " (async pool may be blocked during startup)");
+            return false;
         } catch (Exception e) {
             logger.error("Error registering chain: " + chain.chainId(), e);
             return false;

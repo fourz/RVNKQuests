@@ -176,7 +176,9 @@ public class RVNKQuests extends JavaPlugin {
             questManager.initializeQuests();
 
             // Seed quest chain definitions (requires quests to be loaded first)
+            logger.info("About to seed quest chain definitions...");
             new QuestChainDefinitionSeeder(this).seedIfNeeded();
+            logger.info("Quest chain seeding complete");
 
             // Initialize lore integration and pre-populate quest books from lore DB
             loreIntegration = new LoreIntegrationImpl(this);
