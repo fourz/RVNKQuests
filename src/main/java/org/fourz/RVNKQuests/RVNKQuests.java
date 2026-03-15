@@ -6,6 +6,7 @@ import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.data.DatabaseManager;
 import org.fourz.RVNKQuests.data.IQuestRepository;
+import org.fourz.RVNKQuests.data.QuestChainDefinitionSeeder;
 import org.fourz.RVNKQuests.data.QuestDefinitionSeeder;
 import org.fourz.RVNKQuests.data.QuestRepositoryImpl;
 import org.fourz.RVNKQuests.data.QuestYamlRepository;
@@ -173,6 +174,9 @@ public class RVNKQuests extends JavaPlugin {
 
             // Register quests (loads from repository + hardcoded fallbacks)
             questManager.initializeQuests();
+
+            // Seed quest chain definitions (requires quests to be loaded first)
+            new QuestChainDefinitionSeeder(this).seedIfNeeded();
 
             // Initialize lore integration and pre-populate quest books from lore DB
             loreIntegration = new LoreIntegrationImpl(this);
