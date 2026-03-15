@@ -105,6 +105,7 @@ public class QuestDefinitionSeeder {
         triggerPiglinSpawn.put("world", world);
         triggerPiglinSpawn.put("radius", 50);
         triggerPiglinSpawn.put("context_key", "spawned_piglin");
+        triggerPiglinSpawn.put("context_location_key", "portal_location");
         triggerPiglinSpawn.put("interact_book", "grotsnouts_journal");
         triggerPiglinSpawn.put("beg_on_attack", true);
         triggerPiglinSpawn.put("beg_message", "OI! Don't 'it me! I ain't da enemy 'ere! Read me book first, ya git!");
@@ -130,10 +131,16 @@ public class QuestDefinitionSeeder {
         objPiglinEscort.put("sets_path", "ESCORT_PATH");
 
         Map<String, Object> objPortalEncounter = new LinkedHashMap<>();
-        objPortalEncounter.put("objective_type", "KILL");
+        objPortalEncounter.put("objective_type", "ENCOUNTER");
         objPortalEncounter.put("entity_type", "ZOMBIFIED_PIGLIN");
+        objPortalEncounter.put("spawn_count", 3);
         objPortalEncounter.put("required_kills", 3);
-        objPortalEncounter.put("quest_mob_only", true);
+        objPortalEncounter.put("custom_name", "Portal Guardian");
+        objPortalEncounter.put("context_location_key", "portal_location");
+        objPortalEncounter.put("trigger_radius", 15);
+        objPortalEncounter.put("spawn_radius", 5);
+        objPortalEncounter.put("prevent_infighting", true);
+        objPortalEncounter.put("block_portals", true);
         objPortalEncounter.put("required_state", "QUEST_ACTIVE");
         objPortalEncounter.put("advance_state", "OBJECTIVE_FOUND");
 
