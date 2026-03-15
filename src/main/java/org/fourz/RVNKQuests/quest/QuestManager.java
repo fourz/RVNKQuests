@@ -1,6 +1,8 @@
 package org.fourz.RVNKQuests.quest;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.fourz.RVNKQuests.event.QuestCompleteEvent;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.data.IQuestRepository;
 import org.fourz.RVNKQuests.data.dto.QuestDTO;
@@ -617,7 +619,17 @@ public class QuestManager implements IQuestService {
                     return CompletableFuture.completedFuture(false);
                 }
                 return quest.advanceStateForPlayer(playerId, QuestState.COMPLETED)
-                    .thenApply(v -> true);
+                    .thenApply(v -> {
+                        // Fire QuestCompleteEvent so chain listeners and other
+                        // systems are notified (including force-complete)
+                        Player player = Bukkit.getPlayer(playerId);
+                        if (player != null) {
+                            Bukkit.getScheduler().runTask(plugin, () ->
+                                Bukkit.getPluginManager().callEvent(
+                                    new QuestCompleteEvent(player, questId, quest.getName())));
+                        }
+                        return true;
+                    });
             })
             .whenComplete((result, ex) -> completionsInProgress.remove(inFlightKey));
     }
