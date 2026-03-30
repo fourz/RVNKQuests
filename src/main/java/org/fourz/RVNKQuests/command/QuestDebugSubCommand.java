@@ -28,10 +28,11 @@ import java.util.logging.Level;
 public class QuestDebugSubCommand extends BaseSubCommand {
 
     private static final List<String> SUB_COMMANDS = Arrays.asList(
-        "diagnostics", "list", "player", "loglevel", "seed"
+        "diagnostics", "list", "player", "loglevel", "seed", "setstate"
     );
 
     private SeedSubCommand seedSubCommand;
+    private QuestSetStateSubCommand setStateSubCommand;
 
     private static final List<String> LOG_LEVELS = Arrays.asList("DEBUG", "INFO", "WARN", "OFF");
 
@@ -39,6 +40,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         super(plugin, "debug", "Debug and diagnostics commands",
               "/quest debug <subcommand>", "rvnkquests.admin", false);
         this.seedSubCommand = new SeedSubCommand(plugin);
+        this.setStateSubCommand = new QuestSetStateSubCommand(plugin);
     }
 
     @Override
@@ -66,6 +68,8 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 return handleLogLevel(sender, subArgs);
             case "seed":
                 return seedSubCommand.execute(sender, subArgs);
+            case "setstate":
+                return setStateSubCommand.execute(sender, subArgs);
             default:
                 sendErrorMessage(sender, "Unknown debug command: " + subCommand);
                 showUsage(sender);
@@ -80,6 +84,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug player [name] &8- Show player quest progress");
         sendMessage(sender, "&7/quest debug loglevel [level] &8- View or change log level");
         sendMessage(sender, "&7/quest debug seed <action> &8- Seed/cleanup test data");
+        sendMessage(sender, "&7/quest debug setstate <quest> <state> [player] &8- Set quest state (bypasses validation)");
     }
 
     /**
@@ -101,13 +106,16 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             sendMessage(sender, "&7  Registered Quests: &f" + quests.size());
             sendMessage(sender, "&7  Quest IDs: &f" + String.join(", ", questIds));
 
-            // Count quests by state
+            // Count quests by state — use per-player state when sender is a player
             int activeCount = 0;
             int notStartedCount = 0;
             int completedCount = 0;
+            boolean hasPlayerContext = sender instanceof Player;
+            Player playerSender = hasPlayerContext ? (Player) sender : null;
             for (Quest quest : quests) {
-                // TODO: no player context — getCurrentState() deprecated; diagnostics counts may not reflect per-player state
-                QuestState state = quest.getCurrentState();
+                QuestState state = hasPlayerContext
+                    ? quest.getStateForPlayer(playerSender)
+                    : quest.getCurrentState();
                 if (state == QuestState.QUEST_ACTIVE || state == QuestState.OBJECTIVE_FOUND ||
                     state == QuestState.TRIGGER_FOUND) {
                     activeCount++;
@@ -117,8 +125,9 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                     notStartedCount++;
                 }
             }
+            String contextLabel = hasPlayerContext ? " (for " + playerSender.getName() + ")" : " (global)";
             sendMessage(sender, "&7  Active: &a" + activeCount + "&7, Not Started: &e" + notStartedCount +
-                       "&7, Completed: &b" + completedCount);
+                       "&7, Completed: &b" + completedCount + "&7" + contextLabel);
         } else {
             sendMessage(sender, "&7Quest Manager: &cNOT INITIALIZED");
         }
@@ -174,11 +183,18 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             return true;
         }
 
+        boolean hasPlayerContext = sender instanceof Player;
+        Player listPlayer = hasPlayerContext ? (Player) sender : null;
+        if (hasPlayerContext) {
+            sendMessage(sender, "&7(Showing state for: &f" + listPlayer.getName() + "&7)");
+        }
+
         for (Quest quest : quests) {
             String id = quest.getId();
             String name = quest.getName();
-            // TODO: no player context — getCurrentState() deprecated; list shows global/default state only
-            QuestState state = quest.getCurrentState();
+            QuestState state = hasPlayerContext
+                ? quest.getStateForPlayer(listPlayer)
+                : quest.getCurrentState();
             String trigger = quest.getStartTrigger();
 
             // Color-code based on state
@@ -332,6 +348,10 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             } else if (subCmd.equals("seed")) {
                 // Delegate to seed subcommand
                 return seedSubCommand.getTabCompletions(sender,
+                    Arrays.copyOfRange(args, 1, args.length));
+            } else if (subCmd.equals("setstate")) {
+                // Delegate to setstate subcommand
+                return setStateSubCommand.getTabCompletions(sender,
                     Arrays.copyOfRange(args, 1, args.length));
             }
         }

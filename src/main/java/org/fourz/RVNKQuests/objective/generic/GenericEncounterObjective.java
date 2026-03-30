@@ -46,6 +46,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code prevent_infighting} — If true, quest mobs won't target each other (default: false)</li>
  *   <li>{@code block_portals} — If true, quest mobs are blocked from using portals (default: false)</li>
  *   <li>{@code loot_drops} — Map of Material name to count, added to the last mob's death drops (optional)</li>
+ *   <li>{@code requires_path} — Only active when player's pathChoice matches (optional)</li>
+ *   <li>{@code sets_path} — Sets pathChoice on completion (optional)</li>
  * </ul>
  */
 public class GenericEncounterObjective implements Listener {
@@ -72,6 +74,8 @@ public class GenericEncounterObjective implements Listener {
     private final boolean preventInfighting;
     private final boolean blockPortals;
     private final Map<Material, Integer> lootDrops;
+    private final String requiresPath;
+    private final String setsPath;
 
     /** Track spawned entities per player encounter. */
     private final Map<UUID, List<Entity>> spawnedMobs = new ConcurrentHashMap<>();
@@ -117,6 +121,9 @@ public class GenericEncounterObjective implements Listener {
                 }
             }
         }
+
+        this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
+        this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
     }
 
     @EventHandler
@@ -125,6 +132,12 @@ public class GenericEncounterObjective implements Listener {
 
         Player player = event.getPlayer();
         if (quest.getStateForPlayer(player) != requiredState) return;
+
+        // Check path restriction
+        if (requiresPath != null) {
+            String playerPath = quest.getPathChoiceCached(player);
+            if (!requiresPath.equals(playerPath)) return;
+        }
 
         UUID playerId = player.getUniqueId();
         if (Boolean.TRUE.equals(encounterTriggered.get(playerId))) return;
@@ -210,6 +223,10 @@ public class GenericEncounterObjective implements Listener {
             killCounts.remove(playerId);
             encounterTriggered.remove(playerId);
 
+            // Set path choice if configured
+            if (setsPath != null) {
+                quest.setPathChoice(killer, setsPath);
+            }
             quest.advanceStateForPlayer(playerId, advanceState);
             logger.debug(killer.getName() + " completed encounter objective for quest " + quest.getId());
         }

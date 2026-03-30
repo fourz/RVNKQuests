@@ -34,6 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code required_state} — QuestState player must be in (default: "TRIGGER_FOUND")</li>
  *   <li>{@code advance_state} — State to advance to on arrival (default: "QUEST_ACTIVE")</li>
  *   <li>{@code fail_state} — State to set if entity dies during escort (optional)</li>
+ *   <li>{@code requires_path} — Only active when player's pathChoice matches (optional)</li>
+ *   <li>{@code sets_path} — Sets pathChoice on completion (optional)</li>
  * </ul>
  */
 public class GenericEscortObjective implements Listener {
@@ -54,6 +56,8 @@ public class GenericEscortObjective implements Listener {
     private final QuestState requiredState;
     private final QuestState advanceState;
     private final QuestState failState;
+    private final String requiresPath;
+    private final String setsPath;
 
     /** Active follow tasks per player UUID. */
     private final Map<UUID, EntityFollow> activeFollows = new ConcurrentHashMap<>();
@@ -77,6 +81,8 @@ public class GenericEscortObjective implements Listener {
 
         String failStateStr = QuestComponentFactory.getStringConfig(config, "fail_state", null);
         this.failState = failStateStr != null ? parseState(failStateStr) : null;
+        this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
+        this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
     }
 
     @EventHandler
@@ -85,6 +91,12 @@ public class GenericEscortObjective implements Listener {
 
         Player player = event.getPlayer();
         if (quest.getStateForPlayer(player) != requiredState) return;
+
+        // Check path restriction
+        if (requiresPath != null) {
+            String playerPath = quest.getPathChoiceCached(player);
+            if (!requiresPath.equals(playerPath)) return;
+        }
 
         Entity escortEntity = quest.getContext(contextEntityKey, Entity.class);
         if (escortEntity == null || escortEntity.isDead()) return;
@@ -115,6 +127,10 @@ public class GenericEscortObjective implements Listener {
                 follow.cleanup();
             }
 
+            // Set path choice if configured
+            if (setsPath != null) {
+                quest.setPathChoice(player, setsPath);
+            }
             quest.advanceStateForPlayer(playerId, advanceState);
             logger.debug(player.getName() + " completed escort objective for quest " + quest.getId());
         }

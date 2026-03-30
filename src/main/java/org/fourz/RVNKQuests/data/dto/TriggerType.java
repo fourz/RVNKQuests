@@ -17,6 +17,9 @@ public enum TriggerType {
     /** Enter proximity of an entity. Config: entity_type, world, radius */
     ENTITY_PROXIMITY,
 
+    /** Enter proximity of a fixed location. Config: world, x, y, z, radius */
+    LOCATION_PROXIMITY,
+
     /** World event triggers quest. Config: event_type, world */
     WORLD_EVENT,
 

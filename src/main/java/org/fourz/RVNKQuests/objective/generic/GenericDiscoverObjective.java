@@ -30,6 +30,8 @@ import java.util.Set;
  *   <li>{@code min_blocks} — Minimum matching blocks to consider "discovered" (default: 3)</li>
  *   <li>{@code required_state} — QuestState player must be in (default: "QUEST_ACTIVE")</li>
  *   <li>{@code advance_state} — State to advance to (default: "OBJECTIVE_FOUND")</li>
+ *   <li>{@code requires_path} — Only active when player's pathChoice matches (optional)</li>
+ *   <li>{@code sets_path} — Sets pathChoice on completion (optional)</li>
  * </ul>
  */
 public class GenericDiscoverObjective implements Listener {
@@ -43,6 +45,8 @@ public class GenericDiscoverObjective implements Listener {
     private final int minBlocks;
     private final QuestState requiredState;
     private final QuestState advanceState;
+    private final String requiresPath;
+    private final String setsPath;
 
     public GenericDiscoverObjective(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.quest = quest;
@@ -53,6 +57,8 @@ public class GenericDiscoverObjective implements Listener {
         this.minBlocks = QuestComponentFactory.getIntConfig(config, "min_blocks", 3);
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "QUEST_ACTIVE"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "OBJECTIVE_FOUND"));
+        this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
+        this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
 
         // Parse detection materials
         this.detectionMaterials = new HashSet<>();
@@ -76,11 +82,18 @@ public class GenericDiscoverObjective implements Listener {
         Player player = event.getPlayer();
         if (quest.getStateForPlayer(player) != requiredState) return;
 
+        // Check path restriction
+        if (requiresPath != null) {
+            String playerPath = quest.getPathChoiceCached(player);
+            if (!requiresPath.equals(playerPath)) return;
+        }
+
         World world = player.getWorld();
         if (!world.getName().equalsIgnoreCase(worldName)) return;
 
         // If no detection materials, treat as simple reach
         if (detectionMaterials.isEmpty()) {
+            if (setsPath != null) quest.setPathChoice(player, setsPath);
             quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
             return;
         }
@@ -104,6 +117,7 @@ public class GenericDiscoverObjective implements Listener {
 
         if (found >= minBlocks) {
             quest.setContext("discovered_location", player.getLocation());
+            if (setsPath != null) quest.setPathChoice(player, setsPath);
             quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
             logger.debug(player.getName() + " discovered structure for quest " + quest.getId());
         }

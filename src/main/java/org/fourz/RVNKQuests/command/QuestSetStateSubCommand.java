@@ -41,13 +41,13 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
 
     public QuestSetStateSubCommand(RVNKQuests plugin) {
         super(plugin, "setstate", "Set quest state directly (debug)",
-              "/quest setstate <quest_id> <state> <player>", "rvnkquests.admin.debug", false);
+              "/quest debug setstate <quest_id> <state> <player>", "rvnkquests.admin.debug", false);
     }
 
     @Override
     protected boolean executeSubCommand(CommandSender sender, String[] args) {
         if (!validateArgs(sender, args, 2)) {
-            sendMessage(sender, "&c▶ Usage: &e/quest setstate <quest_id> <state> <player>");
+            sendMessage(sender, "&c▶ Usage: &e/quest debug setstate <quest_id> <state> <player>");
             sendMessage(sender, "&7   Valid states: NOT_STARTED, TRIGGER_FOUND, QUEST_ACTIVE,");
             sendMessage(sender, "&7                 OBJECTIVE_FOUND, COMPLETED, ABANDONED");
             sendMessage(sender, "&e⚠ Debug command - may cause inconsistent state");
@@ -82,7 +82,7 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
             targetPlayer = (Player) sender;
         } else {
             // Console must specify a player
-            sendErrorMessage(sender, "Console must specify a player: /quest setstate <quest_id> <state> <player>");
+            sendErrorMessage(sender, "Console must specify a player: /quest debug setstate <quest_id> <state> <player>");
             return true;
         }
 

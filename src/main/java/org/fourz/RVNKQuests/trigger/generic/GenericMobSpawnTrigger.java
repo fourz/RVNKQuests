@@ -43,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code radius} — Trigger radius in blocks (default: 50)</li>
  *   <li>{@code advance_state} — State to advance to (default: "TRIGGER_FOUND")</li>
  *   <li>{@code context_key} — Runtime context key to store spawned entity (default: "spawned_entity")</li>
+ *   <li>{@code context_location_key} — Runtime context key to store spawn Location (optional; used by REACH/ENCOUNTER)</li>
  *   <li>{@code interact_book} — QuestItem key for the book given on right-click (optional)</li>
  *   <li>{@code beg_on_attack} — If true, mob begs before becoming killable (default: false)</li>
  *   <li>{@code beg_message} — Message the mob says when hit (default: "Please don't hurt me!")</li>
@@ -65,6 +66,7 @@ public class GenericMobSpawnTrigger implements Listener {
     private final double radius;
     private final QuestState advanceState;
     private final String contextKey;
+    private final String contextLocationKey;
     private final String interactBook;
     private final boolean begOnAttack;
     private final String begMessage;
@@ -94,6 +96,7 @@ public class GenericMobSpawnTrigger implements Listener {
         this.radius = QuestComponentFactory.getDoubleConfig(config, "radius", 50.0);
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
         this.contextKey = QuestComponentFactory.getStringConfig(config, "context_key", "spawned_entity");
+        this.contextLocationKey = QuestComponentFactory.getStringConfig(config, "context_location_key", null);
         this.interactBook = QuestComponentFactory.getStringConfig(config, "interact_book", null);
         this.begOnAttack = QuestComponentFactory.getBoolConfig(config, "beg_on_attack", false);
         this.begMessage = QuestComponentFactory.getStringConfig(config, "beg_message", "Please don't hurt me!");
@@ -209,6 +212,15 @@ public class GenericMobSpawnTrigger implements Listener {
         }
 
         quest.setContext(contextKey, entity);
+
+        // Store spawn location in context for downstream objectives (e.g., REACH, ENCOUNTER)
+        if (contextLocationKey != null) {
+            quest.setContext(contextLocationKey, entity.getLocation());
+            logger.debug("Stored location context '" + contextLocationKey + "' at " +
+                entity.getLocation().getBlockX() + "," +
+                entity.getLocation().getBlockY() + "," +
+                entity.getLocation().getBlockZ());
+        }
     }
 
     /**

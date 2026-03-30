@@ -43,7 +43,7 @@ public class QuestCommand extends BaseCommand {
         // Admin commands (require elevated permissions)
         registerSubCommand("reset", new QuestResetSubCommand(plugin));
         registerSubCommand("complete", new QuestCompleteSubCommand(plugin));
-        registerSubCommand("setstate", new QuestSetStateSubCommand(plugin));
+        // setstate moved under /quest debug setstate (#448)
         registerSubCommand("objective", new QuestObjectiveSubCommand(plugin));
 
         // Quest definition admin commands (generic quest engine)
@@ -52,6 +52,9 @@ public class QuestCommand extends BaseCommand {
         registerSubCommand("reward", new QuestRewardSubCommand(plugin));
         registerSubCommand("export", new QuestExportSubCommand(plugin));
         registerSubCommand("import", new QuestImportSubCommand(plugin));
+
+        // Chain management commands
+        registerSubCommand("chain", new QuestChainSubCommand(plugin));
 
         // Player preference commands (Phase 4 - with database persistence)
         registerSubCommand("prefs", new QuestPrefsSubCommand(plugin, plugin.getPreferenceRepository()));

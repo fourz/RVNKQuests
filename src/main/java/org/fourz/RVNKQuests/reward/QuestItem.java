@@ -201,13 +201,28 @@ public class QuestItem {
     }
 
     /**
-     * Attempts to load a quest item from the database if not found in memory
-     * 
+     * Attempts to load a quest item from the lore database if not found in memory.
+     * Uses the RVNKLore integration to fetch or auto-create a quest book entry.
+     *
      * @param name The identifier of the quest item
-     * @return The loaded item or null if not found
+     * @return The loaded item, or null if lore integration is unavailable or the item doesn't exist
      */
     private static ItemStack loadFromDatabase(String name) {
-        // TODO: Implement database retrieval
+        if (loreIntegration == null || !loreIntegration.isLoreAvailable()) {
+            return null;
+        }
+        try {
+            java.util.Optional<ItemStack> result = loreIntegration
+                .getOrCreateQuestBook(name, name, "Quest item: " + name)
+                .join();
+            if (result.isPresent()) {
+                ItemStack item = result.get();
+                questItems.put(name, item);
+                return item.clone();
+            }
+        } catch (Exception e) {
+            // Lore DB unavailable or timeout — return null gracefully
+        }
         return null;
     }
 }

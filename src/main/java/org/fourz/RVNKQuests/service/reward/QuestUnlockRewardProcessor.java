@@ -140,8 +140,30 @@ public class QuestUnlockRewardProcessor implements RewardProcessor {
             );
         }
 
-        // TODO: Could validate that questId exists in the quest registry
-        // This would require integration with the quest service
+        // Validate that questId exists in the quest registry (if service available)
+        try {
+            Object serviceRegistry = Class.forName("org.fourz.rvnkcore.service.registry.ServiceRegistry")
+                .getMethod("getInstance").invoke(null);
+            Class<?> questServiceClass = Class.forName("org.fourz.RVNKQuests.service.IQuestService");
+            Object questService = serviceRegistry.getClass()
+                .getMethod("get", Class.class).invoke(serviceRegistry, questServiceClass);
+            if (questService != null) {
+                @SuppressWarnings("unchecked")
+                java.util.List<String> questIds = (java.util.List<String>) questService.getClass()
+                    .getMethod("getQuestIds").invoke(questService);
+                if (questIds != null && !questIds.contains(questId)) {
+                    return CompletableFuture.completedFuture(
+                        RewardValidationResult.invalid(
+                            reward,
+                            "Quest '" + questId + "' not found in registry",
+                            "Check quest ID exists before assigning as unlock reward"
+                        )
+                    );
+                }
+            }
+        } catch (Exception e) {
+            // ServiceRegistry or IQuestService not available — skip validation
+        }
 
         return CompletableFuture.completedFuture(
             RewardValidationResult.valid(reward)

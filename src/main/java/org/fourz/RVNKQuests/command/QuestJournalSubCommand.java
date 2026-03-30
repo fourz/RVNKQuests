@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -21,6 +22,8 @@ import java.util.stream.Collectors;
  * Usage: /quest journal [player]
  *        /quest journal view <quest_id> [player]
  *        /quest journal remove <quest_id> [player]
+ *        /quest journal assign <quest_id> <player>
+ *        /quest journal unassign <quest_id> <player>
  */
 public class QuestJournalSubCommand extends BaseSubCommand {
 
@@ -41,10 +44,16 @@ public class QuestJournalSubCommand extends BaseSubCommand {
 
         if (args.length >= 1) {
             String first = args[0].toLowerCase();
-            if (first.equals("view") || first.equals("remove")) {
+            if (first.equals("view") || first.equals("remove") ||
+                first.equals("assign") || first.equals("unassign")) {
                 subaction = first;
                 argOffset = 1;
             }
+        }
+
+        // Staff assign/unassign have different arg parsing: <quest_id> <player> (player required)
+        if (subaction.equals("assign") || subaction.equals("unassign")) {
+            return handleStaffCommand(sender, subaction, args, argOffset);
         }
 
         // For view/remove, quest_id is required
@@ -150,6 +159,81 @@ public class QuestJournalSubCommand extends BaseSubCommand {
                     sendErrorMessage(sender, "Failed to remove entries: " + ex.getMessage()));
                 return null;
             });
+    }
+
+    private boolean handleStaffCommand(CommandSender sender, String action, String[] args, int argOffset) {
+        if (!sender.hasPermission("rvnkquests.journal.staff")) {
+            sendErrorMessage(sender, "You don't have permission to " + action + " quests");
+            return true;
+        }
+
+        if (args.length < argOffset + 2) {
+            sendMessage(sender, "&c▶ Usage: /quest journal " + action + " <quest_id> <player>");
+            return true;
+        }
+
+        String questId = args[argOffset];
+        String playerArg = args[argOffset + 1];
+
+        Player targetPlayer = Bukkit.getPlayer(playerArg);
+        if (targetPlayer == null) {
+            sendErrorMessage(sender, "Player not found or not online: " + playerArg);
+            return true;
+        }
+
+        // Validate quest exists
+        if (plugin.getQuestManager().getQuest(questId).isEmpty()) {
+            sendErrorMessage(sender, "Quest not found: " + questId);
+            return true;
+        }
+
+        IJournalService journalService = plugin.getJournalService();
+        if (journalService == null || !journalService.isAvailable()) {
+            sendErrorMessage(sender, "Journal system is not available");
+            return true;
+        }
+
+        UUID playerUuid = targetPlayer.getUniqueId();
+        String playerName = targetPlayer.getName();
+
+        if (action.equals("assign")) {
+            handleAssign(sender, playerUuid, playerName, questId, journalService);
+        } else {
+            handleUnassign(sender, playerUuid, playerName, questId, journalService);
+        }
+        return true;
+    }
+
+    private void handleAssign(CommandSender sender, UUID playerUuid, String playerName, String questId, IJournalService journalService) {
+        // Record a journal entry marking the quest as staff-assigned
+        journalService.recordAction(playerUuid, questId, JournalAction.STARTED,
+                "Assigned by " + sender.getName())
+            .thenAccept(entry -> Bukkit.getScheduler().runTask(plugin, () ->
+                sendSuccessMessage(sender, "Assigned quest " + formatQuestName(questId)
+                    + " to " + playerName + " (journal entry recorded)")))
+            .exceptionally(ex -> {
+                Bukkit.getScheduler().runTask(plugin, () ->
+                    sendErrorMessage(sender, "Failed to assign quest: " + ex.getMessage()));
+                return null;
+            });
+    }
+
+    private void handleUnassign(CommandSender sender, UUID playerUuid, String playerName, String questId, IJournalService journalService) {
+        // Reset quest progress to NOT_STARTED, then clear journal entries
+        CompletableFuture<Boolean> resetFuture = plugin.getQuestManager().resetQuest(playerUuid, questId);
+
+        resetFuture.thenCompose(resetOk -> {
+            // Clear journal entries for this quest
+            return journalService.clearQuestJournal(playerUuid, questId)
+                .thenApply(deleted -> deleted);
+        }).thenAccept(deleted -> Bukkit.getScheduler().runTask(plugin, () ->
+            sendSuccessMessage(sender, "Unassigned quest " + formatQuestName(questId)
+                + " from " + playerName + " (progress reset, " + deleted + " journal entries cleared)")))
+        .exceptionally(ex -> {
+            Bukkit.getScheduler().runTask(plugin, () ->
+                sendErrorMessage(sender, "Failed to unassign quest: " + ex.getMessage()));
+            return null;
+        });
     }
 
     private void displayJournal(CommandSender sender, String playerName, List<JournalEntryDTO> entries) {
@@ -274,6 +358,10 @@ public class QuestJournalSubCommand extends BaseSubCommand {
         if (args.length == 1) {
             String partial = args[0].toLowerCase();
             List<String> options = new java.util.ArrayList<>(List.of("view", "remove"));
+            if (sender.hasPermission("rvnkquests.journal.staff")) {
+                options.add("assign");
+                options.add("unassign");
+            }
             // Also suggest player names for the default list action
             if (sender.hasPermission("rvnkquests.journal.other")) {
                 Bukkit.getOnlinePlayers().stream()
@@ -284,13 +372,18 @@ public class QuestJournalSubCommand extends BaseSubCommand {
                 .filter(o -> o.toLowerCase().startsWith(partial))
                 .collect(Collectors.toList());
         }
-        if (args.length == 2 && (args[0].equalsIgnoreCase("view") || args[0].equalsIgnoreCase("remove"))) {
+        String sub = args[0].toLowerCase();
+        boolean isQuestIdArg = args.length == 2 && (sub.equals("view") || sub.equals("remove") ||
+            sub.equals("assign") || sub.equals("unassign"));
+        if (isQuestIdArg) {
             return plugin.getQuestManager().getQuestIds().stream()
                 .filter(id -> id.startsWith(args[1].toLowerCase()))
                 .collect(Collectors.toList());
         }
-        if (args.length == 3 && (args[0].equalsIgnoreCase("view") || args[0].equalsIgnoreCase("remove"))) {
-            if (sender.hasPermission("rvnkquests.journal.other")) {
+        boolean isPlayerArg = args.length == 3 && (sub.equals("view") || sub.equals("remove") ||
+            sub.equals("assign") || sub.equals("unassign"));
+        if (isPlayerArg) {
+            if (sender.hasPermission("rvnkquests.journal.other") || sender.hasPermission("rvnkquests.journal.staff")) {
                 return Bukkit.getOnlinePlayers().stream()
                     .map(Player::getName)
                     .filter(n -> n.toLowerCase().startsWith(args[2].toLowerCase()))

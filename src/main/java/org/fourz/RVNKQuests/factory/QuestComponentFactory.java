@@ -159,6 +159,7 @@ public class QuestComponentFactory {
             case PROXIMITY_MOB_SPAWN -> new GenericMobSpawnTrigger(plugin, quest, config);
             case STRUCTURE_INTERACT -> new GenericStructureInteractTrigger(plugin, quest, config);
             case ENTITY_PROXIMITY -> new GenericEntityProximityTrigger(plugin, quest, config);
+            case LOCATION_PROXIMITY -> new GenericLocationProximityTrigger(plugin, quest, config);
             case ITEM_DISCOVERY -> new GenericItemDiscoveryTrigger(plugin, quest, config);
             case COMMAND, WORLD_EVENT, CUSTOM -> {
                 logger.debug("Trigger type " + type + " not yet implemented for component " + componentId);

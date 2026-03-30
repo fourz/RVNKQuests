@@ -6,12 +6,14 @@ import org.fourz.RVNKQuests.command.CommandManager;
 import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.data.DatabaseManager;
 import org.fourz.RVNKQuests.data.IQuestRepository;
+import org.fourz.RVNKQuests.data.QuestChainDefinitionSeeder;
 import org.fourz.RVNKQuests.data.QuestDefinitionSeeder;
 import org.fourz.RVNKQuests.data.QuestRepositoryImpl;
 import org.fourz.RVNKQuests.data.QuestYamlRepository;
 import org.fourz.rvnkcore.data.FallbackTracker;
 import org.fourz.RVNKQuests.data.repository.IPreferenceRepository;
 import org.fourz.RVNKQuests.data.repository.PreferenceRepositoryImpl;
+import org.fourz.RVNKQuests.event.ChainProgressListener;
 import org.fourz.RVNKQuests.event.PlayerJoinQuitListener;
 import org.fourz.RVNKQuests.quest.QuestManager;
 import org.fourz.RVNKQuests.service.IObjectiveService;
@@ -151,6 +153,17 @@ public class RVNKQuests extends JavaPlugin {
             // Register quest menu listener for GUI interactions (feat-24)
             getServer().getPluginManager().registerEvents(new QuestMenuListener(this), this);
 
+            // Register chain progress listener — bridges quest completion to chain service
+            getServer().getPluginManager().registerEvents(new ChainProgressListener(this), this);
+
+            // Wire QuestUnlockRewardProcessor to actually start quests via QuestManager
+            org.fourz.RVNKQuests.service.RewardProcessor unlockProc =
+                rewardService.getProcessor(org.fourz.RVNKQuests.data.dto.RewardType.QUEST_UNLOCK);
+            if (unlockProc instanceof org.fourz.RVNKQuests.service.reward.QuestUnlockRewardProcessor questUnlock) {
+                questUnlock.setUnlockCallback((playerId, questId) ->
+                    questManager.startQuest(playerId, questId));
+            }
+
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
                 loreDatabase = new LoreDatabase(this, databaseManager);
@@ -161,6 +174,11 @@ public class RVNKQuests extends JavaPlugin {
 
             // Register quests (loads from repository + hardcoded fallbacks)
             questManager.initializeQuests();
+
+            // Seed quest chain definitions (requires quests to be loaded first)
+            logger.info("About to seed quest chain definitions...");
+            new QuestChainDefinitionSeeder(this).seedIfNeeded();
+            logger.info("Quest chain seeding complete");
 
             // Initialize lore integration and pre-populate quest books from lore DB
             loreIntegration = new LoreIntegrationImpl(this);

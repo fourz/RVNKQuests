@@ -39,6 +39,13 @@ public abstract class AbstractQuest implements Quest {
     private final Map<UUID, QuestState> stateCache = new ConcurrentHashMap<>();
 
     /**
+     * Local path choice cache — mirrors stateCache pattern for branching quests.
+     * Eagerly updated by setPathChoice(); lazily populated on first read.
+     * Value is empty string when explicitly loaded but no path set (vs null = not yet loaded).
+     */
+    private final Map<UUID, String> pathChoiceCache = new ConcurrentHashMap<>();
+
+    /**
      * Creates a new quest with the specified ID and name.
      *
      * @param plugin The main plugin instance
@@ -97,18 +104,22 @@ public abstract class AbstractQuest implements Quest {
     }
 
     /**
-     * Preloads the state cache for a player from the database (async).
+     * Preloads the state and path choice cache for a player from the database (async).
      * Call on player join to ensure move-based handlers have immediate state access.
      */
     public void preloadStateForPlayer(UUID playerUuid) {
         getStateForPlayer(playerUuid).thenAccept(state -> stateCache.put(playerUuid, state));
+        // Preload path choice for branching quests
+        getPathChoice(playerUuid).thenAccept(path ->
+            pathChoiceCache.put(playerUuid, path != null ? path : ""));
     }
 
     /**
-     * Evicts a player's cached state. Call on player quit to prevent memory leaks.
+     * Evicts a player's cached state and path choice. Call on player quit to prevent memory leaks.
      */
     public void evictStateForPlayer(UUID playerUuid) {
         stateCache.remove(playerUuid);
+        pathChoiceCache.remove(playerUuid);
     }
 
     @Override
@@ -293,6 +304,9 @@ public abstract class AbstractQuest implements Quest {
             return CompletableFuture.completedFuture(null);
         }
 
+        // Eagerly update cache so event handlers see the new path immediately
+        pathChoiceCache.put(player.getUniqueId(), pathChoice != null ? pathChoice : "");
+
         IQuestProgressService service = plugin.getQuestProgressService();
         if (service == null) {
             return CompletableFuture.completedFuture(null);
@@ -304,7 +318,7 @@ public abstract class AbstractQuest implements Quest {
     }
 
     /**
-     * Gets the path choice for a player on this quest.
+     * Gets the path choice for a player on this quest (async, from DB).
      *
      * @param player The player
      * @return CompletableFuture with the path choice, or null if not set
@@ -313,14 +327,42 @@ public abstract class AbstractQuest implements Quest {
         if (player == null) {
             return CompletableFuture.completedFuture(null);
         }
+        return getPathChoice(player.getUniqueId());
+    }
 
+    /**
+     * Gets the path choice for a player on this quest (async, from DB).
+     *
+     * @param playerUuid The player UUID
+     * @return CompletableFuture with the path choice, or null if not set
+     */
+    public CompletableFuture<String> getPathChoice(UUID playerUuid) {
         IQuestProgressService service = plugin.getQuestProgressService();
         if (service == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        return service.getProgress(player.getUniqueId(), questId)
+        return service.getProgress(playerUuid, questId)
             .thenApply(opt -> opt.map(progress -> progress.pathChoice()).orElse(null));
+    }
+
+    /**
+     * Gets the cached path choice for a player (non-blocking, main-thread safe).
+     * Returns null if not yet loaded from DB. Used by objective handlers.
+     *
+     * @param player The player
+     * @return The path choice, or null if not set or not yet loaded
+     */
+    public String getPathChoiceCached(Player player) {
+        if (player == null) return null;
+        String cached = pathChoiceCache.get(player.getUniqueId());
+        if (cached != null) {
+            return cached.isEmpty() ? null : cached;
+        }
+        // Not cached yet — kick off async load
+        getPathChoice(player.getUniqueId()).thenAccept(path ->
+            pathChoiceCache.put(player.getUniqueId(), path != null ? path : ""));
+        return null;
     }
 
     /**
