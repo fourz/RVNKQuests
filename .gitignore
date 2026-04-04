@@ -6,3 +6,4 @@ shared-backup/
 nul
 
 .mcp.json
+.DS_Store
