@@ -1,12 +1,13 @@
 package org.fourz.RVNKQuests.data;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.rvnkcore.config.dto.DatabaseSettingsDTO;
 import org.fourz.rvnkcore.config.dto.MySQLSettingsDTO;
 import org.fourz.rvnkcore.config.dto.SQLiteSettingsDTO;
 import org.fourz.rvnkcore.data.FallbackTracker;
+import org.fourz.rvnkcore.database.config.DatabaseConfig;
+import org.fourz.rvnkcore.database.connection.ConnectionProvider;
+import org.fourz.rvnkcore.database.connection.ConnectionProviderFactory;
 import org.fourz.RVNKQuests.service.IQuestDatabaseService;
 import org.fourz.rvnkcore.util.log.LogManager;
 
@@ -61,7 +62,7 @@ public class DatabaseManager implements IQuestDatabaseService {
     private final FallbackTracker fallbackTracker;
     private final String tablePrefix;
 
-    private HikariDataSource dataSource;
+    private ConnectionProvider connectionProvider;
     private ExecutorService executor;
     private boolean initialized = false;
 
@@ -140,12 +141,35 @@ public class DatabaseManager implements IQuestDatabaseService {
             int threads = (type == DatabaseType.SQLITE) ? 1 : 4;
             executor = Executors.newFixedThreadPool(threads);
 
-            // Configure and create datasource
-            HikariConfig config = createHikariConfig();
-            dataSource = new HikariDataSource(config);
+            // Build DatabaseConfig and create ConnectionProvider via RVNKCore
+            DatabaseConfig dbConfig;
+            if (type == DatabaseType.MYSQL) {
+                MySQLSettingsDTO mysql = plugin.getConfigManager().getDatabaseSettings().getMysqlSettings();
+                dbConfig = DatabaseConfig.builder()
+                        .type("mysql")
+                        .host(mysql.getHost())
+                        .port(mysql.getPort())
+                        .database(mysql.getDatabase())
+                        .username(mysql.getUsername())
+                        .password(mysql.getPassword())
+                        .useSSL(mysql.isUseSSL())
+                        .maxConnections(10)
+                        .minIdleConnections(2)
+                        .connectionTimeoutMs(30000)
+                        .idleTimeoutMs(600000L)
+                        .maxLifetimeMs(1800000L)
+                        .build();
+            } else { // SQLite
+                SQLiteSettingsDTO sqlite = plugin.getConfigManager().getDatabaseSettings().getSqliteSettings();
+                File file = new File(sqlite.getFilePath());
+                file.getParentFile().mkdirs();
+                dbConfig = DatabaseConfig.sqlite(file.getName());
+            }
+
+            connectionProvider = new ConnectionProviderFactory(plugin).createConnectionProvider(dbConfig);
 
             // Test connection
-            try (Connection conn = dataSource.getConnection()) {
+            try (Connection conn = connectionProvider.getConnection()) {
                 logger.info("Database connection established");
             }
 
@@ -160,60 +184,6 @@ public class DatabaseManager implements IQuestDatabaseService {
             fallbackTracker.recordFailure();
             return false;
         }
-    }
-
-    /**
-     * Creates HikariCP configuration based on database type.
-     */
-    private HikariConfig createHikariConfig() {
-        HikariConfig config = new HikariConfig();
-
-        if (type == DatabaseType.MYSQL) {
-            MySQLSettingsDTO mysql = plugin.getConfigManager().getDatabaseSettings().getMysqlSettings();
-
-            config.setJdbcUrl(String.format(
-                "jdbc:mysql://%s:%d/%s?useSSL=%s&serverTimezone=UTC&allowPublicKeyRetrieval=true",
-                mysql.getHost(), mysql.getPort(), mysql.getDatabase(), mysql.isUseSSL()
-            ));
-            config.setUsername(mysql.getUsername());
-            config.setPassword(mysql.getPassword());
-
-            // MySQL pool settings (hardcoded - not in config)
-            config.setMaximumPoolSize(10);
-            config.setMinimumIdle(2);
-            config.setConnectionTimeout(30000);
-            config.setIdleTimeout(600000);
-            config.setMaxLifetime(1800000);
-
-            // Performance tuning
-            config.setLeakDetectionThreshold(60000);
-            config.addDataSourceProperty("cachePrepStmts", "true");
-            config.addDataSourceProperty("prepStmtCacheSize", "250");
-            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-            config.addDataSourceProperty("useServerPrepStmts", "true");
-
-        } else { // SQLite
-            SQLiteSettingsDTO sqlite = plugin.getConfigManager().getDatabaseSettings().getSqliteSettings();
-            File file = new File(sqlite.getFilePath());
-
-            // Ensure parent directory exists
-            file.getParentFile().mkdirs();
-
-            config.setJdbcUrl("jdbc:sqlite:" + sqlite.getFilePath());
-
-            // SQLite-specific settings
-            config.setMaximumPoolSize(1);  // SQLite limitation: single writer
-            config.setConnectionTimeout(30000);
-
-            // SQLite performance tuning
-            config.addDataSourceProperty("journal_mode", "WAL");
-            config.addDataSourceProperty("synchronous", "NORMAL");
-            config.addDataSourceProperty("temp_store", "MEMORY");
-            config.addDataSourceProperty("cache_size", "-20000");  // 20MB
-        }
-
-        config.setPoolName("RVNKQuests-Pool");
-        return config;
     }
 
     /**
@@ -238,7 +208,7 @@ public class DatabaseManager implements IQuestDatabaseService {
                 logger.debug("Applied table prefix '" + tablePrefix + "' to schema");
             }
 
-            try (Connection conn = dataSource.getConnection()) {
+            try (Connection conn = connectionProvider.getConnection()) {
                 // Disable auto-commit for atomic schema creation
                 boolean originalAutoCommit = conn.getAutoCommit();
                 conn.setAutoCommit(false);
@@ -287,10 +257,10 @@ public class DatabaseManager implements IQuestDatabaseService {
         if (type == DatabaseType.YAML || !initialized) {
             throw new SQLException("Database not available - using YAML fallback");
         }
-        if (dataSource == null || dataSource.isClosed()) {
+        if (connectionProvider == null || !connectionProvider.isValid()) {
             throw new SQLException("DataSource is not available");
         }
-        return dataSource.getConnection();
+        return connectionProvider.getConnection();
     }
 
     /**
@@ -320,7 +290,7 @@ public class DatabaseManager implements IQuestDatabaseService {
         if (type == DatabaseType.YAML) {
             return false;  // YAML mode means no database
         }
-        return initialized && dataSource != null && !dataSource.isClosed();
+        return initialized && connectionProvider != null && connectionProvider.isValid();
     }
 
     /**
@@ -348,8 +318,9 @@ public class DatabaseManager implements IQuestDatabaseService {
             }
         }
 
-        if (dataSource != null && !dataSource.isClosed()) {
-            dataSource.close();
+        if (connectionProvider != null && connectionProvider.isValid()) {
+            connectionProvider.close();
+            connectionProvider = null;
             logger.info("Database connection pool closed");
         }
 
@@ -439,11 +410,11 @@ public class DatabaseManager implements IQuestDatabaseService {
 
     @Override
     public boolean testConnection() {
-        if (!initialized || dataSource == null || dataSource.isClosed()) {
+        if (!initialized || connectionProvider == null || !connectionProvider.isValid()) {
             return false;
         }
 
-        try (Connection conn = dataSource.getConnection()) {
+        try (Connection conn = connectionProvider.getConnection()) {
             return conn.isValid(5);
         } catch (SQLException e) {
             logger.warning("Connection test failed: " + e.getMessage());
@@ -453,34 +424,25 @@ public class DatabaseManager implements IQuestDatabaseService {
 
     @Override
     public DatabaseHealthMetrics getHealthMetrics() {
-        if (dataSource == null || dataSource.isClosed()) {
+        if (connectionProvider == null || !connectionProvider.isValid()) {
             return new DatabaseHealthMetrics(0, 0, 0, 0, false, "DataSource not available");
         }
-
-        int active = dataSource.getHikariPoolMXBean() != null ? dataSource.getHikariPoolMXBean().getActiveConnections() : 0;
-        int idle = dataSource.getHikariPoolMXBean() != null ? dataSource.getHikariPoolMXBean().getIdleConnections() : 0;
-        int max = dataSource.getMaximumPoolSize();
-
         boolean healthy = testConnection();
         String status = healthy ? "Healthy" : "Connection issues detected";
-
-        return new DatabaseHealthMetrics(active, idle, max, 0, healthy, status);
+        // Pool introspection not available via ConnectionProvider; RVNKCore owns pool metrics
+        return new DatabaseHealthMetrics(0, 0, 0, 0, healthy, status);
     }
 
     @Override
     public int getActiveConnectionCount() {
-        if (dataSource == null || dataSource.getHikariPoolMXBean() == null) {
-            return 0;
-        }
-        return dataSource.getHikariPoolMXBean().getActiveConnections();
+        // Pool introspection not available via ConnectionProvider; RVNKCore owns pool lifecycle
+        return 0;
     }
 
     @Override
     public int getIdleConnectionCount() {
-        if (dataSource == null || dataSource.getHikariPoolMXBean() == null) {
-            return 0;
-        }
-        return dataSource.getHikariPoolMXBean().getIdleConnections();
+        // Pool introspection not available via ConnectionProvider; RVNKCore owns pool lifecycle
+        return 0;
     }
 
     @Override
