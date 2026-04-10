@@ -6,7 +6,7 @@
 
     <groupId>org.fourz.RVNKQuests</groupId>
     <artifactId>RVNKQuests</artifactId>
-    <version>1.0.12</version>
+    <version>1.1.1</version>
 
     <name>RVNKQuests</name>
     <description></description>
@@ -75,24 +75,13 @@
             <version>7.3.0</version>
             <scope>provided</scope>
         </dependency>
-        <!-- RVNKCore - shared logging and utilities -->
+        <!-- MySQL, HikariCP, and SQLite JDBC provided by RVNKCore at runtime -->
+        <!-- RVNKCore: compile-time dependency for ConnectionProvider, ServiceRegistry, etc. -->
         <dependency>
             <groupId>org.fourz</groupId>
             <artifactId>rvnkcore</artifactId>
-            <version>1.4.5-alpha</version>
-            <scope>provided</scope> <!-- RESTORED: RVNKCore loaded as separate plugin -->
-        </dependency>
-        <!-- Database connection pooling -->
-        <dependency>
-            <groupId>com.zaxxer</groupId>
-            <artifactId>HikariCP</artifactId>
-            <version>5.0.1</version>
-        </dependency>
-        <!-- SQLite JDBC driver -->
-        <dependency>
-            <groupId>org.xerial</groupId>
-            <artifactId>sqlite-jdbc</artifactId>
-            <version>3.42.0.0</version>
+            <version>1.4.10-alpha</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Test Dependencies -->
@@ -122,6 +111,7 @@
         </dependency>
     </dependencies>
     <build>
+        <finalName>${project.artifactId}</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
@@ -141,6 +131,16 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/MANIFEST.MF</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                </configuration>
             </plugin>
 
             <plugin>
