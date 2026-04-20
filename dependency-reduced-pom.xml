@@ -4,7 +4,7 @@
   <groupId>org.fourz.RVNKQuests</groupId>
   <artifactId>RVNKQuests</artifactId>
   <name>RVNKQuests</name>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
   <url>http://www.example.com</url>
   <build>
     <resources>
@@ -13,6 +13,7 @@
         <directory>src/main/resources</directory>
       </resource>
     </resources>
+    <finalName>${project.artifactId}</finalName>
     <plugins>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
@@ -25,6 +26,16 @@
             </goals>
           </execution>
         </executions>
+        <configuration>
+          <filters>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+              </excludes>
+            </filter>
+          </filters>
+        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-antrun-plugin</artifactId>
@@ -88,7 +99,7 @@
     <dependency>
       <groupId>org.fourz</groupId>
       <artifactId>rvnkcore</artifactId>
-      <version>1.4.5-alpha</version>
+      <version>1.4.10-alpha</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
