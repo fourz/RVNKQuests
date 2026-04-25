@@ -18,7 +18,7 @@ public class QuestReloadSubCommand extends BaseSubCommand {
 
     public QuestReloadSubCommand(RVNKQuests plugin) {
         super(plugin, "reload", "Reload config. Args: reset (reset quests), reseed (re-seed definitions from config)",
-              "/quest reload [reset|reseed]", "rvnkquests.admin", false);
+              "/quest reload [reset|reseed]", "rvnkquests.admin.reload", false);
     }
 
     @Override
@@ -87,7 +87,7 @@ public class QuestReloadSubCommand extends BaseSubCommand {
 
     @Override
     public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
+        return sender.hasPermission("rvnkquests.admin.reload") || sender.isOp();
     }
     
     /**

@@ -25,7 +25,7 @@ public class QuestMobsSubCommand extends BaseSubCommand {
 
     public QuestMobsSubCommand(RVNKQuests plugin) {
         super(plugin, "mobs", "Manage quest mobs (kill, list)",
-              "/quest mobs <operation>", "rvnkquests.admin", false);
+              "/quest mobs <operation>", "rvnkquests.admin.mobs", false);
     }
 
     @Override
@@ -65,7 +65,7 @@ public class QuestMobsSubCommand extends BaseSubCommand {
 
     @Override
     public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
+        return sender.hasPermission("rvnkquests.admin.mobs") || sender.isOp();
     }
 
     private boolean killQuestMobs(CommandSender sender) {

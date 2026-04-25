@@ -16,7 +16,7 @@ public class QuestListSubCommand extends BaseSubCommand {
 
     public QuestListSubCommand(RVNKQuests plugin) {
         super(plugin, "list", "List all available quests",
-              "/quest list", "rvnkquests.command.list", false);
+              "/quest list", "rvnkquests.list", false);
     }
 
     @Override
@@ -65,7 +65,7 @@ public class QuestListSubCommand extends BaseSubCommand {
     @Override
     public boolean hasPermission(CommandSender sender) {
         // Allow all players to list quests
-        return sender.hasPermission("rvnkquests.command.list") ||
+        return sender.hasPermission("rvnkquests.list") ||
                sender.hasPermission("rvnkquests.player") ||
                sender.isOp();
     }

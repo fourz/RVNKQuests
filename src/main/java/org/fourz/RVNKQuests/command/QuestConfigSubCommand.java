@@ -20,7 +20,7 @@ public class QuestConfigSubCommand extends BaseSubCommand {
     
     public QuestConfigSubCommand(RVNKQuests plugin) {
         super(plugin, "config", "Modify quest configuration (enable/disable quests)", 
-              "/quest config <operation> [quest_id|all]", "rvnkquests.admin", false);
+              "/quest config <operation> [quest_id|all]", "rvnkquests.admin.config", false);
     }
 
     @Override
@@ -70,7 +70,7 @@ public class QuestConfigSubCommand extends BaseSubCommand {
 
     @Override
     public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
+        return sender.hasPermission("rvnkquests.admin.config") || sender.isOp();
     }
     
     private boolean handleDisable(CommandSender sender, String[] args) {

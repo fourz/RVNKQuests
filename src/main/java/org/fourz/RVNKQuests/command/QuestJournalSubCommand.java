@@ -33,7 +33,7 @@ public class QuestJournalSubCommand extends BaseSubCommand {
 
     public QuestJournalSubCommand(RVNKQuests plugin) {
         super(plugin, "journal", "View and manage quest journal",
-              "/quest journal [view|remove] [quest_id] [player]", "rvnkquests.command.journal", false);
+              "/quest journal [view|remove] [quest_id] [player]", "rvnkquests.journal", false);
     }
 
     @Override

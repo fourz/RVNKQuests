@@ -26,7 +26,7 @@ public class QuestLeaderboardSubCommand extends BaseSubCommand {
 
     public QuestLeaderboardSubCommand(RVNKQuests plugin) {
         super(plugin, "leaderboard", "View quest leaderboards",
-              "/quest leaderboard [type]", "rvnkquests.command.leaderboard", false);
+              "/quest leaderboard [type]", "rvnkquests.leaderboard", false);
         this.leaderboardRepository = new LeaderboardRepository(plugin, plugin.getDatabaseManager());
     }
 

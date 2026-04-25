@@ -33,7 +33,7 @@ public class QuestObjectiveSubCommand extends BaseSubCommand {
     public QuestObjectiveSubCommand(RVNKQuests plugin) {
         super(plugin, "objective", "Edit objective progress (admin)",
               "/quest objective <quest_id> <objective_id> <set|complete|reset> [value] [player]",
-              "rvnkquests.command.objective", false);
+              "rvnkquests.admin.objective", false);
     }
 
     @Override

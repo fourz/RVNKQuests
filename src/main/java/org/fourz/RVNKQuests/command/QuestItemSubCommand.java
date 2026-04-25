@@ -26,7 +26,7 @@ public class QuestItemSubCommand extends BaseSubCommand {
 
     public QuestItemSubCommand(RVNKQuests plugin) {
         super(plugin, "item", "Gives a quest item to a player",
-              "/quest item <item_name> [player]", "rvnkquests.command.item", false);
+              "/quest item <item_name> [player]", "rvnkquests.item", false);
     }
 
     @Override

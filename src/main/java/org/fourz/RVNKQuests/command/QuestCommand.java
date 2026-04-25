@@ -13,7 +13,7 @@ import org.fourz.RVNKQuests.RVNKQuests;
 public class QuestCommand extends BaseCommand {
 
     public QuestCommand(RVNKQuests plugin) {
-        super(plugin, "quest", "Main quest management command", "/quest <subcommand>", "rvnkquests.command.quest");
+        super(plugin, "quest", "Main quest management command", "/quest <subcommand>", "rvnkquests.quest");
         registerCoreCommands();
     }
 

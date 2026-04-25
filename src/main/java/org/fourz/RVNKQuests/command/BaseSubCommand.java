@@ -110,7 +110,7 @@ public abstract class BaseSubCommand implements SubCommand {
      * @param usage The subcommand usage string
      */
     public BaseSubCommand(RVNKQuests plugin, String name, String description, String usage) {
-        this(plugin, name, description, usage, "rvnkquests.command." + name.toLowerCase(), false);
+        this(plugin, name, description, usage, "rvnkquests." + name.toLowerCase(), false);
     }
     
     @Override

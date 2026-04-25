@@ -18,7 +18,7 @@ public class QuestValidateSubCommand extends BaseSubCommand {
 
     public QuestValidateSubCommand(RVNKQuests plugin) {
         super(plugin, "validate", "Validate all quest configurations", 
-              "/quest validate", "rvnkquests.admin", false);
+              "/quest validate", "rvnkquests.admin.validate", false);
     }
 
     @Override
@@ -50,7 +50,7 @@ public class QuestValidateSubCommand extends BaseSubCommand {
 
     @Override
     public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
+        return sender.hasPermission("rvnkquests.admin.validate") || sender.isOp();
     }
     
     private boolean validateAllQuests(CommandSender sender) {

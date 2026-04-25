@@ -60,7 +60,7 @@ public abstract class BaseCommand implements RVNKCommand, CommandExecutor, TabCo
      * @param usage The command usage string
      */
     public BaseCommand(RVNKQuests plugin, String name, String description, String usage) {
-        this(plugin, name, description, usage, "rvnkquests.command." + name.toLowerCase());
+        this(plugin, name, description, usage, "rvnkquests." + name.toLowerCase());
     }
     
     @Override

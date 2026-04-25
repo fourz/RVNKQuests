@@ -28,7 +28,7 @@ public class QuestMenuSubCommand extends BaseSubCommand {
 
     public QuestMenuSubCommand(RVNKQuests plugin, RVNKCommand parent) {
         super(plugin, parent, "menu", "Open quest menu GUI",
-              "/quest menu [filter] [player]", false);
+              "/quest menu [filter] [player]", "rvnkquests.menu", false);
     }
 
     @Override
