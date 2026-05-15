@@ -136,11 +136,12 @@ public class RVNKQuests extends JavaPlugin {
 
             // Initialize managers in correct dependency order
             questManager = new QuestManager(this);
-            commandManager = CommandManager.getInstance(this);
+            commandManager = new CommandManager(this);
             commandManager.initialize();
 
-            // Initialize service layer
-            rewardService = new RewardServiceImpl(this);
+            // Initialize service layer — RewardService receives questManager so that
+            // QuestUnlockRewardProcessor can start quests without a post-construction cast.
+            rewardService = new RewardServiceImpl(this, questManager);
             questChainService = new QuestChainServiceImpl(this, questProgressService, rewardService);
             objectiveService = new ObjectiveServiceImpl(this);
             journalService = new JournalServiceImpl(this);
@@ -155,14 +156,6 @@ public class RVNKQuests extends JavaPlugin {
 
             // Register chain progress listener — bridges quest completion to chain service
             getServer().getPluginManager().registerEvents(new ChainProgressListener(this), this);
-
-            // Wire QuestUnlockRewardProcessor to actually start quests via QuestManager
-            org.fourz.RVNKQuests.service.RewardProcessor unlockProc =
-                rewardService.getProcessor(org.fourz.RVNKQuests.data.dto.RewardType.QUEST_UNLOCK);
-            if (unlockProc instanceof org.fourz.RVNKQuests.service.reward.QuestUnlockRewardProcessor questUnlock) {
-                questUnlock.setUnlockCallback((playerId, questId) ->
-                    questManager.startQuest(playerId, questId));
-            }
 
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
@@ -206,6 +199,11 @@ public class RVNKQuests extends JavaPlugin {
         try {
             // Unregister from RVNKCore first
             unregisterFromRVNKCore();
+
+            // Shut down commands before tearing down services they may reference
+            if (commandManager != null) {
+                commandManager.shutdown();
+            }
 
             // Clean up quests first
             if (questManager != null) {

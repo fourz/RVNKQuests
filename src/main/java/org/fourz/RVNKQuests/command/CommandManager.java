@@ -13,27 +13,27 @@ import java.util.Set;
  * Centralized command management system for RVNKQuests.
  * Handles registration, lookup, and management of all plugin commands.
  *
- * This follows the RVNK ecosystem command framework pattern with:
- * - Singleton pattern for centralized management
- * - RVNKCommand interface for standardized command contracts
- * - BaseCommand and BaseSubCommand for common functionality
- * - Dynamic command registration and unregistration
+ * <p>This follows the RVNK ecosystem command framework pattern with:
+ * <ul>
+ *   <li>{@link ICommand} for standardised execution / metadata contracts</li>
+ *   <li>{@link ICommandRouter} for subcommand-registry contracts</li>
+ *   <li>{@link BaseCommand} and {@link BaseSubCommand} for common functionality</li>
+ *   <li>Dynamic command registration and unregistration</li>
+ * </ul>
  */
 public class CommandManager {
 
-    private static CommandManager instance;
     private final RVNKQuests plugin;
     private final LogManager logger;
-    private final Map<String, RVNKCommand> commands;
+    private final Map<String, ICommand> commands;
     private final Map<String, String> aliases;
 
-    private CommandManager(RVNKQuests plugin) {
+    public CommandManager(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
         this.commands = new HashMap<>();
         this.aliases = new HashMap<>();
     }
-
 
     /**
      * Initialize all plugin commands.
@@ -45,35 +45,13 @@ public class CommandManager {
     }
 
     /**
-     * Get the CommandManager instance (singleton pattern).
-     *
-     * @param plugin The RVNKQuests plugin instance
-     * @return The CommandManager instance
-     */
-    public static CommandManager getInstance(RVNKQuests plugin) {
-        if (instance == null) {
-            instance = new CommandManager(plugin);
-        }
-        return instance;
-    }
-
-    /**
-     * Get the current CommandManager instance.
-     *
-     * @return The CommandManager instance, or null if not initialized
-     */
-    public static CommandManager getInstance() {
-        return instance;
-    }
-
-    /**
      * Register a command with the command manager.
      * This will also register the command with Bukkit.
      *
      * @param command The command to register
      * @return true if the command was registered successfully
      */
-    public boolean registerCommand(RVNKCommand command) {
+    public boolean registerCommand(ICommand command) {
         String name = command.getName().toLowerCase();
 
         // Check if command already exists
@@ -109,20 +87,29 @@ public class CommandManager {
     /**
      * Register a subcommand with an existing parent command.
      *
+     * <p>The parent command must implement {@link ICommandRouter}; only
+     * {@link BaseCommand} subclasses satisfy that contract.</p>
+     *
      * @param parentCommandName The name of the parent command
-     * @param subCommandName The name of the subcommand
-     * @param subCommand The subcommand implementation
+     * @param subCommandName    The name of the subcommand
+     * @param subCommand        The subcommand implementation
      * @return true if the subcommand was registered successfully
      */
     public boolean registerSubCommand(String parentCommandName, String subCommandName, SubCommand subCommand) {
-        RVNKCommand parentCommand = commands.get(parentCommandName.toLowerCase());
+        ICommand parentCommand = commands.get(parentCommandName.toLowerCase());
         if (parentCommand == null) {
             logger.error("Failed to register subcommand: " + subCommandName +
                         " - parent command " + parentCommandName + " not found");
             return false;
         }
 
-        parentCommand.registerSubCommand(subCommandName, subCommand);
+        if (!(parentCommand instanceof ICommandRouter)) {
+            logger.error("Failed to register subcommand: " + subCommandName +
+                        " - parent command " + parentCommandName + " does not support routing");
+            return false;
+        }
+
+        ((ICommandRouter) parentCommand).registerSubCommand(subCommandName, subCommand);
         logger.debug("Registered subcommand: " + parentCommandName + " -> " + subCommandName);
         return true;
     }
@@ -135,7 +122,7 @@ public class CommandManager {
      */
     public boolean unregisterCommand(String commandName) {
         String name = commandName.toLowerCase();
-        RVNKCommand command = commands.remove(name);
+        ICommand command = commands.remove(name);
 
         if (command == null) {
             logger.warning("Cannot unregister command " + name + " - not found");
@@ -159,7 +146,7 @@ public class CommandManager {
      * @param name The command name
      * @return The command, or null if not found
      */
-    public RVNKCommand getCommand(String name) {
+    public ICommand getCommand(String name) {
         return commands.get(name.toLowerCase());
     }
 
@@ -194,7 +181,7 @@ public class CommandManager {
     /**
      * Register an alias for a command.
      *
-     * @param alias The alias name
+     * @param alias       The alias name
      * @param commandName The target command name
      * @return true if the alias was registered successfully
      */
@@ -223,11 +210,11 @@ public class CommandManager {
      * @param nameOrAlias The command name or alias
      * @return The command, or null if not found
      */
-    public RVNKCommand resolveCommand(String nameOrAlias) {
+    public ICommand resolveCommand(String nameOrAlias) {
         String lower = nameOrAlias.toLowerCase();
 
         // Check direct command name first
-        RVNKCommand command = commands.get(lower);
+        ICommand command = commands.get(lower);
         if (command != null) {
             return command;
         }
@@ -251,8 +238,8 @@ public class CommandManager {
         info.append("CommandManager Debug Info:\n");
         info.append("Registered Commands: ").append(commands.size()).append("\n");
 
-        for (Map.Entry<String, RVNKCommand> entry : commands.entrySet()) {
-            RVNKCommand command = entry.getValue();
+        for (Map.Entry<String, ICommand> entry : commands.entrySet()) {
+            ICommand command = entry.getValue();
             info.append("  - ").append(entry.getKey())
                 .append(" (").append(command.getClass().getSimpleName()).append(")");
 
