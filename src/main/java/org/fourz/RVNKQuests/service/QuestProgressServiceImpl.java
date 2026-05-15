@@ -32,7 +32,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
     private final RVNKQuests plugin;
     private final LogManager logger;
-    private final DatabaseManager databaseManager;
 
     private IQuestProgressRepository primaryRepo;
     private final QuestProgressYamlRepository fallbackRepo;
@@ -55,7 +54,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
     public QuestProgressServiceImpl(RVNKQuests plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, "QuestProgressService");
-        this.databaseManager = databaseManager;
 
         // Initialize repositories
         this.fallbackRepo = new QuestProgressYamlRepository(plugin);
