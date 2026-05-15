@@ -72,7 +72,6 @@ public class NotificationServiceImpl implements INotificationService {
 
     // ==================== Constructor ====================
 
-    @SuppressWarnings("deprecation")
     public NotificationServiceImpl(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
@@ -303,7 +302,6 @@ public class NotificationServiceImpl implements INotificationService {
 
     // ==================== Custom Notifications ====================
 
-    @SuppressWarnings("deprecation")
     @Override
     public void sendNotification(Player player, NotificationType type, String title, String subtitle) {
         UUID playerId = player.getUniqueId();
