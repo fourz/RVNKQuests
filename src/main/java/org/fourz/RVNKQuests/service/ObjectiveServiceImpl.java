@@ -89,7 +89,6 @@ public class ObjectiveServiceImpl implements IObjectiveService {
                 }
 
                 QuestObjectiveProgressDTO current = opt.get();
-                QuestObjectiveProgressDTO updated = current.withProgressCount(progress);
 
                 // Use underlying service to persist
                 return progressService.incrementObjectiveProgress(
