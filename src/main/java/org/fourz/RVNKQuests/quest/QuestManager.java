@@ -196,22 +196,6 @@ public class QuestManager implements IQuestService {
         });
     }
 
-    /**
-     * Register a quest if it is enabled in the configuration
-     * @param quest The quest to register
-     */
-    private void registerQuestIfEnabled(Quest quest) {
-        String questId = quest.getId();
-        boolean enabled = plugin.getConfigManager().isQuestEnabled(questId);
-
-        if (enabled) {
-            logger.debug("Registering enabled quest: " + questId);
-            registerQuest(quest);
-        } else {
-            logger.info("Skipping disabled quest: " + questId);
-        }
-    }
-
     public void cleanupQuests() {
         logger.debug("Starting quest cleanup process");
 

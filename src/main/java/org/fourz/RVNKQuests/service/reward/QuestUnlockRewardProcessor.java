@@ -98,8 +98,6 @@ public class QuestUnlockRewardProcessor implements RewardProcessor {
                         "Unlocked quest: " + questId
                     );
                 } else {
-                    // Log that we would unlock but no callback is set
-                    // In a real implementation, this would integrate with IPlayerQuestService
                     return RewardDeliveryResult.success(
                         reward,
                         "Quest unlock registered: " + questId + " (pending integration)"
@@ -118,7 +116,7 @@ public class QuestUnlockRewardProcessor implements RewardProcessor {
     @Override
     public CompletableFuture<RewardValidationResult> validate(UUID playerId, RewardDTO reward) {
         String questId = getMetadataString(reward, "questId");
-        
+
         if (questId == null || questId.isBlank()) {
             return CompletableFuture.completedFuture(
                 RewardValidationResult.invalid(
