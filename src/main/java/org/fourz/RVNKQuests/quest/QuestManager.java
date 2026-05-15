@@ -115,10 +115,10 @@ public class QuestManager implements IQuestService {
         logger.debug("Beginning quest initialization");
 
         try {
-            // Load all quests from the data-driven repository (seeded definitions)
+            // Load quests asynchronously — repository.findAll() is dispatched to a pool thread
+            // and registrations are scheduled back on the main thread. Quests are available
+            // before the first player tick because onEnable returns before the world opens.
             loadQuestsFromRepository();
-
-            logger.debug("Quest initialization complete. Total quests: " + quests.size());
         } catch (Exception e) {
             logger.error("Error during quest initialization", e);
         }
@@ -127,6 +127,10 @@ public class QuestManager implements IQuestService {
     /**
      * Loads quest definitions from the IQuestRepository and registers them
      * as DataDrivenQuest instances.
+     *
+     * <p>The repository call is fully async — no blocking on the main thread.
+     * Registration is dispatched back to the main thread via {@code runTask}
+     * so Bukkit event handlers are registered safely.</p>
      */
     public void loadQuestsFromRepository() {
         IQuestRepository repository = plugin.getQuestRepository();
@@ -135,32 +139,41 @@ public class QuestManager implements IQuestService {
             return;
         }
 
-        try {
-            List<QuestDTO> definitions = repository.findAll().join();
-            int loaded = 0;
+        repository.findAll()
+            .thenAccept(definitions -> {
+                // Back on the main thread so Bukkit listener registration is thread-safe
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    try {
+                        int loaded = 0;
 
-            for (QuestDTO definition : definitions) {
-                if (quests.containsKey(definition.questId())) {
-                    logger.debug("Skipping quest " + definition.questId() + " — already registered");
-                    continue;
-                }
+                        for (QuestDTO definition : definitions) {
+                            if (quests.containsKey(definition.questId())) {
+                                logger.debug("Skipping quest " + definition.questId() + " — already registered");
+                                continue;
+                            }
 
-                if (!plugin.getConfigManager().isQuestEnabled(definition.questId())) {
-                    logger.debug("Skipping disabled quest: " + definition.questId());
-                    continue;
-                }
+                            if (!plugin.getConfigManager().isQuestEnabled(definition.questId())) {
+                                logger.debug("Skipping disabled quest: " + definition.questId());
+                                continue;
+                            }
 
-                DataDrivenQuest quest = new DataDrivenQuest(plugin, definition);
-                registerQuest(quest);
-                loaded++;
-            }
+                            DataDrivenQuest quest = new DataDrivenQuest(plugin, definition);
+                            registerQuest(quest);
+                            loaded++;
+                        }
 
-            logger.info("Loaded " + loaded + " data-driven quest(s) from repository" +
-                (repository.isInFallbackMode() ? " (YAML fallback)" : " (database)"));
+                        logger.info("Loaded " + loaded + " data-driven quest(s) from repository" +
+                            (repository.isInFallbackMode() ? " (YAML fallback)" : " (database)"));
 
-        } catch (Exception e) {
-            logger.error("Failed to load quests from repository", e);
-        }
+                    } catch (Exception e) {
+                        logger.error("Failed to register quests from repository", e);
+                    }
+                });
+            })
+            .exceptionally(ex -> {
+                logger.warning("Failed to load quests from repository: " + ex.getMessage());
+                return null;
+            });
     }
 
     /**

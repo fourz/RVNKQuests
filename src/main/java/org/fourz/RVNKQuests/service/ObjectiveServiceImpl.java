@@ -1,17 +1,11 @@
 package org.fourz.RVNKQuests.service;
 
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.data.dto.ObjectiveCondition;
-import org.fourz.RVNKQuests.data.dto.ObjectiveCondition.ConditionType;
 import org.fourz.RVNKQuests.data.dto.ObjectiveDTO;
 import org.fourz.RVNKQuests.data.dto.ObjectiveGroup;
 import org.fourz.RVNKQuests.data.dto.ObjectiveGroup.CompletionType;
 import org.fourz.RVNKQuests.data.dto.QuestObjectiveProgressDTO;
-import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.ArrayList;
@@ -36,6 +30,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>Async-first with CompletableFuture returns</li>
  *   <li>Delegates persistence to IQuestProgressService</li>
+ *   <li>Delegates condition evaluation to ConditionEvaluator</li>
  *   <li>Thread-safe for concurrent access</li>
  * </ul>
  */
@@ -44,6 +39,7 @@ public class ObjectiveServiceImpl implements IObjectiveService {
     private final RVNKQuests plugin;
     private final LogManager logger;
     private final IQuestProgressService progressService;
+    private final ConditionEvaluator conditionEvaluator;
 
     /**
      * Creates a new ObjectiveServiceImpl.
@@ -54,6 +50,7 @@ public class ObjectiveServiceImpl implements IObjectiveService {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, "ObjectiveService");
         this.progressService = plugin.getQuestProgressService();
+        this.conditionEvaluator = new ConditionEvaluator(plugin);
     }
 
     // ========================================
@@ -134,13 +131,12 @@ public class ObjectiveServiceImpl implements IObjectiveService {
     }
 
     // ========================================
-    // Condition Evaluation
+    // Condition Evaluation — delegated to ConditionEvaluator
     // ========================================
 
     @Override
     public CompletableFuture<Boolean> evaluateCondition(UUID playerUuid, ObjectiveCondition condition) {
-        return evaluateConditionWithDetails(playerUuid, condition)
-            .thenApply(ConditionResult::passed);
+        return conditionEvaluator.evaluate(playerUuid, condition);
     }
 
     @Override
@@ -150,7 +146,7 @@ public class ObjectiveServiceImpl implements IObjectiveService {
         }
 
         List<CompletableFuture<Boolean>> futures = conditions.stream()
-            .map(c -> evaluateCondition(playerUuid, c))
+            .map(c -> conditionEvaluator.evaluate(playerUuid, c))
             .collect(Collectors.toList());
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
@@ -160,211 +156,7 @@ public class ObjectiveServiceImpl implements IObjectiveService {
     @Override
     public CompletableFuture<ConditionResult> evaluateConditionWithDetails(
             UUID playerUuid, ObjectiveCondition condition) {
-
-        return CompletableFuture.supplyAsync(() -> {
-            boolean result = evaluateConditionSync(playerUuid, condition);
-
-            // Apply inversion if needed
-            boolean passed = condition.inverted() ? !result : result;
-
-            if (passed) {
-                return ConditionResult.pass(condition.conditionId(),
-                    condition.description() != null ? condition.description() : "Condition met");
-            } else {
-                return ConditionResult.fail(condition.conditionId(),
-                    condition.description() != null ? condition.description() : "Condition not met");
-            }
-        });
-    }
-
-    /**
-     * Synchronously evaluates a condition.
-     */
-    private boolean evaluateConditionSync(UUID playerUuid, ObjectiveCondition condition) {
-        Player player = Bukkit.getPlayer(playerUuid);
-
-        switch (condition.type()) {
-            case TIME_RANGE:
-                return evaluateTimeCondition(condition);
-
-            case LOCATION:
-                return player != null && evaluateLocationCondition(player, condition);
-
-            case QUEST_STATE:
-                return evaluateQuestStateCondition(playerUuid, condition);
-
-            case OBJECTIVE_COMPLETE:
-                return evaluateObjectiveCompleteCondition(playerUuid, condition);
-
-            case PERMISSION:
-                return player != null && evaluatePermissionCondition(player, condition);
-
-            case ITEM_IN_INVENTORY:
-                return player != null && evaluateItemCondition(player, condition);
-
-            case PLAYER_LEVEL:
-                return player != null && evaluatePlayerLevelCondition(player, condition);
-
-            case WEATHER:
-                return player != null && evaluateWeatherCondition(player, condition);
-
-            case EQUIPMENT:
-                return player != null && evaluateEquipmentCondition(player, condition);
-
-            case CUSTOM:
-                logger.warning("Custom condition evaluation not implemented: " + condition.conditionId());
-                return false;
-
-            default:
-                logger.warning("Unknown condition type: " + condition.type());
-                return false;
-        }
-    }
-
-    private boolean evaluateTimeCondition(ObjectiveCondition condition) {
-        int startTime = condition.getIntParameter("startTime", 0);
-        int endTime = condition.getIntParameter("endTime", 24000);
-        boolean isRealTime = "true".equals(condition.getParameter("isRealTime", "false"));
-
-        if (isRealTime) {
-            // Real-world time check (hours 0-23)
-            int currentHour = java.time.LocalTime.now().getHour();
-            return currentHour >= startTime && currentHour < endTime;
-        } else {
-            // Game time check (ticks 0-24000)
-            long worldTime = Bukkit.getWorlds().get(0).getTime();
-            return worldTime >= startTime && worldTime < endTime;
-        }
-    }
-
-    private boolean evaluateLocationCondition(Player player, ObjectiveCondition condition) {
-        String world = condition.getParameter("world", null);
-        if (world != null && !player.getWorld().getName().equals(world)) {
-            return false;
-        }
-
-        double x = condition.getDoubleParameter("x", 0);
-        double y = condition.getDoubleParameter("y", 0);
-        double z = condition.getDoubleParameter("z", 0);
-        double radius = condition.getDoubleParameter("radius", 10);
-
-        double distance = player.getLocation().distance(
-            new org.bukkit.Location(player.getWorld(), x, y, z)
-        );
-
-        return distance <= radius;
-    }
-
-    private boolean evaluateQuestStateCondition(UUID playerUuid, ObjectiveCondition condition) {
-        String questId = condition.getParameter("questId", null);
-        String requiredStateStr = condition.getParameter("requiredState", "COMPLETED");
-
-        if (questId == null) {
-            return false;
-        }
-
-        try {
-            QuestState requiredState = QuestState.valueOf(requiredStateStr);
-            QuestState currentState = plugin.getQuestProgressService()
-                .getQuestState(playerUuid, questId).join();
-            return currentState == requiredState;
-        } catch (IllegalArgumentException e) {
-            logger.warning("Invalid quest state in condition: " + requiredStateStr);
-            return false;
-        }
-    }
-
-    private boolean evaluateObjectiveCompleteCondition(UUID playerUuid, ObjectiveCondition condition) {
-        String questId = condition.getParameter("questId", null);
-        String objectiveId = condition.getParameter("objectiveId", null);
-
-        if (objectiveId == null) {
-            return false;
-        }
-
-        // If questId not specified, we can't check
-        if (questId == null) {
-            return false;
-        }
-
-        Optional<QuestObjectiveProgressDTO> progress = progressService
-            .getObjectiveProgress(playerUuid, questId, objectiveId).join();
-
-        return progress.map(QuestObjectiveProgressDTO::completed).orElse(false);
-    }
-
-    private boolean evaluatePermissionCondition(Player player, ObjectiveCondition condition) {
-        String permission = condition.getParameter("permission", null);
-        return permission != null && player.hasPermission(permission);
-    }
-
-    private boolean evaluateItemCondition(Player player, ObjectiveCondition condition) {
-        String itemTypeStr = condition.getParameter("itemType", null);
-        int minAmount = condition.getIntParameter("minAmount", 1);
-
-        if (itemTypeStr == null) {
-            return false;
-        }
-
-        try {
-            Material material = Material.valueOf(itemTypeStr.toUpperCase());
-            int count = 0;
-            for (ItemStack item : player.getInventory().getContents()) {
-                if (item != null && item.getType() == material) {
-                    count += item.getAmount();
-                }
-            }
-            return count >= minAmount;
-        } catch (IllegalArgumentException e) {
-            logger.warning("Invalid material in condition: " + itemTypeStr);
-            return false;
-        }
-    }
-
-    private boolean evaluatePlayerLevelCondition(Player player, ObjectiveCondition condition) {
-        int minLevel = condition.getIntParameter("minLevel", 0);
-        int maxLevel = condition.getIntParameter("maxLevel", Integer.MAX_VALUE);
-        int playerLevel = player.getLevel();
-        return playerLevel >= minLevel && playerLevel <= maxLevel;
-    }
-
-    private boolean evaluateWeatherCondition(Player player, ObjectiveCondition condition) {
-        String weather = condition.getParameter("weather", "CLEAR");
-        boolean hasStorm = player.getWorld().hasStorm();
-        boolean hasThunder = player.getWorld().isThundering();
-
-        return switch (weather.toUpperCase()) {
-            case "CLEAR" -> !hasStorm && !hasThunder;
-            case "RAIN" -> hasStorm && !hasThunder;
-            case "THUNDER" -> hasThunder;
-            default -> false;
-        };
-    }
-
-    private boolean evaluateEquipmentCondition(Player player, ObjectiveCondition condition) {
-        String slot = condition.getParameter("equipmentSlot", "HAND");
-        String itemTypeStr = condition.getParameter("itemType", null);
-
-        if (itemTypeStr == null) {
-            return false;
-        }
-
-        try {
-            Material required = Material.valueOf(itemTypeStr.toUpperCase());
-            ItemStack equipped = switch (slot.toUpperCase()) {
-                case "HAND" -> player.getInventory().getItemInMainHand();
-                case "OFF_HAND" -> player.getInventory().getItemInOffHand();
-                case "HEAD" -> player.getInventory().getHelmet();
-                case "CHEST" -> player.getInventory().getChestplate();
-                case "LEGS" -> player.getInventory().getLeggings();
-                case "FEET" -> player.getInventory().getBoots();
-                default -> null;
-            };
-            return equipped != null && equipped.getType() == required;
-        } catch (IllegalArgumentException e) {
-            logger.warning("Invalid material in equipment condition: " + itemTypeStr);
-            return false;
-        }
+        return conditionEvaluator.evaluateWithDetails(playerUuid, condition);
     }
 
     // ========================================
