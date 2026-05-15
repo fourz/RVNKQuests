@@ -190,7 +190,7 @@ public abstract class AbstractQuest implements Quest {
     @Override
     @Deprecated
     public void advanceState(QuestState newState) {
-        logger.warning("advanceState() called without player - use advanceStateForPlayer() instead");
+        logger.debug("advanceState() called without player - use advanceStateForPlayer() instead");
     }
 
     @Override

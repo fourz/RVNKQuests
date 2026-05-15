@@ -13,6 +13,7 @@ import org.fourz.RVNKQuests.service.IObjectiveService.ConditionResult;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -36,6 +37,20 @@ public class ConditionEvaluator {
     public ConditionEvaluator(RVNKQuests plugin) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
         this.logger = LogManager.getInstance(plugin, ConditionEvaluator.class);
+    }
+
+    // ==================== Online Player Helper ====================
+
+    /**
+     * Returns the player only if they are currently online.
+     * Centralizes the repeated null-and-online check used across condition evaluators.
+     *
+     * @param playerUuid the player's UUID
+     * @return an Optional containing the online Player, or empty if offline/not found
+     */
+    private Optional<Player> getOnlinePlayer(UUID playerUuid) {
+        return Optional.ofNullable(Bukkit.getPlayer(playerUuid))
+                       .filter(Player::isOnline);
     }
 
     /**
@@ -147,10 +162,11 @@ public class ConditionEvaluator {
      * Evaluates LOCATION condition.
      */
     private ConditionResult evaluateLocation(UUID playerUuid, ObjectiveCondition condition) {
-        Player player = Bukkit.getPlayer(playerUuid);
-        if (player == null || !player.isOnline()) {
+        Optional<Player> online = getOnlinePlayer(playerUuid);
+        if (online.isEmpty()) {
             return ConditionResult.fail(condition.conditionId(), "Player not online");
         }
+        Player player = online.get();
 
         String requiredWorld = condition.getParameter("world", null);
         double x = condition.getDoubleParameter("x", 0);
@@ -277,12 +293,12 @@ public class ConditionEvaluator {
             return ConditionResult.fail(condition.conditionId(), "No permission specified");
         }
 
-        Player player = Bukkit.getPlayer(playerUuid);
-        if (player == null) {
+        Optional<Player> online = getOnlinePlayer(playerUuid);
+        if (online.isEmpty()) {
             return ConditionResult.fail(condition.conditionId(), "Player not online");
         }
 
-        if (player.hasPermission(permission)) {
+        if (online.get().hasPermission(permission)) {
             return ConditionResult.pass(condition.conditionId(),
                 "Player has permission: " + permission);
         } else {
@@ -304,10 +320,11 @@ public class ConditionEvaluator {
             return ConditionResult.fail(condition.conditionId(), "No itemType specified");
         }
 
-        Player player = Bukkit.getPlayer(playerUuid);
-        if (player == null) {
+        Optional<Player> online = getOnlinePlayer(playerUuid);
+        if (online.isEmpty()) {
             return ConditionResult.fail(condition.conditionId(), "Player not online");
         }
+        Player player = online.get();
 
         try {
             org.bukkit.Material material = org.bukkit.Material.valueOf(itemType.toUpperCase());
@@ -340,12 +357,12 @@ public class ConditionEvaluator {
         int minLevel = condition.getIntParameter("minLevel", 0);
         int maxLevel = condition.getIntParameter("maxLevel", Integer.MAX_VALUE);
 
-        Player player = Bukkit.getPlayer(playerUuid);
-        if (player == null) {
+        Optional<Player> online = getOnlinePlayer(playerUuid);
+        if (online.isEmpty()) {
             return ConditionResult.fail(condition.conditionId(), "Player not online");
         }
 
-        int level = player.getLevel();
+        int level = online.get().getLevel();
         if (level >= minLevel && level <= maxLevel) {
             return ConditionResult.pass(condition.conditionId(),
                 "Player level " + level + " in range [" + minLevel + ", " + maxLevel + "]");
@@ -363,8 +380,9 @@ public class ConditionEvaluator {
     private ConditionResult evaluateWeather(UUID playerUuid, ObjectiveCondition condition) {
         String requiredWeather = condition.getParameter("weather", "CLEAR");
 
-        Player player = Bukkit.getPlayer(playerUuid);
-        World world = player != null ? player.getWorld() : Bukkit.getWorlds().get(0);
+        Optional<Player> online = getOnlinePlayer(playerUuid);
+        World world = online.map(Player::getWorld)
+                            .orElseGet(() -> Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0));
 
         if (world == null) {
             return ConditionResult.fail(condition.conditionId(), "No world available");
@@ -397,10 +415,11 @@ public class ConditionEvaluator {
         String slot = condition.getParameter("equipmentSlot", "HAND");
         String itemType = condition.getParameter("itemType", null);
 
-        Player player = Bukkit.getPlayer(playerUuid);
-        if (player == null) {
+        Optional<Player> online = getOnlinePlayer(playerUuid);
+        if (online.isEmpty()) {
             return ConditionResult.fail(condition.conditionId(), "Player not online");
         }
+        Player player = online.get();
 
         ItemStack equipped = switch (slot.toUpperCase()) {
             case "HAND", "MAIN_HAND" -> player.getInventory().getItemInMainHand();

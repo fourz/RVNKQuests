@@ -4,6 +4,7 @@ import org.bukkit.command.PluginCommand;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.rvnkcore.util.log.LogManager;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -11,7 +12,7 @@ import java.util.Set;
 /**
  * Centralized command management system for RVNKQuests.
  * Handles registration, lookup, and management of all plugin commands.
- * 
+ *
  * This follows the RVNK ecosystem command framework pattern with:
  * - Singleton pattern for centralized management
  * - RVNKCommand interface for standardized command contracts
@@ -19,7 +20,7 @@ import java.util.Set;
  * - Dynamic command registration and unregistration
  */
 public class CommandManager {
-    
+
     private static CommandManager instance;
     private final RVNKQuests plugin;
     private final LogManager logger;
@@ -33,7 +34,7 @@ public class CommandManager {
         this.aliases = new HashMap<>();
     }
 
-    
+
     /**
      * Initialize all plugin commands.
      * This should be called during plugin initialization to set up all commands.
@@ -42,10 +43,10 @@ public class CommandManager {
         // Register main quest command
         registerCommand(new QuestCommand(plugin));
     }
-    
+
     /**
      * Get the CommandManager instance (singleton pattern).
-     * 
+     *
      * @param plugin The RVNKQuests plugin instance
      * @return The CommandManager instance
      */
@@ -55,39 +56,39 @@ public class CommandManager {
         }
         return instance;
     }
-    
+
     /**
      * Get the current CommandManager instance.
-     * 
+     *
      * @return The CommandManager instance, or null if not initialized
      */
     public static CommandManager getInstance() {
         return instance;
     }
-    
+
     /**
      * Register a command with the command manager.
      * This will also register the command with Bukkit.
-     * 
+     *
      * @param command The command to register
      * @return true if the command was registered successfully
      */
     public boolean registerCommand(RVNKCommand command) {
         String name = command.getName().toLowerCase();
-        
+
         // Check if command already exists
         if (commands.containsKey(name)) {
             logger.warning("Command " + name + " is already registered");
             return false;
         }
-        
+
         // Get the PluginCommand from Bukkit
         PluginCommand pluginCommand = plugin.getCommand(name);
         if (pluginCommand == null) {
             logger.error("Failed to register command: " + name + " - not found in plugin.yml");
             return false;
         }
-        
+
         // Register with Bukkit
         if (command instanceof BaseCommand) {
             BaseCommand baseCommand = (BaseCommand) command;
@@ -97,17 +98,17 @@ public class CommandManager {
             logger.warning("Command " + name + " does not extend BaseCommand - manual registration required");
             return false;
         }
-        
+
         // Store in our registry
         commands.put(name, command);
         logger.debug("Registered command: /" + name);
-        
+
         return true;
     }
-    
+
     /**
      * Register a subcommand with an existing parent command.
-     * 
+     *
      * @param parentCommandName The name of the parent command
      * @param subCommandName The name of the subcommand
      * @param subCommand The subcommand implementation
@@ -116,83 +117,83 @@ public class CommandManager {
     public boolean registerSubCommand(String parentCommandName, String subCommandName, SubCommand subCommand) {
         RVNKCommand parentCommand = commands.get(parentCommandName.toLowerCase());
         if (parentCommand == null) {
-            logger.error("Failed to register subcommand: " + subCommandName + 
+            logger.error("Failed to register subcommand: " + subCommandName +
                         " - parent command " + parentCommandName + " not found");
             return false;
         }
-        
+
         parentCommand.registerSubCommand(subCommandName, subCommand);
         logger.debug("Registered subcommand: " + parentCommandName + " -> " + subCommandName);
         return true;
     }
-    
+
     /**
      * Unregister a command from the command manager.
-     * 
+     *
      * @param commandName The name of the command to unregister
      * @return true if the command was unregistered successfully
      */
     public boolean unregisterCommand(String commandName) {
         String name = commandName.toLowerCase();
         RVNKCommand command = commands.remove(name);
-        
+
         if (command == null) {
             logger.warning("Cannot unregister command " + name + " - not found");
             return false;
         }
-        
+
         // Remove from Bukkit (set to null)
         PluginCommand pluginCommand = plugin.getCommand(name);
         if (pluginCommand != null) {
             pluginCommand.setExecutor(null);
             pluginCommand.setTabCompleter(null);
         }
-        
+
         logger.debug("Unregistered command: /" + name);
         return true;
     }
-    
+
     /**
      * Get a registered command by name.
-     * 
+     *
      * @param name The command name
      * @return The command, or null if not found
      */
     public RVNKCommand getCommand(String name) {
         return commands.get(name.toLowerCase());
     }
-    
+
     /**
      * Check if a command is registered.
-     * 
+     *
      * @param name The command name
      * @return true if the command is registered
      */
     public boolean isCommandRegistered(String name) {
         return commands.containsKey(name.toLowerCase());
     }
-    
+
     /**
      * Get all registered command names.
-     * 
+     *
      * @return Set of command names
      */
     public Set<String> getRegisteredCommands() {
         return commands.keySet();
     }
-    
+
     /**
      * Get the number of registered commands.
-     * 
+     *
      * @return The number of registered commands
      */
     public int getCommandCount() {
         return commands.size();
     }
-    
+
     /**
      * Register an alias for a command.
-     * 
+     *
      * @param alias The alias name
      * @param commandName The target command name
      * @return true if the alias was registered successfully
@@ -200,78 +201,78 @@ public class CommandManager {
     public boolean registerAlias(String alias, String commandName) {
         String aliasLower = alias.toLowerCase();
         String commandLower = commandName.toLowerCase();
-        
+
         if (!commands.containsKey(commandLower)) {
             logger.error("Cannot register alias " + alias + " - target command " + commandName + " not found");
             return false;
         }
-        
+
         if (aliases.containsKey(aliasLower)) {
             logger.warning("Alias " + alias + " is already registered");
             return false;
         }
-        
+
         aliases.put(aliasLower, commandLower);
         logger.debug("Registered alias: " + alias + " -> " + commandName);
         return true;
     }
-    
+
     /**
      * Resolve a command name or alias to the actual command.
-     * 
+     *
      * @param nameOrAlias The command name or alias
      * @return The command, or null if not found
      */
     public RVNKCommand resolveCommand(String nameOrAlias) {
         String lower = nameOrAlias.toLowerCase();
-        
+
         // Check direct command name first
         RVNKCommand command = commands.get(lower);
         if (command != null) {
             return command;
         }
-        
+
         // Check aliases
         String resolvedName = aliases.get(lower);
         if (resolvedName != null) {
             return commands.get(resolvedName);
         }
-        
+
         return null;
     }
-    
+
     /**
      * Get information about all registered commands for debugging.
-     * 
+     *
      * @return A formatted string with command information
      */
     public String getDebugInfo() {
         StringBuilder info = new StringBuilder();
         info.append("CommandManager Debug Info:\n");
         info.append("Registered Commands: ").append(commands.size()).append("\n");
-        
+
         for (Map.Entry<String, RVNKCommand> entry : commands.entrySet()) {
             RVNKCommand command = entry.getValue();
             info.append("  - ").append(entry.getKey())
                 .append(" (").append(command.getClass().getSimpleName()).append(")");
-            
+
             if (command.getPermission() != null) {
                 info.append(" [").append(command.getPermission()).append("]");
             }
-            
+
             info.append("\n");
         }
-        
+
         if (!aliases.isEmpty()) {
             info.append("Registered Aliases: ").append(aliases.size()).append("\n");
             for (Map.Entry<String, String> entry : aliases.entrySet()) {
                 info.append("  - ").append(entry.getKey()).append(" -> ").append(entry.getValue()).append("\n");
             }
         }
-        
+
         return info.toString();
     }
-    
+
     /**
      * Initialize the command manager and register all default commands.
      * This should be called during plugin startup.
@@ -280,14 +281,15 @@ public class CommandManager {
         initializeCommands();
         logger.debug("CommandManager initialized with " + commands.size() + " commands");
     }
-    
+
     /**
      * Shutdown the command manager and clean up resources.
      * This should be called during plugin shutdown.
      */
     public void shutdown() {
-        // Unregister all commands
-        for (String commandName : commands.keySet()) {
+        // Snapshot the key set to avoid ConcurrentModificationException:
+        // unregisterCommand() calls commands.remove() internally.
+        for (String commandName : new ArrayList<>(commands.keySet())) {
             unregisterCommand(commandName);
         }
 
