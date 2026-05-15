@@ -212,6 +212,15 @@ public class RVNKQuests extends JavaPlugin {
                 questManager.cleanupQuests();
             }
 
+            // Flush chain progress to DB before shutting down the connection pool
+            if (questChainService instanceof QuestChainServiceImpl chainServiceImpl) {
+                try {
+                    chainServiceImpl.flush().get(5, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    logger.warning("Chain progress flush timed out or failed: " + e.getMessage());
+                }
+            }
+
             // Shutdown quest progress service (flushes pending saves)
             if (questProgressService != null) {
                 questProgressService.shutdown();
@@ -446,6 +455,9 @@ public class RVNKQuests extends JavaPlugin {
     /**
      * Registers notification types with PlayerPreferencesService so players can control
      * which quest notifications they receive via /pref rvnkquests.
+     *
+     * <p>Wrapped in a ClassNotFoundException / NoClassDefFoundError catch so that this
+     * method is safe when RVNKCore classes are absent from the classpath (standalone mode).</p>
      */
     private void registerNotificationTypes() {
         try {
@@ -485,6 +497,8 @@ public class RVNKQuests extends JavaPlugin {
             prefsService.registerNotificationTypes("rvnkquests", types);
             logger.debug("Registered " + types.size() + " notification types with PlayerPreferencesService");
 
+        } catch (NoClassDefFoundError e) {
+            logger.debug("RVNKCore not available for notification type registration");
         } catch (Exception e) {
             logger.debug("Failed to register notification types: " + e.getMessage());
         }

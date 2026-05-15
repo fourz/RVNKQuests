@@ -8,6 +8,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
+import org.fourz.RVNKQuests.service.QuestChainServiceImpl;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 /**
@@ -16,6 +17,7 @@ import org.fourz.rvnkcore.util.log.LogManager;
  * <p>Handles:</p>
  * <ul>
  *   <li>Loading quest progress from storage when a player joins</li>
+ *   <li>Loading chain progress from storage when a player joins</li>
  *   <li>Saving quest progress to storage when a player quits</li>
  *   <li>Notifying QuestManager of player session changes</li>
  * </ul>
@@ -36,7 +38,7 @@ public class PlayerJoinQuitListener implements Listener {
     }
 
     /**
-     * Handles player join - loads quest progress from storage.
+     * Handles player join - loads quest progress and chain progress from storage.
      */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerJoin(PlayerJoinEvent event) {
@@ -49,15 +51,16 @@ public class PlayerJoinQuitListener implements Listener {
             return;
         }
 
-        // Load progress asynchronously
+        // Load quest progress then chain progress, both asynchronously
         service.loadPlayerProgress(player.getUniqueId())
             .thenRun(() -> {
                 logger.debug("Loaded quest progress for " + player.getName());
                 // Notify QuestManager
                 plugin.getQuestManager().onPlayerJoin(player);
             })
+            .thenCompose(ignored -> loadChainProgress(player))
             .exceptionally(e -> {
-                logger.error("Failed to load quest progress for " + player.getName(), e);
+                logger.error("Failed to load progress for " + player.getName(), e);
                 return null;
             });
     }
@@ -86,6 +89,26 @@ public class PlayerJoinQuitListener implements Listener {
             })
             .exceptionally(e -> {
                 logger.error("Failed to save quest progress for " + player.getName(), e);
+                return null;
+            });
+    }
+
+    // ==================== Private Helpers ====================
+
+    /**
+     * Loads chain progress for the player from the database into the in-memory cache.
+     * No-ops gracefully if the chain service does not support persistence.
+     */
+    private java.util.concurrent.CompletableFuture<Void> loadChainProgress(Player player) {
+        if (!(plugin.getQuestChainService() instanceof QuestChainServiceImpl chainService)) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+
+        return chainService.loadPlayerChains(player.getUniqueId())
+            .thenRun(() -> logger.debug("Loaded chain progress for " + player.getName()))
+            .exceptionally(e -> {
+                logger.warning("Failed to load chain progress for " + player.getName()
+                    + ": " + e.getMessage());
                 return null;
             });
     }

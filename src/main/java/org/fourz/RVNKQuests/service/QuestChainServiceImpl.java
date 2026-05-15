@@ -2,9 +2,13 @@ package org.fourz.RVNKQuests.service;
 
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.data.ChainProgressRepositoryImpl;
+import org.fourz.RVNKQuests.data.IChainProgressRepository;
 import org.fourz.RVNKQuests.data.dto.QuestChainDTO;
 import org.fourz.RVNKQuests.data.dto.QuestChainDTO.ChainNode;
 import org.fourz.RVNKQuests.data.dto.QuestChainDTO.NodeType;
+import org.fourz.RVNKQuests.data.dto.QuestChainProgressDTO;
 import org.fourz.RVNKQuests.data.dto.QuestPrerequisite;
 import org.fourz.RVNKQuests.data.dto.QuestPrerequisite.PrerequisiteType;
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
@@ -25,6 +29,11 @@ import java.util.stream.Collectors;
  * <p>Thread-safe implementation using concurrent data structures and
  * CompletableFuture for asynchronous operations.</p>
  *
+ * <p>Progress is persisted via {@link IChainProgressRepository} using a
+ * write-through strategy: every mutation to the in-memory map is immediately
+ * followed by an async DB write. On player join the DB rows are loaded back
+ * into the map; on shutdown {@link #flush()} ensures all entries are saved.</p>
+ *
  * @since 1.0
  */
 public class QuestChainServiceImpl implements IQuestChainService {
@@ -33,16 +42,17 @@ public class QuestChainServiceImpl implements IQuestChainService {
     private final LogManager logger;
     private final IQuestProgressService questProgressService;
     private final IRewardService rewardService;
-    
+    private final IChainProgressRepository chainProgressRepository;
+
     // Chain definitions (chainId -> chain)
     private final Map<String, QuestChainDTO> chains = new ConcurrentHashMap<>();
-    
+
     // Player progress (playerId -> chainId -> progress)
     private final Map<UUID, Map<String, ChainProgressData>> playerProgress = new ConcurrentHashMap<>();
-    
+
     // Quest to chain mapping for quick lookups (questId -> set of chainIds)
     private final Map<String, Set<String>> questToChains = new ConcurrentHashMap<>();
-    
+
     /**
      * Internal mutable progress data.
      */
@@ -55,11 +65,11 @@ public class QuestChainServiceImpl implements IQuestChainService {
         long startedAt = 0;
         long lastUpdated = System.currentTimeMillis();
         long cooldownUntil = 0;
-        
+
         ChainProgressData(String chainId) {
             this.chainId = chainId;
         }
-        
+
         ChainProgress toRecord(QuestChainDTO chain) {
             List<String> allQuestIds = chain.getAllQuestIds();
             Set<String> completed = new HashSet<>(completedQuests);
@@ -67,7 +77,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
             List<String> locked = allQuestIds.stream()
                 .filter(q -> !completed.contains(q) && !active.contains(q))
                 .toList();
-            
+
             return new ChainProgress(
                 null, // playerId set by caller
                 chainId,
@@ -80,10 +90,31 @@ public class QuestChainServiceImpl implements IQuestChainService {
                 lastUpdated
             );
         }
+
+        /**
+         * Builds a DTO snapshot for persistence.
+         * Uses the first active quest as the {@code currentQuestId} (summary field).
+         */
+        QuestChainProgressDTO toDTO(UUID playerUuid) {
+            String currentQuestId = activeQuests.isEmpty() ? null : activeQuests.iterator().next();
+            boolean completed = status == ChainStatus.COMPLETED || completionCount > 0;
+            return new QuestChainProgressDTO(
+                playerUuid,
+                chainId,
+                currentQuestId,
+                completed,
+                startedAt,
+                lastUpdated
+            );
+        }
     }
-    
+
     /**
      * Creates a new QuestChainServiceImpl.
+     *
+     * <p>When {@code plugin} is a {@link RVNKQuests} instance with an available
+     * {@code DatabaseManager}, a {@link ChainProgressRepositoryImpl} is created
+     * automatically. Otherwise progress is stored in-memory only (fallback).</p>
      *
      * @param plugin The owning plugin
      * @param questProgressService The quest progress service for quest state operations
@@ -94,35 +125,66 @@ public class QuestChainServiceImpl implements IQuestChainService {
         this.questProgressService = Objects.requireNonNull(questProgressService, "questProgressService cannot be null");
         this.rewardService = Objects.requireNonNull(rewardService, "rewardService cannot be null");
         this.logger = LogManager.getInstance(plugin, "QuestChainService");
+
+        // Wire persistence — only when running with a full RVNKQuests + live DB
+        IChainProgressRepository repo = null;
+        if (plugin instanceof RVNKQuests rvnkPlugin) {
+            try {
+                var dbManager = rvnkPlugin.getDatabaseManager();
+                if (dbManager != null && dbManager.isAvailable()) {
+                    repo = new ChainProgressRepositoryImpl(rvnkPlugin, dbManager);
+                    logger.debug("Chain progress repository initialised (SQL)");
+                } else {
+                    logger.debug("Database not available — chain progress will not be persisted");
+                }
+            } catch (Exception e) {
+                logger.warning("Failed to initialise chain progress repository: " + e.getMessage());
+            }
+        }
+        this.chainProgressRepository = repo;
     }
-    
+
+    // ==================== Online Player Helper ====================
+
+    /**
+     * Returns the player only if they are currently online.
+     * Centralizes the repeated null-and-online check pattern.
+     *
+     * @param id the player's UUID
+     * @return an Optional containing the online Player, or empty if offline/not found
+     */
+    private Optional<Player> getOnlinePlayer(UUID id) {
+        return Optional.ofNullable(plugin.getServer().getPlayer(id))
+                       .filter(Player::isOnline);
+    }
+
     // ==================== Chain Registration ====================
-    
+
     @Override
     public CompletableFuture<Boolean> registerChain(QuestChainDTO chain) {
         return CompletableFuture.supplyAsync(() -> {
             Objects.requireNonNull(chain, "chain cannot be null");
-            
+
             String chainId = chain.chainId();
             if (chains.containsKey(chainId)) {
                 logger.warning("Chain already registered: " + chainId);
                 return false;
             }
-            
+
             chains.put(chainId, chain);
-            
+
             // Index quests to chains
             for (String questId : chain.getAllQuestIds()) {
                 questToChains.computeIfAbsent(questId, k -> ConcurrentHashMap.newKeySet())
                     .add(chainId);
             }
-            
+
             logger.debug("Registered chain: " + chainId + " with " +
                        chain.getTotalQuestCount() + " quests");
             return true;
         });
     }
-    
+
     @Override
     public CompletableFuture<Boolean> unregisterChain(String chainId) {
         return CompletableFuture.supplyAsync(() -> {
@@ -130,7 +192,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
             if (removed == null) {
                 return false;
             }
-            
+
             // Remove from quest index
             for (String questId : removed.getAllQuestIds()) {
                 Set<String> chainIds = questToChains.get(questId);
@@ -141,33 +203,33 @@ public class QuestChainServiceImpl implements IQuestChainService {
                     }
                 }
             }
-            
+
             logger.debug("Unregistered chain: " + chainId);
             return true;
         });
     }
-    
+
     @Override
     public CompletableFuture<Optional<QuestChainDTO>> getChain(String chainId) {
         return CompletableFuture.completedFuture(Optional.ofNullable(chains.get(chainId)));
     }
-    
+
     @Override
     public CompletableFuture<List<QuestChainDTO>> getAllChains() {
         return CompletableFuture.completedFuture(List.copyOf(chains.values()));
     }
-    
+
     @Override
     public CompletableFuture<List<QuestChainDTO>> getChainsByCategory(String category) {
-        return CompletableFuture.supplyAsync(() -> 
+        return CompletableFuture.supplyAsync(() ->
             chains.values().stream()
                 .filter(c -> Objects.equals(c.category(), category))
                 .toList()
         );
     }
-    
+
     // ==================== Progress Tracking ====================
-    
+
     @Override
     public CompletableFuture<ChainProgress> getProgress(UUID playerId, String chainId) {
         return CompletableFuture.supplyAsync(() -> {
@@ -176,17 +238,17 @@ public class QuestChainServiceImpl implements IQuestChainService {
                 return new ChainProgress(playerId, chainId, ChainStatus.NOT_STARTED,
                     List.of(), List.of(), List.of(), 0, 0, 0);
             }
-            
+
             ChainProgressData data = getOrCreateProgress(playerId, chainId);
             ChainProgress progress = data.toRecord(chain);
-            
+
             // Return with correct playerId
             return new ChainProgress(playerId, progress.chainId(), progress.status(),
                 progress.completedQuests(), progress.activeQuests(), progress.lockedQuests(),
                 progress.completionCount(), progress.startedAt(), progress.lastUpdated());
         });
     }
-    
+
     @Override
     public CompletableFuture<List<ChainProgress>> getAllProgress(UUID playerId) {
         return CompletableFuture.supplyAsync(() -> {
@@ -194,7 +256,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
             if (playerData == null || playerData.isEmpty()) {
                 return List.of();
             }
-            
+
             return playerData.values().stream()
                 .map(data -> {
                     QuestChainDTO chain = chains.get(data.chainId);
@@ -208,7 +270,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
                 .toList();
         });
     }
-    
+
     @Override
     public CompletableFuture<ChainStartResult> startChain(UUID playerId, String chainId) {
         return checkPrerequisites(playerId, chainId).thenCompose(prereqResult -> {
@@ -217,42 +279,45 @@ public class QuestChainServiceImpl implements IQuestChainService {
                     ChainStartResult.failure(chainId, prereqResult.message())
                 );
             }
-            
+
             return CompletableFuture.supplyAsync(() -> {
                 QuestChainDTO chain = chains.get(chainId);
                 if (chain == null) {
                     return ChainStartResult.failure(chainId, "Chain not found");
                 }
-                
+
                 ChainProgressData data = getOrCreateProgress(playerId, chainId);
-                
+
                 // Check cooldown for repeatable chains
                 if (chain.repeatable() && data.cooldownUntil > System.currentTimeMillis()) {
                     long remaining = (data.cooldownUntil - System.currentTimeMillis()) / 1000 / 60;
-                    return ChainStartResult.failure(chainId, 
+                    return ChainStartResult.failure(chainId,
                         "Chain on cooldown. " + remaining + " minutes remaining.");
                 }
-                
+
                 // Reset if restarting
                 if (data.status == ChainStatus.COMPLETED && chain.repeatable()) {
                     data.completedQuests.clear();
                     data.activeQuests.clear();
                 }
-                
+
                 data.status = ChainStatus.IN_PROGRESS;
                 data.startedAt = System.currentTimeMillis();
                 data.lastUpdated = System.currentTimeMillis();
-                
+
                 // Determine initial available quests
                 List<String> availableQuests = calculateAvailableQuests(chain, data);
                 data.activeQuests.addAll(availableQuests);
-                
+
+                // Persist updated state
+                persistProgress(playerId, data);
+
                 logger.debug("Player " + playerId + " started chain: " + chainId);
                 return ChainStartResult.success(chainId, availableQuests);
             });
         });
     }
-    
+
     @Override
     public CompletableFuture<List<ChainUpdate>> onQuestComplete(UUID playerId, String questId) {
         return CompletableFuture.supplyAsync(() -> {
@@ -260,31 +325,31 @@ public class QuestChainServiceImpl implements IQuestChainService {
             if (affectedChains == null || affectedChains.isEmpty()) {
                 return List.of();
             }
-            
+
             List<ChainUpdate> updates = new ArrayList<>();
-            
+
             for (String chainId : affectedChains) {
                 ChainProgressData data = playerProgress
                     .getOrDefault(playerId, Map.of())
                     .get(chainId);
-                
+
                 if (data == null || data.status != ChainStatus.IN_PROGRESS) {
                     continue;
                 }
-                
+
                 QuestChainDTO chain = chains.get(chainId);
                 if (chain == null) continue;
-                
+
                 // Move quest from active to completed
                 data.activeQuests.remove(questId);
                 data.completedQuests.add(questId);
                 data.lastUpdated = System.currentTimeMillis();
-                
+
                 // Check for newly unlocked quests
                 List<String> newlyAvailable = calculateAvailableQuests(chain, data);
                 newlyAvailable.removeAll(data.activeQuests);
                 newlyAvailable.removeAll(data.completedQuests);
-                
+
                 if (!newlyAvailable.isEmpty()) {
                     data.activeQuests.addAll(newlyAvailable);
                     updates.add(new ChainUpdate(
@@ -295,25 +360,25 @@ public class QuestChainServiceImpl implements IQuestChainService {
                         "Unlocked " + newlyAvailable.size() + " new quest(s)"
                     ));
                 }
-                
+
                 // Check for chain completion
                 if (isChainComplete(chain, data)) {
                     data.status = ChainStatus.COMPLETED;
                     data.completionCount++;
-                    
+
                     // Set cooldown if repeatable
                     if (chain.repeatable() && chain.cooldownMinutes() > 0) {
-                        data.cooldownUntil = System.currentTimeMillis() + 
+                        data.cooldownUntil = System.currentTimeMillis() +
                             (chain.cooldownMinutes() * 60L * 1000L);
                         data.status = ChainStatus.ON_COOLDOWN;
                     }
-                    
+
                     // Deliver completion rewards
                     List<RewardDTO> rewards = chain.completionRewards();
                     if (!rewards.isEmpty()) {
                         deliverChainRewards(playerId, rewards);
                     }
-                    
+
                     updates.add(new ChainUpdate(
                         chainId,
                         ChainUpdate.UpdateType.CHAIN_COMPLETED,
@@ -321,8 +386,8 @@ public class QuestChainServiceImpl implements IQuestChainService {
                         rewards,
                         "Chain completed! (" + data.completionCount + " times)"
                     ));
-                    
-                    logger.info("Player " + playerId + " completed chain: " + chainId + 
+
+                    logger.info("Player " + playerId + " completed chain: " + chainId +
                               " (" + data.completionCount + " times)");
                 } else {
                     updates.add(new ChainUpdate(
@@ -333,25 +398,139 @@ public class QuestChainServiceImpl implements IQuestChainService {
                         "Quest completed in chain"
                     ));
                 }
+
+                // Persist updated state after each affected chain is mutated
+                persistProgress(playerId, data);
             }
-            
+
             return updates;
         });
     }
-    
+
     @Override
     public CompletableFuture<Boolean> resetProgress(UUID playerId, String chainId) {
         return CompletableFuture.supplyAsync(() -> {
             Map<String, ChainProgressData> playerData = playerProgress.get(playerId);
             if (playerData == null) return false;
-            
+
             ChainProgressData removed = playerData.remove(chainId);
-            return removed != null;
+            if (removed == null) return false;
+
+            // Remove from DB as well
+            if (chainProgressRepository != null) {
+                chainProgressRepository.deleteProgress(playerId, chainId)
+                    .exceptionally(ex -> {
+                        logger.warning("Failed to delete chain progress from DB for "
+                            + playerId + " / " + chainId + ": " + ex.getMessage());
+                        return false;
+                    });
+            }
+            return true;
         });
     }
-    
+
+    // ==================== Persistence Helpers ====================
+
+    /**
+     * Loads all persisted chain progress records for a player into the in-memory cache.
+     *
+     * <p>Call this from the player-join handler so chain progress survives restarts.</p>
+     *
+     * @param playerUuid The joining player's UUID
+     * @return CompletableFuture that completes when the cache has been populated
+     */
+    public CompletableFuture<Void> loadPlayerChains(UUID playerUuid) {
+        if (chainProgressRepository == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return chainProgressRepository.loadAllProgress(playerUuid)
+            .thenAccept(rows -> {
+                if (rows.isEmpty()) return;
+
+                Map<String, ChainProgressData> playerMap =
+                    playerProgress.computeIfAbsent(playerUuid, k -> new ConcurrentHashMap<>());
+
+                for (QuestChainProgressDTO dto : rows) {
+                    // Only restore if not already in memory (join race guard)
+                    playerMap.computeIfAbsent(dto.chainId(), chainId -> {
+                        ChainProgressData data = new ChainProgressData(chainId);
+                        data.startedAt = dto.startedAt();
+                        data.lastUpdated = dto.lastUpdated();
+
+                        if (dto.completed()) {
+                            data.status = ChainStatus.COMPLETED;
+                            data.completionCount = 1; // minimum — exact count not stored in this table
+                        } else if (dto.startedAt() > 0) {
+                            data.status = ChainStatus.IN_PROGRESS;
+                            if (dto.currentQuestId() != null) {
+                                data.activeQuests.add(dto.currentQuestId());
+                            }
+                        }
+                        return data;
+                    });
+                }
+                logger.debug("Loaded " + rows.size() + " chain progress rows for " + playerUuid);
+            })
+            .exceptionally(ex -> {
+                logger.warning("Failed to load chain progress for " + playerUuid + ": " + ex.getMessage());
+                return null;
+            });
+    }
+
+    /**
+     * Flushes all in-memory chain progress entries to the database.
+     *
+     * <p>Call this from the plugin's {@code onDisable()} shutdown sequence to
+     * ensure no progress is lost when the server stops.</p>
+     *
+     * @return CompletableFuture that completes when all saves have been dispatched
+     */
+    public CompletableFuture<Void> flush() {
+        if (chainProgressRepository == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        List<CompletableFuture<Boolean>> saves = new ArrayList<>();
+
+        for (Map.Entry<UUID, Map<String, ChainProgressData>> playerEntry : playerProgress.entrySet()) {
+            UUID playerUuid = playerEntry.getKey();
+            for (ChainProgressData data : playerEntry.getValue().values()) {
+                saves.add(
+                    chainProgressRepository.saveProgress(data.toDTO(playerUuid))
+                        .exceptionally(ex -> {
+                            logger.warning("Flush save failed for " + playerUuid
+                                + " / " + data.chainId + ": " + ex.getMessage());
+                            return false;
+                        })
+                );
+            }
+        }
+
+        if (saves.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return CompletableFuture.allOf(saves.toArray(new CompletableFuture[0]))
+            .thenRun(() -> logger.debug("Flushed " + saves.size() + " chain progress entries to DB"));
+    }
+
+    /**
+     * Persists a single player's chain progress entry asynchronously (fire-and-forget).
+     */
+    private void persistProgress(UUID playerUuid, ChainProgressData data) {
+        if (chainProgressRepository == null) return;
+
+        chainProgressRepository.saveProgress(data.toDTO(playerUuid))
+            .exceptionally(ex -> {
+                logger.warning("Async persist failed for " + playerUuid
+                    + " / " + data.chainId + ": " + ex.getMessage());
+                return false;
+            });
+    }
+
     // ==================== Prerequisites & Unlocking ====================
-    
+
     @Override
     public CompletableFuture<PrerequisiteResult> checkPrerequisites(UUID playerId, String chainId) {
         return CompletableFuture.supplyAsync(() -> {
@@ -359,14 +538,14 @@ public class QuestChainServiceImpl implements IQuestChainService {
             if (chain == null) {
                 return PrerequisiteResult.failure(List.of());
             }
-            
+
             if (!chain.hasPrerequisites()) {
                 return PrerequisiteResult.success();
             }
-            
+
             List<QuestPrerequisite> met = new ArrayList<>();
             List<QuestPrerequisite> unmet = new ArrayList<>();
-            
+
             for (QuestPrerequisite prereq : chain.prerequisites()) {
                 if (checkSinglePrerequisite(playerId, prereq)) {
                     met.add(prereq);
@@ -374,85 +553,85 @@ public class QuestChainServiceImpl implements IQuestChainService {
                     unmet.add(prereq);
                 }
             }
-            
+
             if (unmet.isEmpty()) {
                 return new PrerequisiteResult(true, met, List.of(), "All prerequisites met");
             } else {
-                return new PrerequisiteResult(false, met, unmet, 
+                return new PrerequisiteResult(false, met, unmet,
                     "Missing " + unmet.size() + " prerequisite(s)");
             }
         });
     }
-    
+
     @Override
     public CompletableFuture<List<QuestChainDTO>> getAvailableChains(UUID playerId) {
         return CompletableFuture.supplyAsync(() -> {
             List<QuestChainDTO> available = new ArrayList<>();
-            
+
             for (QuestChainDTO chain : chains.values()) {
                 ChainProgressData progress = playerProgress
                     .getOrDefault(playerId, Map.of())
                     .get(chain.chainId());
-                
+
                 // Skip completed non-repeatable chains
                 if (progress != null && progress.status == ChainStatus.COMPLETED && !chain.repeatable()) {
                     continue;
                 }
-                
+
                 // Skip chains on cooldown
                 if (progress != null && progress.cooldownUntil > System.currentTimeMillis()) {
                     continue;
                 }
-                
+
                 // Check prerequisites
                 boolean prereqsMet = chain.prerequisites().isEmpty() ||
                     chain.prerequisites().stream()
                         .allMatch(p -> checkSinglePrerequisite(playerId, p));
-                
+
                 if (prereqsMet) {
                     available.add(chain);
                 }
             }
-            
+
             return available;
         });
     }
-    
+
     @Override
     public CompletableFuture<List<String>> getNextQuests(UUID playerId, String chainId) {
         return CompletableFuture.supplyAsync(() -> {
             QuestChainDTO chain = chains.get(chainId);
             if (chain == null) return List.of();
-            
+
             ChainProgressData data = playerProgress
                 .getOrDefault(playerId, Map.of())
                 .get(chainId);
-            
+
             if (data == null || data.status != ChainStatus.IN_PROGRESS) {
                 return List.of();
             }
-            
+
             return calculateAvailableQuests(chain, data).stream()
                 .filter(q -> !data.completedQuests.contains(q))
                 .toList();
         });
     }
-    
+
     // ==================== Chain Completion ====================
-    
+
     @Override
     public CompletableFuture<List<String>> getCompletedChains(UUID playerId) {
         return CompletableFuture.supplyAsync(() -> {
             Map<String, ChainProgressData> playerData = playerProgress.get(playerId);
             if (playerData == null) return List.of();
-            
+
             return playerData.values().stream()
                 .filter(d -> d.status == ChainStatus.COMPLETED || d.completionCount > 0)
                 .map(d -> d.chainId)
                 .toList();
         });
     }
-    
+
     @Override
     public CompletableFuture<Boolean> hasCompletedChain(UUID playerId, String chainId) {
         return CompletableFuture.supplyAsync(() -> {
@@ -462,7 +641,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
             return data != null && data.completionCount > 0;
         });
     }
-    
+
     @Override
     public CompletableFuture<Integer> getCompletionCount(UUID playerId, String chainId) {
         return CompletableFuture.supplyAsync(() -> {
@@ -472,25 +651,25 @@ public class QuestChainServiceImpl implements IQuestChainService {
             return data != null ? data.completionCount : 0;
         });
     }
-    
+
     // ==================== Private Helpers ====================
-    
+
     private ChainProgressData getOrCreateProgress(UUID playerId, String chainId) {
         return playerProgress
             .computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
             .computeIfAbsent(chainId, ChainProgressData::new);
     }
-    
+
     private List<String> calculateAvailableQuests(QuestChainDTO chain, ChainProgressData data) {
         List<String> available = new ArrayList<>();
-        
+
         for (ChainNode node : chain.nodes()) {
             collectAvailableFromNode(node, data.completedQuests, available);
         }
-        
+
         return available;
     }
-    
+
     private void collectAvailableFromNode(ChainNode node, Set<String> completed, List<String> available) {
         if (node.isLeaf()) {
             // Quest node - available if not completed
@@ -499,7 +678,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
             }
             return;
         }
-        
+
         switch (node.type()) {
             case SEQUENCE -> {
                 // First uncompleted quest in sequence is available
@@ -536,12 +715,12 @@ public class QuestChainServiceImpl implements IQuestChainService {
             default -> {}
         }
     }
-    
+
     private boolean isNodeComplete(ChainNode node, Set<String> completed) {
         if (node.isLeaf()) {
             return completed.contains(node.questId());
         }
-        
+
         return switch (node.type()) {
             case ALL, SEQUENCE -> node.children().stream()
                 .allMatch(c -> isNodeComplete(c, completed));
@@ -553,12 +732,12 @@ public class QuestChainServiceImpl implements IQuestChainService {
             default -> false;
         };
     }
-    
+
     private boolean isChainComplete(QuestChainDTO chain, ChainProgressData data) {
         return chain.nodes().stream()
             .allMatch(node -> isNodeComplete(node, data.completedQuests));
     }
-    
+
     private boolean checkSinglePrerequisite(UUID playerId, QuestPrerequisite prereq) {
         try {
             return switch (prereq.type()) {
@@ -568,18 +747,15 @@ public class QuestChainServiceImpl implements IQuestChainService {
                     yield state == QuestState.COMPLETED;
                 }
                 case CHAIN_COMPLETE -> hasCompletedChain(playerId, prereq.targetId()).join();
-                case PLAYER_LEVEL -> {
-                    Player player = plugin.getServer().getPlayer(playerId);
-                    yield player != null && player.getLevel() >= prereq.requiredValue();
-                }
-                case PERMISSION -> {
-                    Player player = plugin.getServer().getPlayer(playerId);
-                    yield player != null && player.hasPermission(prereq.targetId());
-                }
-                case WORLD -> {
-                    Player player = plugin.getServer().getPlayer(playerId);
-                    yield player != null && player.getWorld().getName().equals(prereq.targetId());
-                }
+                case PLAYER_LEVEL -> getOnlinePlayer(playerId)
+                        .map(p -> p.getLevel() >= prereq.requiredValue())
+                        .orElse(false);
+                case PERMISSION -> getOnlinePlayer(playerId)
+                        .map(p -> p.hasPermission(prereq.targetId()))
+                        .orElse(false);
+                case WORLD -> getOnlinePlayer(playerId)
+                        .map(p -> p.getWorld().getName().equals(prereq.targetId()))
+                        .orElse(false);
                 default -> true; // Other types pass by default
             };
         } catch (Exception e) {
@@ -587,19 +763,18 @@ public class QuestChainServiceImpl implements IQuestChainService {
             return false;
         }
     }
-    
+
     private void deliverChainRewards(UUID playerId, List<RewardDTO> rewards) {
-        Player player = plugin.getServer().getPlayer(playerId);
-        if (player == null || !player.isOnline()) {
+        if (getOnlinePlayer(playerId).isEmpty()) {
             // Queue for offline delivery
             logger.info("Player " + playerId + " offline, queueing chain rewards");
             return;
         }
-        
+
         rewardService.deliverRewards(playerId, rewards)
             .thenAccept(result -> {
                 if (result.hasFailures()) {
-                    logger.warning("Some chain rewards failed for " + playerId + ": " + 
+                    logger.warning("Some chain rewards failed for " + playerId + ": " +
                                   result.failureCount() + " failures");
                 }
             })
