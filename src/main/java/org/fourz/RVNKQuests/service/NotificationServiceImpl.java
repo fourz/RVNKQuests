@@ -2,7 +2,6 @@ package org.fourz.RVNKQuests.service;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Sound;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -26,12 +25,33 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Respects PlayerPreferencesService from RVNKCore (Phase 3 integration) for
  * persistent, centralized notification preferences management.</p>
+ *
+ * <p>Channel dispatch is driven by a strategy map
+ * ({@link #channelSenders}) built once in the constructor.  Adding a new
+ * {@link NotificationChannel} value only requires registering one lambda here
+ * — no existing switch blocks need to be edited (Open/Closed Principle).</p>
  */
 public class NotificationServiceImpl implements INotificationService {
+
+    // ==================== Strategy: per-channel send logic ====================
+
+    /**
+     * Functional interface that delivers a text message to a player via a
+     * specific notification channel.
+     */
+    @FunctionalInterface
+    private interface NotificationChannelSender {
+        void send(Player player, String message);
+    }
+
+    // ==================== Fields ====================
 
     private final RVNKQuests plugin;
     private final LogManager logger;
     private final PreferencesServiceLookup prefsLookup;
+
+    /** Strategy map: channel → send lambda. */
+    private final Map<NotificationChannel, NotificationChannelSender> channelSenders;
 
     // Player boss bars for quest tracking
     private final Map<UUID, BossBar> playerBossBars = new ConcurrentHashMap<>();
@@ -50,11 +70,51 @@ public class NotificationServiceImpl implements INotificationService {
     private static final String SUCCESS_PREFIX = ChatColor.GREEN + "[Quest] " + ChatColor.RESET;
     private static final String ERROR_PREFIX = ChatColor.RED + "[Quest] " + ChatColor.RESET;
 
+    // ==================== Constructor ====================
+
+    @SuppressWarnings("deprecation")
     public NotificationServiceImpl(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
         this.prefsLookup = new PreferencesServiceLookup(plugin);
         initializeDefaultCooldowns();
+        this.channelSenders = buildChannelSenders();
+    }
+
+    /**
+     * Build the channel-to-sender strategy map.
+     *
+     * <p>Each entry maps a {@link NotificationChannel} to a lambda that
+     * delivers {@code message} to {@code player}.  No-op channels (BOSS_BAR,
+     * SOUND) are registered with a debug-logged lambda so that the map is
+     * complete and future implementors know exactly where to add logic.</p>
+     */
+    @SuppressWarnings("deprecation")
+    private Map<NotificationChannel, NotificationChannelSender> buildChannelSenders() {
+        Map<NotificationChannel, NotificationChannelSender> map = new EnumMap<>(NotificationChannel.class);
+
+        map.put(NotificationChannel.CHAT, (player, message) ->
+            player.sendMessage(message));
+
+        map.put(NotificationChannel.ACTION_BAR, (player, message) ->
+            player.spigot().sendMessage(
+                net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                net.md_5.bungee.api.chat.TextComponent.fromLegacyText(message)));
+
+        map.put(NotificationChannel.TITLE, (player, message) ->
+            player.sendTitle(message, "", 10, 40, 10));
+
+        // BOSS_BAR has a dedicated showQuestProgressBar API; text-only sends are no-ops.
+        map.put(NotificationChannel.BOSS_BAR, (player, message) ->
+            logger.debug("BOSS_BAR text send skipped for " + player.getName()
+                + " — use showQuestProgressBar() instead"));
+
+        // SOUND has no text message concept; callers drive sound via NotificationType.
+        map.put(NotificationChannel.SOUND, (player, message) ->
+            logger.debug("SOUND channel text send skipped for " + player.getName()
+                + " — play sounds directly via NotificationType.getDefaultSound()"));
+
+        return Collections.unmodifiableMap(map);
     }
 
     private void initializeDefaultCooldowns() {
@@ -253,27 +313,18 @@ public class NotificationServiceImpl implements INotificationService {
             return;
         }
 
-        switch (channel) {
-            case TITLE:
-                player.sendTitle(
-                    title != null ? title : "",
-                    subtitle != null ? subtitle : "",
-                    type.getFadeIn(),
-                    type.getStay(),
-                    type.getFadeOut()
-                );
-                break;
-            case ACTION_BAR:
-                player.spigot().sendMessage(
-                    net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-                    net.md_5.bungee.api.chat.TextComponent.fromLegacyText(title != null ? title : "")
-                );
-                break;
-            case CHAT:
-                player.sendMessage(title != null ? title : "");
-                break;
-            default:
-                break;
+        // TITLE carries both title + subtitle — handled inline since the channel
+        // sender map only supports a single message string.
+        if (channel == NotificationChannel.TITLE) {
+            player.sendTitle(
+                title != null ? title : "",
+                subtitle != null ? subtitle : "",
+                type.getFadeIn(),
+                type.getStay(),
+                type.getFadeOut()
+            );
+        } else {
+            sendToChannel(player, channel, title != null ? title : "");
         }
 
         // Play sound if configured
@@ -282,32 +333,17 @@ public class NotificationServiceImpl implements INotificationService {
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void sendToChannel(Player player, NotificationChannel channel, String message) {
         if (!isChannelEnabled(player.getUniqueId(), channel)) {
             return;
         }
 
-        switch (channel) {
-            case TITLE:
-                player.sendTitle(message, "", 10, 40, 10);
-                break;
-            case ACTION_BAR:
-                player.spigot().sendMessage(
-                    net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-                    net.md_5.bungee.api.chat.TextComponent.fromLegacyText(message)
-                );
-                break;
-            case CHAT:
-                player.sendMessage(message);
-                break;
-            case SOUND:
-                // No-op for sound-only channel
-                break;
-            case BOSS_BAR:
-                // Use showQuestProgressBar for boss bar
-                break;
+        NotificationChannelSender sender = channelSenders.get(channel);
+        if (sender != null) {
+            sender.send(player, message);
+        } else {
+            logger.warning("No sender registered for channel: " + channel);
         }
     }
 
@@ -440,7 +476,7 @@ public class NotificationServiceImpl implements INotificationService {
      * Returns true if service unavailable (graceful fallback).
      * This is a synchronous check with short timeout.
      *
-     * @param playerUuid Player UUID
+     * @param playerUuid       Player UUID
      * @param notificationType Notification type (e.g., "quest_start")
      * @return true if player should receive notifications
      */
