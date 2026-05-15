@@ -47,7 +47,7 @@ public class RewardServiceImpl implements IRewardService {
         // Register default processors
         registerDefaultProcessors();
         
-        logger.info("RewardService initialized with " + processors.size() + " processors");
+        logger.debug("RewardService initialized with " + processors.size() + " processors");
     }
 
     /**

@@ -278,7 +278,7 @@ public class CommandManager {
      */
     public void initialize() {
         initializeCommands();
-        logger.info("CommandManager initialized with " + commands.size() + " commands");
+        logger.debug("CommandManager initialized with " + commands.size() + " commands");
     }
     
     /**

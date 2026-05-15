@@ -39,7 +39,7 @@ public class QuestChainDefinitionSeeder {
             return;
         }
 
-        logger.info("Checking quest chain definitions...");
+        logger.debug("Checking quest chain definitions...");
         try {
             List<QuestChainDTO> existing = chainService.getAllChains()
                 .get(5, java.util.concurrent.TimeUnit.SECONDS);
@@ -85,7 +85,7 @@ public class QuestChainDefinitionSeeder {
 
         if (registerChain(chainService, wanderersPath)) count++;
 
-        logger.info("Seeded " + count + " quest chain definition(s)");
+        logger.debug("Seeded " + count + " quest chain definition(s)");
     }
 
     private boolean registerChain(IQuestChainService chainService, QuestChainDTO chain) {

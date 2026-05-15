@@ -61,7 +61,7 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
         if (databaseManager.isAvailable()) {
             this.primaryRepo = new QuestProgressRepositoryImpl(plugin, databaseManager);
-            logger.info("Using SQL repository as primary storage");
+            logger.debug("Using SQL repository as primary storage");
         } else {
             this.primaryRepo = fallbackRepo;
             logger.info("Using YAML repository (database not available)");
@@ -439,7 +439,7 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
                 autosaveIntervalSeconds,
                 TimeUnit.SECONDS
             );
-            logger.info("Autosave scheduled every " + autosaveIntervalSeconds + " seconds");
+            logger.debug("Autosave scheduled every " + autosaveIntervalSeconds + " seconds");
         }
     }
 }

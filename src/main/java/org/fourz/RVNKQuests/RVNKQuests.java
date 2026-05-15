@@ -122,10 +122,10 @@ public class RVNKQuests extends JavaPlugin {
             // Initialize quest definition repository (SQL primary, YAML fallback)
             if (databaseManager.isAvailable()) {
                 questRepository = new QuestRepositoryImpl(this, databaseManager);
-                logger.info("Quest definition repository initialized (SQL)");
+                logger.debug("Quest definition repository initialized (SQL)");
             } else {
                 questRepository = new QuestYamlRepository(this);
-                logger.info("Quest definition repository initialized (YAML fallback)");
+                logger.debug("Quest definition repository initialized (YAML fallback)");
             }
 
             // Initialize quest progress service
@@ -176,9 +176,9 @@ public class RVNKQuests extends JavaPlugin {
             questManager.initializeQuests();
 
             // Seed quest chain definitions (requires quests to be loaded first)
-            logger.info("About to seed quest chain definitions...");
+            logger.debug("About to seed quest chain definitions...");
             new QuestChainDefinitionSeeder(this).seedIfNeeded();
-            logger.info("Quest chain seeding complete");
+            logger.debug("Quest chain seeding complete");
 
             // Initialize lore integration and pre-populate quest books from lore DB
             loreIntegration = new LoreIntegrationImpl(this);
@@ -483,7 +483,7 @@ public class RVNKQuests extends JavaPlugin {
                     );
 
             prefsService.registerNotificationTypes("rvnkquests", types);
-            logger.info("Registered " + types.size() + " notification types with PlayerPreferencesService");
+            logger.debug("Registered " + types.size() + " notification types with PlayerPreferencesService");
 
         } catch (Exception e) {
             logger.debug("Failed to register notification types: " + e.getMessage());
