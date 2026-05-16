@@ -327,18 +327,11 @@ Gather items. Items can be consumed on collection. Optionally restricts the coll
 | `world` | String | Optional — world restriction |
 | `x`, `y`, `z`, `radius` | Number | Optional — restrict collection to this zone |
 
-Single-item shorthand (for simple quests):
+**Note**: Only the `items` map format is supported — there is no `item_type`/`required_amount` shorthand. Always use `"items": {"MATERIAL_NAME": count}`.
 
-```json
-{
-  "objective_type": "COLLECT",
-  "item_type": "IRON_INGOT",
-  "required_amount": 5,
-  "consume": true,
-  "required_state": "QUEST_ACTIVE",
-  "advance_state": "COMPLETED"
-}
-```
+Material names must match Bukkit's `Material` enum for the server's MC version. Common names that changed in 1.13+:
+- `WRITABLE_BOOK` (was `BOOK_AND_QUILL`)
+- `WRITTEN_BOOK` (unchanged)
 
 ### REACH
 
@@ -857,8 +850,7 @@ VALUES (
     "components": {
       "obj_collect_iron": {
         "objective_type": "COLLECT",
-        "item_type": "IRON_INGOT",
-        "required_amount": 5,
+        "items": {"IRON_INGOT": 5},
         "consume": true,
         "required_state": "QUEST_ACTIVE",
         "advance_state": "COMPLETED"
