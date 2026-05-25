@@ -3,6 +3,7 @@ package org.fourz.RVNKQuests.service;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
 import org.fourz.RVNKQuests.data.dto.RewardType;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 import org.fourz.RVNKQuests.service.reward.*;
 import org.fourz.rvnkcore.util.log.LogManager;
 
@@ -89,6 +90,18 @@ public class RewardServiceImpl implements IRewardService {
             } else {
                 logger.warning("Registered processor for " + entry.getKey() + " (unavailable - dependencies missing)");
             }
+        }
+    }
+
+    /**
+     * Wire lore integration into the ItemRewardProcessor for preset item delivery.
+     * Call after LoreIntegrationImpl is initialized in plugin onEnable().
+     */
+    public void setLoreIntegration(ILoreIntegration loreIntegration) {
+        RewardProcessor processor = processors.get(RewardType.ITEM);
+        if (processor instanceof ItemRewardProcessor) {
+            ((ItemRewardProcessor) processor).setLoreIntegration(loreIntegration);
+            logger.debug("ItemRewardProcessor wired with LoreIntegration");
         }
     }
 

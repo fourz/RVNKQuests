@@ -176,6 +176,9 @@ public class RVNKQuests extends JavaPlugin {
             // Initialize lore integration and pre-populate quest books from lore DB
             loreIntegration = new LoreIntegrationImpl(this);
             QuestItem.setLoreIntegration(loreIntegration);
+            if (rewardService instanceof RewardServiceImpl) {
+                ((RewardServiceImpl) rewardService).setLoreIntegration(loreIntegration);
+            }
             // Seed known quest books (async, falls back to hardcoded if RVNKLore unavailable)
             QuestItem.populateFromLoreAsync("grotsnouts_journal",
                     "DIS AIN'T RIGHT!", "GrotSnout's journal about being stuck in the overworld.");

@@ -197,4 +197,18 @@ public interface ILoreIntegration {
      */
     CompletableFuture<Optional<ItemStack>> getOrCreateQuestBook(
             String questItemKey, String title, String description);
+
+    /**
+     * Get all preset lore items bound to a quest.
+     *
+     * <p>Queries RVNKLore's quest_item_presets table for items linked to the given
+     * quest ID and returns them as ready-to-deliver ItemStacks. Called by
+     * ItemRewardProcessor when {@code item_source=preset} metadata is set.</p>
+     *
+     * <p>Returns an empty list gracefully when RVNKLore is unavailable.</p>
+     *
+     * @param questId The quest ID to look up
+     * @return Future containing list of ItemStacks (may be empty)
+     */
+    CompletableFuture<List<ItemStack>> getQuestPresetItems(String questId);
 }

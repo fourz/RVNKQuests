@@ -34,6 +34,11 @@ public class LoreIntegrationImpl implements ILoreIntegration {
     private Object loreBookService = null;
     private Method getOrCreateQuestBookMethod = null;
 
+    // RVNKLore item service references
+    private Object itemService = null;
+    private Method getPresetsForQuestMethod = null;
+    private Method createLoreItemByNameMethod = null;
+
     public LoreIntegrationImpl(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
@@ -99,6 +104,19 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                 logger.debug("RVNKLore book service available");
             } catch (Exception e) {
                 logger.debug("ILoreBookService not registered - quest book integration unavailable: " + e.getMessage());
+            }
+
+            // Also look up IItemService for preset item delivery
+            try {
+                Class<?> itemServiceInterface = Class.forName("org.fourz.RVNKLore.service.IItemService");
+                itemService = getServiceMethod.invoke(serviceRegistry, itemServiceInterface);
+                getPresetsForQuestMethod = itemService.getClass()
+                        .getMethod("getPresetsForQuest", String.class);
+                createLoreItemByNameMethod = itemService.getClass()
+                        .getMethod("createLoreItem", String.class);
+                logger.debug("RVNKLore item service available");
+            } catch (Exception e) {
+                logger.debug("IItemService not registered - preset item integration unavailable: " + e.getMessage());
             }
 
             loreAvailable = true;
@@ -235,6 +253,38 @@ public class LoreIntegrationImpl implements ILoreIntegration {
             } catch (Exception e) {
                 logger.warning("Error getting quest book '" + questItemKey + "': " + e.getMessage());
                 return Optional.empty();
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<List<ItemStack>> getQuestPresetItems(String questId) {
+        if (itemService == null || getPresetsForQuestMethod == null || createLoreItemByNameMethod == null) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<List<?>> presetsFuture =
+                    (CompletableFuture<List<?>>) getPresetsForQuestMethod.invoke(itemService, questId);
+                List<?> presets = presetsFuture.join();
+
+                List<ItemStack> items = new ArrayList<>();
+                for (Object props : presets) {
+                    try {
+                        String itemName = (String) props.getClass().getMethod("getDisplayName").invoke(props);
+                        @SuppressWarnings("unchecked")
+                        CompletableFuture<Optional<?>> itemFuture =
+                            (CompletableFuture<Optional<?>>) createLoreItemByNameMethod.invoke(itemService, itemName);
+                        itemFuture.join().ifPresent(stack -> items.add((ItemStack) stack));
+                    } catch (Exception e) {
+                        logger.warning("Failed to create preset item for quest '" + questId + "': " + e.getMessage());
+                    }
+                }
+                return items;
+            } catch (Exception e) {
+                logger.warning("Error getting preset items for quest '" + questId + "': " + e.getMessage());
+                return Collections.emptyList();
             }
         });
     }

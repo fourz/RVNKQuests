@@ -7,6 +7,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
 import org.fourz.RVNKQuests.data.dto.RewardType;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 import org.fourz.RVNKQuests.service.IRewardService.RewardDeliveryResult;
 import org.fourz.RVNKQuests.service.IRewardService.RewardValidationResult;
 import org.fourz.RVNKQuests.service.RewardProcessor;
@@ -21,10 +22,11 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Processor for Item rewards.
  *
- * <p>Delivers physical items to player inventories. Supports
- * material types, custom display names, and item overflow handling.</p>
+ * <p>Delivers physical items to player inventories. Supports vanilla material
+ * rewards and RVNKLore preset items when {@code item_source=preset} metadata
+ * is present.</p>
  *
- * <h2>Reward Configuration</h2>
+ * <h2>Reward Configuration — vanilla</h2>
  * <ul>
  *   <li>value: Material name (e.g., "DIAMOND", "IRON_SWORD")</li>
  *   <li>amount: Number of items to give</li>
@@ -33,9 +35,29 @@ import java.util.concurrent.CompletableFuture;
  *   <li>metadata.dropOnFull: "true" to drop if inventory full (default: true)</li>
  * </ul>
  *
+ * <h2>Reward Configuration — preset (RVNKLore)</h2>
+ * <ul>
+ *   <li>metadata.item_source: "preset"</li>
+ *   <li>metadata.quest_id: quest ID to look up in quest_item_presets</li>
+ * </ul>
+ *
  * @since 1.0
  */
 public class ItemRewardProcessor implements RewardProcessor {
+
+    private ILoreIntegration loreIntegration;
+
+    public ItemRewardProcessor() {
+        this(null);
+    }
+
+    public ItemRewardProcessor(ILoreIntegration loreIntegration) {
+        this.loreIntegration = loreIntegration;
+    }
+
+    public void setLoreIntegration(ILoreIntegration loreIntegration) {
+        this.loreIntegration = loreIntegration;
+    }
 
     @Override
     public RewardType getType() {
@@ -52,6 +74,11 @@ public class ItemRewardProcessor implements RewardProcessor {
                     "Player is offline",
                     "PLAYER_OFFLINE"
                 );
+            }
+
+            // Preset delivery path — delegates to RVNKLore quest_item_presets
+            if ("preset".equalsIgnoreCase(reward.metadata().get("item_source"))) {
+                return deliverPresetItems(player, reward);
             }
 
             // Parse material
@@ -218,6 +245,67 @@ public class ItemRewardProcessor implements RewardProcessor {
             return reward.amount() + "x " + formatMaterial(material);
         }
         return reward.amount() + "x " + reward.value();
+    }
+
+    /**
+     * Deliver preset lore items to a player via ILoreIntegration.
+     * Called when item_source=preset is set on the reward.
+     */
+    private RewardDeliveryResult deliverPresetItems(Player player, RewardDTO reward) {
+        if (loreIntegration == null || !loreIntegration.isLoreAvailable()) {
+            return RewardDeliveryResult.failure(
+                reward,
+                "RVNKLore unavailable — cannot deliver preset items",
+                "LORE_UNAVAILABLE"
+            );
+        }
+
+        String questId = reward.metadata().get("quest_id");
+        if (questId == null || questId.isEmpty()) {
+            return RewardDeliveryResult.failure(
+                reward,
+                "item_source=preset requires metadata.quest_id",
+                "MISSING_QUEST_ID"
+            );
+        }
+
+        List<ItemStack> presets = loreIntegration.getQuestPresetItems(questId).join();
+        if (presets.isEmpty()) {
+            return RewardDeliveryResult.failure(
+                reward,
+                "No preset items found for quest: " + questId,
+                "NO_PRESETS"
+            );
+        }
+
+        PlayerInventory inventory = player.getInventory();
+        int delivered = 0;
+        int dropped = 0;
+        boolean dropOnFull = shouldDropOnFull(reward);
+
+        for (ItemStack item : presets) {
+            HashMap<Integer, ItemStack> leftover = inventory.addItem(item);
+            if (leftover.isEmpty()) {
+                delivered++;
+            } else if (dropOnFull) {
+                for (ItemStack overflow : leftover.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), overflow);
+                }
+                delivered++;
+                dropped++;
+            }
+        }
+
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("questId", questId);
+        meta.put("deliveredToInventory", delivered - dropped);
+        meta.put("droppedOnGround", dropped);
+
+        return RewardDeliveryResult.success(
+            reward,
+            String.format("Delivered %d preset item(s) for quest %s", delivered, questId),
+            meta
+        );
     }
 
     /**
