@@ -226,7 +226,9 @@ org.fourz.RVNKQuests
 **Quest State Machine**: 6-state lifecycle (see below)
 **Fallback Pattern**: MySQL primary with YAML fallback via QuestProgressYamlRepository (not SQLite)
 **Generic Quest Engine**: DataDrivenQuest extends AbstractQuest, reads `state_mapping` from QuestDTO metadata; QuestComponentFactory creates trigger/objective listeners from ObjectiveType + metadata; QuestDefinitionSeeder seeds quest definitions from database
-**Per-Player State Cache**: AbstractQuest.stateCache (ConcurrentHashMap) with `preloadStateForPlayer()` on join, `evictStateForPlayer()` on quit, async DB load with NOT_STARTED default
+**Per-Player State Cache**: AbstractQuest.stateCache (ConcurrentHashMap) with `preloadStateForPlayer()` on join, `evictStateForPlayer()` on quit, async DB load with NOT_STARTED default. `quest reset` evicts cache immediately — DB and memory are always consistent after reset.
+**COMPLETED state side-effects**: All completion logic (rewards via `onComplete()`, notifications, broadcast, `QuestCompleteEvent`) fires inside `AbstractQuest.advanceStateForPlayer()` when `newState == COMPLETED`. This ensures rewards and events trigger regardless of whether completion came from a trigger component or from `complete(Player)`. Do NOT put reward delivery inside `complete(Player)` — it will never fire for data-driven trigger completions.
+**Trigger/Objective event hooks**: All location-based components (GenericLocationProximityTrigger, GenericReachObjective, GenericCollectObjective) hook both `PlayerMoveEvent` AND `PlayerTeleportEvent`. Adding a new location component must hook both. AFK+ may freeze PlayerMoveEvent for static players — see #1138.
 **Mob Detection**: GenericMobSpawnTrigger scans for existing mobs by entity_type + custom_name + world; supports restart recovery and admin-placed mob adoption; config: `mob_detection.name_type_matching`, `mob_detection.scan_interval_ms`
 **Safe Spawn**: `world.getHighestBlockYAt(spawnLoc) + 1` prevents mob suffocation in GenericMobSpawnTrigger
 **Beg Mechanic**: `beg_on_attack` config with hit counting, knockback, and `beg_message` for quest mobs

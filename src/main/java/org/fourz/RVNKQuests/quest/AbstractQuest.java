@@ -160,6 +160,29 @@ public abstract class AbstractQuest implements Quest {
 
                         // Update listeners if needed
                         questManager.updateQuestListenersForPlayer(this, playerUuid);
+
+                        // Fire all completion side-effects regardless of how COMPLETED is reached
+                        // (trigger component, admin command, or direct complete() call)
+                        if (newState == QuestState.COMPLETED) {
+                            org.bukkit.entity.Player onlinePlayer = plugin.getServer().getPlayer(playerUuid);
+                            if (onlinePlayer != null) {
+                                onComplete(onlinePlayer);
+
+                                if (notifService != null) {
+                                    notifService.notifyQuestComplete(onlinePlayer, name);
+                                } else {
+                                    onlinePlayer.sendMessage("§a[Quest Completed] §f" + name);
+                                }
+
+                                if (configManager.getConfig().getBoolean("quests.announce_completion", true)) {
+                                    plugin.getServer().broadcastMessage(
+                                        "§6" + onlinePlayer.getName() + " §ehas completed the quest §6" + name + "§e!"
+                                    );
+                                }
+
+                                Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(onlinePlayer, questId, name));
+                            }
+                        }
                     });
             });
     }
@@ -270,32 +293,12 @@ public abstract class AbstractQuest implements Quest {
                 }
 
                 logger.debug("Completing quest for player: " + player.getName());
-                boolean success = onComplete(player);
 
-                if (success) {
-                    return advanceStateForPlayer(playerUuid, QuestState.COMPLETED)
-                        .thenApply(v -> {
-                            // Per-player notification: routed through NotificationService (preference-gated)
-                            if (notifService != null) {
-                                notifService.notifyQuestComplete(player, name);
-                            } else {
-                                player.sendMessage("§a[Quest Completed] §f" + name);
-                            }
-
-                            // Server-wide broadcast: config-gated only (not a personal preference)
-                            if (configManager.getConfig().getBoolean("quests.announce_completion", true)) {
-                                plugin.getServer().broadcastMessage(
-                                    "§6" + player.getName() + " §ehas completed the quest §6" + name + "§e!"
-                                );
-                            }
-
-                            // Fire event for cross-plugin integration (e.g., RVNKLore discovery triggers)
-                            Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(player, questId, name));
-
-                            return true;
-                        });
-                }
-                return CompletableFuture.completedFuture(false);
+                // Advance to COMPLETED — onComplete(), notifications, and QuestCompleteEvent
+                // all fire inside advanceStateForPlayer() when state=COMPLETED, so they are
+                // triggered consistently whether completion comes from here or from a trigger component.
+                return advanceStateForPlayer(playerUuid, QuestState.COMPLETED)
+                    .thenApply(v -> true);
             });
     }
 
