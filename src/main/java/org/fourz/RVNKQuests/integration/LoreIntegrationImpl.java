@@ -331,7 +331,7 @@ public class LoreIntegrationImpl implements ILoreIntegration {
 
     @Override
     public CompletableFuture<List<ItemStack>> getQuestPresetItems(String questId) {
-        if (itemService == null || getPresetsForQuestMethod == null || createLoreItemByNameMethod == null) {
+        if (itemService == null || getPresetsForQuestMethod == null || createLoreItemByIdMethod == null) {
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
         return CompletableFuture.supplyAsync(() -> {
@@ -344,10 +344,10 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                 List<ItemStack> items = new ArrayList<>();
                 for (Object props : presets) {
                     try {
-                        String itemName = (String) props.getClass().getMethod("getDisplayName").invoke(props);
+                        int id = (int) props.getClass().getMethod("getDatabaseId").invoke(props);
                         @SuppressWarnings("unchecked")
                         CompletableFuture<Optional<?>> itemFuture =
-                            (CompletableFuture<Optional<?>>) createLoreItemByNameMethod.invoke(itemService, itemName);
+                            (CompletableFuture<Optional<?>>) createLoreItemByIdMethod.invoke(itemService, id);
                         itemFuture.join().ifPresent(stack -> items.add((ItemStack) stack));
                     } catch (Exception e) {
                         logger.warning("Failed to create preset item for quest '" + questId + "': " + e.getMessage());
