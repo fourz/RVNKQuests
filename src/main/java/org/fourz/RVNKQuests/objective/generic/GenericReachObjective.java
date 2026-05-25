@@ -6,6 +6,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
@@ -64,11 +65,18 @@ public class GenericReachObjective implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (event.getTo() == null) return;
+        checkReach(event.getPlayer(), event.getTo());
+    }
 
-        Player player = event.getPlayer();
+    @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (event.getTo() == null) return;
+        checkReach(event.getPlayer(), event.getTo());
+    }
+
+    private void checkReach(Player player, Location arrival) {
         if (quest.getStateForPlayer(player) != requiredState) return;
 
-        // Check path restriction
         if (requiresPath != null) {
             String playerPath = quest.getPathChoiceCached(player);
             if (!requiresPath.equals(playerPath)) return;
@@ -77,10 +85,9 @@ public class GenericReachObjective implements Listener {
         Location target = getTargetLocation(player);
         if (target == null) return;
 
-        if (target.getWorld() != null && !player.getWorld().equals(target.getWorld())) return;
+        if (target.getWorld() != null && !arrival.getWorld().equals(target.getWorld())) return;
 
-        if (player.getLocation().distanceSquared(target) <= radius * radius) {
-            // Set path choice if configured
+        if (arrival.distanceSquared(target) <= radius * radius) {
             if (setsPath != null) {
                 quest.setPathChoice(player, setsPath);
             }

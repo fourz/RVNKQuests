@@ -655,7 +655,13 @@ public class QuestManager implements IQuestService {
             return CompletableFuture.completedFuture(false);
         }
 
-        return plugin.getQuestProgressService().resetQuestProgress(playerId, questId);
+        return plugin.getQuestProgressService().resetQuestProgress(playerId, questId)
+            .thenApply(success -> {
+                if (success && quest instanceof AbstractQuest aq) {
+                    aq.evictStateForPlayer(playerId);
+                }
+                return success;
+            });
     }
 
     @Override
