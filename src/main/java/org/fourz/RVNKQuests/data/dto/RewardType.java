@@ -56,6 +56,12 @@ public enum RewardType {
     LORE,
     
     /**
+     * RNG lore item reward — rolls a weighted-random item from an RVNKLore pool.
+     * Metadata: pool_id (required), rarity_tier (optional filter)
+     */
+    RNG_ITEM,
+
+    /**
      * Custom reward with plugin-defined behavior.
      * Value: Custom identifier
      */

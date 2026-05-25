@@ -53,6 +53,9 @@ class LoreIntegrationSpawnTest {
         @Override public CompletableFuture<Optional<ItemStack>> getOrCreateQuestBook(String k, String t, String d) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
+        @Override public CompletableFuture<Optional<ItemStack>> rollRngItem(String poolId, String rarityTier) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         @Override public CompletableFuture<Optional<ItemStack>> spawnItemByName(String name) {
             return CompletableFuture.completedFuture(Optional.empty());
         }

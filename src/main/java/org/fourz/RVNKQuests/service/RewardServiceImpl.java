@@ -81,6 +81,7 @@ public class RewardServiceImpl implements IRewardService {
         registerProcessor(RewardType.PERMISSION, new PermissionRewardProcessor());
         registerProcessor(RewardType.QUEST_UNLOCK, new QuestUnlockRewardProcessor(questService));
         registerProcessor(RewardType.LORE, new LoreRewardProcessor());
+        registerProcessor(RewardType.RNG_ITEM, new RngItemRewardProcessor());
         registerProcessor(RewardType.CUSTOM, new CustomRewardProcessor());
 
         // Log which processors are available
@@ -102,6 +103,11 @@ public class RewardServiceImpl implements IRewardService {
         if (processor instanceof ItemRewardProcessor) {
             ((ItemRewardProcessor) processor).setLoreIntegration(loreIntegration);
             logger.debug("ItemRewardProcessor wired with LoreIntegration");
+        }
+        RewardProcessor rngProcessor = processors.get(RewardType.RNG_ITEM);
+        if (rngProcessor instanceof RngItemRewardProcessor) {
+            ((RngItemRewardProcessor) rngProcessor).setLoreIntegration(loreIntegration);
+            logger.debug("RngItemRewardProcessor wired with LoreIntegration");
         }
     }
 

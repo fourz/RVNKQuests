@@ -40,6 +40,10 @@ public class LoreIntegrationImpl implements ILoreIntegration {
     private Method createLoreItemByNameMethod = null;
     private Method createLoreItemByIdMethod = null;
 
+    // RVNKLore RNG item service references
+    private Object rngItemService = null;
+    private Method rollRngMethod = null;
+
     public LoreIntegrationImpl(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
@@ -120,6 +124,17 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                 logger.debug("RVNKLore item service available");
             } catch (Exception e) {
                 logger.debug("IItemService not registered - preset item integration unavailable: " + e.getMessage());
+            }
+
+            // Also look up IRngItemService for RNG_ITEM reward rolls
+            try {
+                Class<?> rngServiceInterface = Class.forName("org.fourz.RVNKLore.service.IRngItemService");
+                rngItemService = getServiceMethod.invoke(serviceRegistry, rngServiceInterface);
+                rollRngMethod = rngItemService.getClass()
+                        .getMethod("roll", String.class, String.class);
+                logger.debug("RVNKLore RNG item service available");
+            } catch (Exception e) {
+                logger.debug("IRngItemService not registered - RNG item integration unavailable: " + e.getMessage());
             }
 
             loreAvailable = true;
@@ -255,6 +270,24 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                 return result.map(o -> (ItemStack) o);
             } catch (Exception e) {
                 logger.warning("Error getting quest book '" + questItemKey + "': " + e.getMessage());
+                return Optional.empty();
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<Optional<ItemStack>> rollRngItem(String poolId, String rarityTier) {
+        if (rngItemService == null || rollRngMethod == null) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Optional<?>> future =
+                    (CompletableFuture<Optional<?>>) rollRngMethod.invoke(rngItemService, poolId, rarityTier);
+                return future.join().map(stack -> (ItemStack) stack);
+            } catch (Exception e) {
+                logger.warning("Failed to roll RNG item from pool '" + poolId + "': " + e.getMessage());
                 return Optional.empty();
             }
         });

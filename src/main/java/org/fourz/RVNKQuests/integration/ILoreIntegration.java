@@ -221,6 +221,20 @@ public interface ILoreIntegration {
     CompletableFuture<Optional<ItemStack>> spawnItemById(int itemId);
 
     /**
+     * Roll a rarity-weighted random item from an RVNKLore pool.
+     *
+     * <p>Delegates to IRngItemService.roll(poolId, rarityTier) via ServiceRegistry.
+     * Returns empty Optional gracefully when RVNKLore is unavailable or the pool
+     * is empty.</p>
+     *
+     * @param poolId     The pool identifier (lore_item_rng_pool.pool_id)
+     * @param rarityTier Rarity tier filter (COMMON, UNCOMMON, RARE, EPIC, LEGENDARY),
+     *                   or null to roll across all tiers
+     * @return Future containing the rolled ItemStack, or empty if unavailable/pool empty
+     */
+    CompletableFuture<Optional<ItemStack>> rollRngItem(String poolId, String rarityTier);
+
+    /**
      * Get all preset lore items bound to a quest.
      *
      * <p>Queries RVNKLore's quest_item_presets table for items linked to the given
