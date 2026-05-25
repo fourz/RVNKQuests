@@ -38,6 +38,7 @@ public class LoreIntegrationImpl implements ILoreIntegration {
     private Object itemService = null;
     private Method getPresetsForQuestMethod = null;
     private Method createLoreItemByNameMethod = null;
+    private Method createLoreItemByIdMethod = null;
 
     public LoreIntegrationImpl(RVNKQuests plugin) {
         this.plugin = plugin;
@@ -114,6 +115,8 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                         .getMethod("getPresetsForQuest", String.class);
                 createLoreItemByNameMethod = itemService.getClass()
                         .getMethod("createLoreItem", String.class);
+                createLoreItemByIdMethod = itemService.getClass()
+                        .getMethod("createLoreItem", int.class);
                 logger.debug("RVNKLore item service available");
             } catch (Exception e) {
                 logger.debug("IItemService not registered - preset item integration unavailable: " + e.getMessage());
@@ -252,6 +255,42 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                 return result.map(o -> (ItemStack) o);
             } catch (Exception e) {
                 logger.warning("Error getting quest book '" + questItemKey + "': " + e.getMessage());
+                return Optional.empty();
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<Optional<ItemStack>> spawnItemByName(String name) {
+        if (itemService == null || createLoreItemByNameMethod == null) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Optional<?>> future =
+                    (CompletableFuture<Optional<?>>) createLoreItemByNameMethod.invoke(itemService, name);
+                return future.join().map(stack -> (ItemStack) stack);
+            } catch (Exception e) {
+                logger.warning("Failed to spawn lore item by name '" + name + "': " + e.getMessage());
+                return Optional.empty();
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<Optional<ItemStack>> spawnItemById(int itemId) {
+        if (itemService == null || createLoreItemByIdMethod == null) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Optional<?>> future =
+                    (CompletableFuture<Optional<?>>) createLoreItemByIdMethod.invoke(itemService, itemId);
+                return future.join().map(stack -> (ItemStack) stack);
+            } catch (Exception e) {
+                logger.warning("Failed to spawn lore item by ID " + itemId + ": " + e.getMessage());
                 return Optional.empty();
             }
         });

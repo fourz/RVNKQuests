@@ -199,6 +199,28 @@ public interface ILoreIntegration {
             String questItemKey, String title, String description);
 
     /**
+     * Create a lore item by display name.
+     *
+     * <p>Returns an empty Optional gracefully when RVNKLore is unavailable
+     * or the item name is not found.</p>
+     *
+     * @param name The display name of the lore item
+     * @return Future containing the ItemStack, or empty if not found/unavailable
+     */
+    CompletableFuture<Optional<ItemStack>> spawnItemByName(String name);
+
+    /**
+     * Create a lore item by its database ID.
+     *
+     * <p>Returns an empty Optional gracefully when RVNKLore is unavailable
+     * or no item with the given ID exists.</p>
+     *
+     * @param itemId The database ID of the lore item
+     * @return Future containing the ItemStack, or empty if not found/unavailable
+     */
+    CompletableFuture<Optional<ItemStack>> spawnItemById(int itemId);
+
+    /**
      * Get all preset lore items bound to a quest.
      *
      * <p>Queries RVNKLore's quest_item_presets table for items linked to the given
