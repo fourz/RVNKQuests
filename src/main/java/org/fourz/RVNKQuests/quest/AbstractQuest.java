@@ -3,6 +3,7 @@ package org.fourz.RVNKQuests.quest;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.config.ConfigManager;
 import org.fourz.RVNKQuests.event.QuestCompleteEvent;
 import org.fourz.RVNKQuests.service.IJournalService;
 import org.fourz.RVNKQuests.service.INotificationService;
@@ -32,6 +33,12 @@ public abstract class AbstractQuest implements Quest {
     protected final String name;
     protected final LogManager logger;
 
+    private final IQuestProgressService progressService;
+    private final IJournalService journalService;
+    private final INotificationService notifService;
+    private final QuestManager questManager;
+    private final ConfigManager configManager;
+
     /**
      * Local state cache — avoids blocking main thread on PlayerMoveEvent handlers.
      * Eagerly updated by advanceStateForPlayer(); lazily populated on first read.
@@ -57,6 +64,11 @@ public abstract class AbstractQuest implements Quest {
         this.questId = questId;
         this.name = name;
         this.logger = LogManager.getInstance(plugin, getClass());
+        this.progressService = plugin.getQuestProgressService();
+        this.journalService = plugin.getJournalService();
+        this.notifService = plugin.getNotificationService();
+        this.questManager = plugin.getQuestManager();
+        this.configManager = plugin.getConfigManager();
     }
 
     @Override
@@ -71,12 +83,11 @@ public abstract class AbstractQuest implements Quest {
 
     @Override
     public CompletableFuture<QuestState> getStateForPlayer(UUID playerUuid) {
-        IQuestProgressService service = plugin.getQuestProgressService();
-        if (service == null) {
+        if (progressService == null) {
             logger.warning("QuestProgressService not available - returning NOT_STARTED");
             return CompletableFuture.completedFuture(QuestState.NOT_STARTED);
         }
-        return service.getQuestState(playerUuid, questId);
+        return progressService.getQuestState(playerUuid, questId);
     }
 
     @Override
@@ -131,8 +142,7 @@ public abstract class AbstractQuest implements Quest {
 
     @Override
     public CompletableFuture<Void> advanceStateForPlayer(UUID playerUuid, QuestState newState) {
-        IQuestProgressService service = plugin.getQuestProgressService();
-        if (service == null) {
+        if (progressService == null) {
             logger.warning("QuestProgressService not available - cannot advance state");
             return CompletableFuture.completedFuture(null);
         }
@@ -143,13 +153,36 @@ public abstract class AbstractQuest implements Quest {
         return getStateForPlayer(playerUuid)
             .thenCompose(currentState -> {
                 logger.debug("Advancing state for " + playerUuid + " from " + currentState + " to " + newState);
-                return service.updateQuestState(playerUuid, questId, newState)
+                return progressService.updateQuestState(playerUuid, questId, newState)
                     .thenAccept(progress -> {
                         // Record journal entry for the state transition
                         recordStateTransitionJournal(playerUuid, currentState, newState);
 
                         // Update listeners if needed
-                        plugin.getQuestManager().updateQuestListenersForPlayer(this, playerUuid);
+                        questManager.updateQuestListenersForPlayer(this, playerUuid);
+
+                        // Fire all completion side-effects regardless of how COMPLETED is reached
+                        // (trigger component, admin command, or direct complete() call)
+                        if (newState == QuestState.COMPLETED) {
+                            org.bukkit.entity.Player onlinePlayer = plugin.getServer().getPlayer(playerUuid);
+                            if (onlinePlayer != null) {
+                                onComplete(onlinePlayer);
+
+                                if (notifService != null) {
+                                    notifService.notifyQuestComplete(onlinePlayer, name);
+                                } else {
+                                    onlinePlayer.sendMessage("§a[Quest Completed] §f" + name);
+                                }
+
+                                if (configManager.getConfig().getBoolean("quests.announce_completion", true)) {
+                                    plugin.getServer().broadcastMessage(
+                                        "§6" + onlinePlayer.getName() + " §ehas completed the quest §6" + name + "§e!"
+                                    );
+                                }
+
+                                Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(onlinePlayer, questId, name));
+                            }
+                        }
                     });
             });
     }
@@ -160,28 +193,27 @@ public abstract class AbstractQuest implements Quest {
      * triggers, admin commands, and QuestManager methods all flow through here.
      */
     private void recordStateTransitionJournal(UUID playerUuid, QuestState fromState, QuestState toState) {
-        IJournalService journal = plugin.getJournalService();
-        if (journal == null || !journal.isAvailable()) return;
+        if (journalService == null || !journalService.isAvailable()) return;
 
         switch (toState) {
-            case QUEST_ACTIVE -> journal.recordQuestStart(playerUuid, questId);
-            case COMPLETED -> journal.recordQuestComplete(playerUuid, questId);
+            case QUEST_ACTIVE -> journalService.recordQuestStart(playerUuid, questId);
+            case COMPLETED -> journalService.recordQuestComplete(playerUuid, questId);
             case NOT_STARTED -> {
                 // Only record abandon if transitioning FROM an active state
                 if (fromState != QuestState.NOT_STARTED) {
-                    journal.recordQuestAbandon(playerUuid, questId);
+                    journalService.recordQuestAbandon(playerUuid, questId);
                 }
             }
-            case ABANDONED -> journal.recordQuestAbandon(playerUuid, questId);
-            case TRIGGER_FOUND -> journal.recordObjectiveComplete(playerUuid, questId, "state:trigger_found");
-            case OBJECTIVE_FOUND -> journal.recordObjectiveComplete(playerUuid, questId, "state:objective_found");
+            case ABANDONED -> journalService.recordQuestAbandon(playerUuid, questId);
+            case TRIGGER_FOUND -> journalService.recordObjectiveComplete(playerUuid, questId, "state:trigger_found");
+            case OBJECTIVE_FOUND -> journalService.recordObjectiveComplete(playerUuid, questId, "state:objective_found");
         }
     }
 
     @Override
     @Deprecated
     public void advanceState(QuestState newState) {
-        logger.warning("advanceState() called without player - use advanceStateForPlayer() instead");
+        logger.debug("advanceState() called without player - use advanceStateForPlayer() instead");
     }
 
     @Override
@@ -226,11 +258,10 @@ public abstract class AbstractQuest implements Quest {
                 if (success) {
                     return advanceStateForPlayer(playerUuid, QuestState.QUEST_ACTIVE)
                         .thenApply(v -> {
-                            INotificationService notif = plugin.getNotificationService();
-                            if (notif != null) {
-                                notif.notifyQuestStart(player, name, null);
+                            if (notifService != null) {
+                                notifService.notifyQuestStart(player, name, null);
                             } else {
-                                player.sendMessage("\u00a7a[Quest Started] \u00a7f" + name);
+                                player.sendMessage("§a[Quest Started] §f" + name);
                             }
                             return true;
                         });
@@ -262,33 +293,12 @@ public abstract class AbstractQuest implements Quest {
                 }
 
                 logger.debug("Completing quest for player: " + player.getName());
-                boolean success = onComplete(player);
 
-                if (success) {
-                    return advanceStateForPlayer(playerUuid, QuestState.COMPLETED)
-                        .thenApply(v -> {
-                            // Per-player notification: routed through NotificationService (preference-gated)
-                            INotificationService notif = plugin.getNotificationService();
-                            if (notif != null) {
-                                notif.notifyQuestComplete(player, name);
-                            } else {
-                                player.sendMessage("\u00a7a[Quest Completed] \u00a7f" + name);
-                            }
-
-                            // Server-wide broadcast: config-gated only (not a personal preference)
-                            if (plugin.getConfigManager().getConfig().getBoolean("quests.announce_completion", true)) {
-                                plugin.getServer().broadcastMessage(
-                                    "\u00a76" + player.getName() + " \u00a7ehas completed the quest \u00a76" + name + "\u00a7e!"
-                                );
-                            }
-
-                            // Fire event for cross-plugin integration (e.g., RVNKLore discovery triggers)
-                            Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(player, questId, name));
-
-                            return true;
-                        });
-                }
-                return CompletableFuture.completedFuture(false);
+                // Advance to COMPLETED — onComplete(), notifications, and QuestCompleteEvent
+                // all fire inside advanceStateForPlayer() when state=COMPLETED, so they are
+                // triggered consistently whether completion comes from here or from a trigger component.
+                return advanceStateForPlayer(playerUuid, QuestState.COMPLETED)
+                    .thenApply(v -> true);
             });
     }
 
@@ -307,13 +317,12 @@ public abstract class AbstractQuest implements Quest {
         // Eagerly update cache so event handlers see the new path immediately
         pathChoiceCache.put(player.getUniqueId(), pathChoice != null ? pathChoice : "");
 
-        IQuestProgressService service = plugin.getQuestProgressService();
-        if (service == null) {
+        if (progressService == null) {
             return CompletableFuture.completedFuture(null);
         }
 
         logger.debug("Setting path choice for " + player.getName() + ": " + pathChoice);
-        return service.setPathChoice(player.getUniqueId(), questId, pathChoice)
+        return progressService.setPathChoice(player.getUniqueId(), questId, pathChoice)
             .thenAccept(progress -> {});
     }
 
@@ -337,12 +346,11 @@ public abstract class AbstractQuest implements Quest {
      * @return CompletableFuture with the path choice, or null if not set
      */
     public CompletableFuture<String> getPathChoice(UUID playerUuid) {
-        IQuestProgressService service = plugin.getQuestProgressService();
-        if (service == null) {
+        if (progressService == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        return service.getProgress(playerUuid, questId)
+        return progressService.getProgress(playerUuid, questId)
             .thenApply(opt -> opt.map(progress -> progress.pathChoice()).orElse(null));
     }
 

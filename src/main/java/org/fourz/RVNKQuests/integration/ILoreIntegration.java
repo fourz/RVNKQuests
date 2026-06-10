@@ -197,4 +197,54 @@ public interface ILoreIntegration {
      */
     CompletableFuture<Optional<ItemStack>> getOrCreateQuestBook(
             String questItemKey, String title, String description);
+
+    /**
+     * Create a lore item by display name.
+     *
+     * <p>Returns an empty Optional gracefully when RVNKLore is unavailable
+     * or the item name is not found.</p>
+     *
+     * @param name The display name of the lore item
+     * @return Future containing the ItemStack, or empty if not found/unavailable
+     */
+    CompletableFuture<Optional<ItemStack>> spawnItemByName(String name);
+
+    /**
+     * Create a lore item by its database ID.
+     *
+     * <p>Returns an empty Optional gracefully when RVNKLore is unavailable
+     * or no item with the given ID exists.</p>
+     *
+     * @param itemId The database ID of the lore item
+     * @return Future containing the ItemStack, or empty if not found/unavailable
+     */
+    CompletableFuture<Optional<ItemStack>> spawnItemById(int itemId);
+
+    /**
+     * Roll a rarity-weighted random item from an RVNKLore pool.
+     *
+     * <p>Delegates to IRngItemService.roll(poolId, rarityTier) via ServiceRegistry.
+     * Returns empty Optional gracefully when RVNKLore is unavailable or the pool
+     * is empty.</p>
+     *
+     * @param poolId     The pool identifier (lore_item_rng_pool.pool_id)
+     * @param rarityTier Rarity tier filter (COMMON, UNCOMMON, RARE, EPIC, LEGENDARY),
+     *                   or null to roll across all tiers
+     * @return Future containing the rolled ItemStack, or empty if unavailable/pool empty
+     */
+    CompletableFuture<Optional<ItemStack>> rollRngItem(String poolId, String rarityTier);
+
+    /**
+     * Get all preset lore items bound to a quest.
+     *
+     * <p>Queries RVNKLore's quest_item_presets table for items linked to the given
+     * quest ID and returns them as ready-to-deliver ItemStacks. Called by
+     * ItemRewardProcessor when {@code item_source=preset} metadata is set.</p>
+     *
+     * <p>Returns an empty list gracefully when RVNKLore is unavailable.</p>
+     *
+     * @param questId The quest ID to look up
+     * @return Future containing list of ItemStacks (may be empty)
+     */
+    CompletableFuture<List<ItemStack>> getQuestPresetItems(String questId);
 }

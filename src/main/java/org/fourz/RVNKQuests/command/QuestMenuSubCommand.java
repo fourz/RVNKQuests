@@ -26,9 +26,9 @@ import java.util.List;
  */
 public class QuestMenuSubCommand extends BaseSubCommand {
 
-    public QuestMenuSubCommand(RVNKQuests plugin, RVNKCommand parent) {
+    public QuestMenuSubCommand(RVNKQuests plugin, ICommand parent) {
         super(plugin, parent, "menu", "Open quest menu GUI",
-              "/quest menu [filter] [player]", false);
+              "/quest menu [filter] [player]", "rvnkquests.menu", false);
     }
 
     @Override

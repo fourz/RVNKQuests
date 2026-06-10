@@ -3,6 +3,7 @@ package org.fourz.RVNKQuests.service;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
 import org.fourz.RVNKQuests.data.dto.RewardType;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 import org.fourz.RVNKQuests.service.reward.*;
 import org.fourz.rvnkcore.util.log.LogManager;
 
@@ -32,22 +33,37 @@ public class RewardServiceImpl implements IRewardService {
     private final JavaPlugin plugin;
     private final LogManager logger;
     private final Map<RewardType, RewardProcessor> processors;
+    private final IQuestService questService;
     private volatile boolean inFallbackMode = false;
 
     /**
-     * Create a new RewardServiceImpl.
+     * Create a new RewardServiceImpl without quest service integration.
+     * The QUEST_UNLOCK processor will log unlock requests but will not forward them
+     * to the quest system.
      *
      * @param plugin The plugin instance
      */
     public RewardServiceImpl(JavaPlugin plugin) {
+        this(plugin, null);
+    }
+
+    /**
+     * Create a new RewardServiceImpl with quest service integration.
+     *
+     * @param plugin       The plugin instance
+     * @param questService The quest service used by {@link QuestUnlockRewardProcessor}
+     *                     to start quests on unlock; may be {@code null} to disable integration
+     */
+    public RewardServiceImpl(JavaPlugin plugin, IQuestService questService) {
         this.plugin = plugin;
+        this.questService = questService;
         this.logger = LogManager.getInstance(plugin, "RewardService");
         this.processors = new ConcurrentHashMap<>();
-        
+
         // Register default processors
         registerDefaultProcessors();
-        
-        logger.info("RewardService initialized with " + processors.size() + " processors");
+
+        logger.debug("RewardService initialized with " + processors.size() + " processors");
     }
 
     /**
@@ -60,13 +76,14 @@ public class RewardServiceImpl implements IRewardService {
         registerProcessor(RewardType.COMMAND, new CommandRewardProcessor());
         registerProcessor(RewardType.CURRENCY, new CurrencyRewardProcessor());
         registerProcessor(RewardType.TITLE, new TitleRewardProcessor());
-        
+
         // Integration reward types
         registerProcessor(RewardType.PERMISSION, new PermissionRewardProcessor());
-        registerProcessor(RewardType.QUEST_UNLOCK, new QuestUnlockRewardProcessor());
+        registerProcessor(RewardType.QUEST_UNLOCK, new QuestUnlockRewardProcessor(questService));
         registerProcessor(RewardType.LORE, new LoreRewardProcessor());
+        registerProcessor(RewardType.RNG_ITEM, new RngItemRewardProcessor());
         registerProcessor(RewardType.CUSTOM, new CustomRewardProcessor());
-        
+
         // Log which processors are available
         for (Map.Entry<RewardType, RewardProcessor> entry : processors.entrySet()) {
             if (entry.getValue().isAvailable()) {
@@ -74,6 +91,23 @@ public class RewardServiceImpl implements IRewardService {
             } else {
                 logger.warning("Registered processor for " + entry.getKey() + " (unavailable - dependencies missing)");
             }
+        }
+    }
+
+    /**
+     * Wire lore integration into the ItemRewardProcessor for preset item delivery.
+     * Call after LoreIntegrationImpl is initialized in plugin onEnable().
+     */
+    public void setLoreIntegration(ILoreIntegration loreIntegration) {
+        RewardProcessor processor = processors.get(RewardType.ITEM);
+        if (processor instanceof ItemRewardProcessor) {
+            ((ItemRewardProcessor) processor).setLoreIntegration(loreIntegration);
+            logger.debug("ItemRewardProcessor wired with LoreIntegration");
+        }
+        RewardProcessor rngProcessor = processors.get(RewardType.RNG_ITEM);
+        if (rngProcessor instanceof RngItemRewardProcessor) {
+            ((RngItemRewardProcessor) rngProcessor).setLoreIntegration(loreIntegration);
+            logger.debug("RngItemRewardProcessor wired with LoreIntegration");
         }
     }
 
@@ -112,7 +146,7 @@ public class RewardServiceImpl implements IRewardService {
             );
         }
 
-        logger.debug("Delivering " + reward.type() + " reward to player " + playerId + 
+        logger.debug("Delivering " + reward.type() + " reward to player " + playerId +
                     (questId != null ? " (quest: " + questId + ")" : ""));
 
         return processor.deliver(playerId, reward)
@@ -120,7 +154,7 @@ public class RewardServiceImpl implements IRewardService {
                 if (error != null) {
                     logger.error("Exception delivering reward: " + error.getMessage());
                 } else if (!result.success()) {
-                    logger.warning("Reward delivery failed: " + result.message() + 
+                    logger.warning("Reward delivery failed: " + result.message() +
                                   " (error: " + result.errorCode() + ")");
                 } else {
                     logger.debug("Reward delivered successfully: " + result.message());
@@ -137,13 +171,13 @@ public class RewardServiceImpl implements IRewardService {
 
     @Override
     public CompletableFuture<BatchRewardResult> deliverRewards(
-            UUID playerId, 
-            String questId, 
+            UUID playerId,
+            String questId,
             List<RewardDTO> rewards,
             boolean continueOnError) {
-        
+
         Objects.requireNonNull(playerId, "playerId cannot be null");
-        
+
         if (rewards == null || rewards.isEmpty()) {
             return CompletableFuture.completedFuture(
                 new BatchRewardResult(0, 0, 0, List.of(), false)
@@ -172,7 +206,7 @@ public class RewardServiceImpl implements IRewardService {
             String questId,
             List<RewardDTO> rewards,
             boolean continueOnError) {
-        
+
         List<RewardDeliveryResult> results = new ArrayList<>();
         int[] counts = {0, 0}; // [success, failure]
         boolean[] stoppedEarly = {false};
@@ -373,13 +407,13 @@ public class RewardServiceImpl implements IRewardService {
         status.put("supportedTypes", getSupportedTypes().stream()
             .map(RewardType::name)
             .toList());
-        
+
         Map<String, Boolean> processorStatus = new LinkedHashMap<>();
         for (Map.Entry<RewardType, RewardProcessor> entry : processors.entrySet()) {
             processorStatus.put(entry.getKey().name(), entry.getValue().isAvailable());
         }
         status.put("processorAvailability", processorStatus);
-        
+
         return status;
     }
 

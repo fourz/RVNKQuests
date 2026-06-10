@@ -6,6 +6,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
@@ -67,19 +68,25 @@ public class GenericLocationProximityTrigger implements Listener {
             return;
         }
 
-        Player player = event.getPlayer();
+        checkProximity(event.getPlayer(), event.getTo());
+    }
+
+    @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (event.getTo() == null) return;
+        checkProximity(event.getPlayer(), event.getTo());
+    }
+
+    private void checkProximity(Player player, Location destination) {
         if (quest.getStateForPlayer(player) != requiredState) return;
 
-        World world = player.getWorld();
-        if (!world.getName().equalsIgnoreCase(worldName)) return;
+        if (!destination.getWorld().getName().equalsIgnoreCase(worldName)) return;
 
-        Location playerLoc = player.getLocation();
-        double dx = playerLoc.getX() - x;
-        double dy = playerLoc.getY() - y;
-        double dz = playerLoc.getZ() - z;
-        double distSq = dx * dx + dy * dy + dz * dz;
+        double dx = destination.getX() - x;
+        double dy = destination.getY() - y;
+        double dz = destination.getZ() - z;
 
-        if (distSq <= radiusSquared) {
+        if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
             quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
             logger.debug("Location proximity trigger fired for " + player.getName()
                     + " at " + worldName + " " + (int) x + "," + (int) y + "," + (int) z

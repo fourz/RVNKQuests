@@ -2,13 +2,13 @@ package org.fourz.RVNKQuests.service.reward;
 
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
 import org.fourz.RVNKQuests.data.dto.RewardType;
+import org.fourz.RVNKQuests.service.IQuestService;
 import org.fourz.RVNKQuests.service.IRewardService.RewardDeliveryResult;
 import org.fourz.RVNKQuests.service.IRewardService.RewardValidationResult;
 import org.fourz.RVNKQuests.service.RewardProcessor;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 
 /**
  * Reward processor for unlocking additional quests.
@@ -41,35 +41,23 @@ import java.util.function.BiConsumer;
  */
 public class QuestUnlockRewardProcessor implements RewardProcessor {
 
-    /**
-     * Callback for quest unlock operations.
-     * Set this to integrate with the quest system.
-     */
-    private BiConsumer<UUID, String> unlockCallback;
+    private final IQuestService questService;
 
     /**
-     * Create a new QuestUnlockRewardProcessor.
+     * Create a new QuestUnlockRewardProcessor with no quest service integration.
+     * Quest unlock operations will be logged but not forwarded to the quest system.
      */
     public QuestUnlockRewardProcessor() {
-        // Default constructor
+        this.questService = null;
     }
 
     /**
-     * Create with an unlock callback.
+     * Create a new QuestUnlockRewardProcessor backed by the given quest service.
      *
-     * @param unlockCallback Callback invoked when a quest is unlocked (playerId, questId)
+     * @param questService The quest service used to start unlocked quests; must not be null
      */
-    public QuestUnlockRewardProcessor(BiConsumer<UUID, String> unlockCallback) {
-        this.unlockCallback = unlockCallback;
-    }
-
-    /**
-     * Set the unlock callback.
-     *
-     * @param callback Callback for quest unlocks
-     */
-    public void setUnlockCallback(BiConsumer<UUID, String> callback) {
-        this.unlockCallback = callback;
+    public QuestUnlockRewardProcessor(IQuestService questService) {
+        this.questService = questService;
     }
 
     @Override
@@ -90,16 +78,13 @@ public class QuestUnlockRewardProcessor implements RewardProcessor {
             }
 
             try {
-                // Invoke the unlock callback if set
-                if (unlockCallback != null) {
-                    unlockCallback.accept(playerId, questId);
+                if (questService != null) {
+                    questService.startQuest(playerId, questId);
                     return RewardDeliveryResult.success(
                         reward,
                         "Unlocked quest: " + questId
                     );
                 } else {
-                    // Log that we would unlock but no callback is set
-                    // In a real implementation, this would integrate with IPlayerQuestService
                     return RewardDeliveryResult.success(
                         reward,
                         "Quest unlock registered: " + questId + " (pending integration)"
@@ -118,7 +103,7 @@ public class QuestUnlockRewardProcessor implements RewardProcessor {
     @Override
     public CompletableFuture<RewardValidationResult> validate(UUID playerId, RewardDTO reward) {
         String questId = getMetadataString(reward, "questId");
-        
+
         if (questId == null || questId.isBlank()) {
             return CompletableFuture.completedFuture(
                 RewardValidationResult.invalid(
@@ -140,29 +125,19 @@ public class QuestUnlockRewardProcessor implements RewardProcessor {
             );
         }
 
-        // Validate that questId exists in the quest registry (if service available)
-        try {
-            Object serviceRegistry = Class.forName("org.fourz.rvnkcore.service.registry.ServiceRegistry")
-                .getMethod("getInstance").invoke(null);
-            Class<?> questServiceClass = Class.forName("org.fourz.RVNKQuests.service.IQuestService");
-            Object questService = serviceRegistry.getClass()
-                .getMethod("get", Class.class).invoke(serviceRegistry, questServiceClass);
-            if (questService != null) {
-                @SuppressWarnings("unchecked")
-                java.util.List<String> questIds = (java.util.List<String>) questService.getClass()
-                    .getMethod("getQuestIds").invoke(questService);
-                if (questIds != null && !questIds.contains(questId)) {
-                    return CompletableFuture.completedFuture(
-                        RewardValidationResult.invalid(
-                            reward,
-                            "Quest '" + questId + "' not found in registry",
-                            "Check quest ID exists before assigning as unlock reward"
-                        )
-                    );
-                }
+        // Validate that questId exists in the quest registry when service is available
+        if (questService != null) {
+            boolean known = questService.getAllQuests().stream()
+                .anyMatch(q -> q.getId() != null && q.getId().equals(questId));
+            if (!known) {
+                return CompletableFuture.completedFuture(
+                    RewardValidationResult.invalid(
+                        reward,
+                        "Quest '" + questId + "' not found in registry",
+                        "Check quest ID exists before assigning as unlock reward"
+                    )
+                );
             }
-        } catch (Exception e) {
-            // ServiceRegistry or IQuestService not available — skip validation
         }
 
         return CompletableFuture.completedFuture(

@@ -25,83 +25,110 @@ commands:
     aliases: [quests, q]
 
 permissions:
-  # Player commands
-  rvnkquests.command.quest:
+  # ── Player commands ───────────────────────────────────────────────────────
+  rvnkquests.quest:
     description: Base permission for /quest command
     default: true
-  rvnkquests.command.list:
-    description: List available quests
+  rvnkquests.list:
+    description: List available quests (/quest list)
     default: true
-  rvnkquests.command.menu:
-    description: Open quest GUI menu
+  rvnkquests.menu:
+    description: Open quest GUI menu (/quest menu)
     default: true
-  rvnkquests.command.start:
-    description: Start a quest
+  rvnkquests.start:
+    description: Start a quest (/quest start)
     default: true
-  rvnkquests.command.abandon:
-    description: Abandon an active quest
+  rvnkquests.abandon:
+    description: Abandon an active quest (/quest abandon)
     default: true
-  rvnkquests.command.progress:
-    description: Check quest progress
+  rvnkquests.progress:
+    description: Check quest progress (/quest progress)
     default: true
-  rvnkquests.command.journal:
-    description: View quest journal
+  rvnkquests.journal:
+    description: View quest journal (/quest journal)
     default: true
-  rvnkquests.command.leaderboard:
-    description: View quest leaderboards
+  rvnkquests.leaderboard:
+    description: View quest leaderboards (/quest leaderboard)
+    default: true
+  rvnkquests.chain:
+    description: View and interact with quest chains (/quest chain)
     default: true
   rvnkquests.prefs:
-    description: Manage quest notification preferences
+    description: Manage quest notification preferences (/quest prefs)
     default: true
   rvnkquests.player:
-    description: General player quest access (alternative to individual permissions)
+    description: General player quest access (wildcard alternative for player group assignment)
     default: true
 
-  # Staff commands
-  rvnkquests.command.item:
-    description: Get quest items
+  # ── Staff commands ────────────────────────────────────────────────────────
+  rvnkquests.item:
+    description: Get quest items (/quest item)
     default: op
-  rvnkquests.command.state:
-    description: Change quest states
+  rvnkquests.state:
+    description: Change quest states (/quest state)
     default: op
-  rvnkquests.command.trigger:
-    description: Trigger quests at specific locations
+  rvnkquests.trigger:
+    description: Trigger quests at specific locations (/quest trigger)
     default: op
   rvnkquests.menu.other:
-    description: Open quest menu for other players
+    description: Open quest menu for other players (/quest menu <filter> <player>)
     default: op
   rvnkquests.journal.other:
-    description: View quest journal for other players
+    description: View quest journal for other players (/quest journal <player>)
+    default: op
+  rvnkquests.journal.remove:
+    description: Remove journal entries (/quest journal remove)
+    default: op
+  rvnkquests.journal.staff:
+    description: Assign/unassign journal entries for other players (/quest journal assign|unassign)
     default: op
 
-  # Admin commands
+  # ── Admin — lifecycle ─────────────────────────────────────────────────────
   rvnkquests.admin:
-    description: Admin access (debug, config, mobs, reload, validate)
+    description: Catch-all admin access — grants all quest management commands
     default: op
   rvnkquests.admin.complete:
-    description: Force complete quests for players
+    description: Force complete quests for players (/quest complete)
     default: op
   rvnkquests.admin.reset:
-    description: Reset quest progress for players
+    description: Reset quest progress for players (/quest reset)
     default: op
-  rvnkquests.admin.debug:
-    description: Debug setstate command
+  rvnkquests.admin.objective:
+    description: Edit individual objective progress (/quest objective)
     default: op
-  rvnkquests.admin.seed:
-    description: Seed quest data
+
+  # ── Admin — system management ─────────────────────────────────────────────
+  rvnkquests.admin.reload:
+    description: Reload plugin configuration and quest data (/quest reload)
     default: op
-  rvnkquests.command.objective:
-    description: Edit individual objective progress
+  rvnkquests.admin.mobs:
+    description: List and manage quest mobs (/quest mobs)
     default: op
+  rvnkquests.admin.config:
+    description: View and edit plugin configuration (/quest config)
+    default: op
+  rvnkquests.admin.validate:
+    description: Validate quest definitions and system integrity (/quest validate)
+    default: op
+
+  # ── Admin — quest authoring ───────────────────────────────────────────────
   rvnkquests.admin.create:
-    description: Create quest definitions
+    description: Create quest definitions (/quest create)
     default: op
   rvnkquests.admin.edit:
-    description: Edit quest definitions, objectives, and rewards
+    description: Edit quest definitions, objectives, and rewards (/quest edit, /quest reward)
     default: op
   rvnkquests.admin.export:
-    description: Export quest definitions to YAML
+    description: Export quest definitions to YAML (/quest export)
     default: op
   rvnkquests.admin.import:
-    description: Import quest definitions from YAML
+    description: Import quest definitions from YAML (/quest import)
+    default: op
+
+  # ── Admin — debug ─────────────────────────────────────────────────────────
+  rvnkquests.admin.debug:
+    description: Set quest state, bypassing validation (/quest debug setstate)
+    default: op
+  rvnkquests.admin.seed:
+    description: Seed and clean up test quest data (/quest debug seed)
     default: op

@@ -18,7 +18,7 @@ public class QuestReloadSubCommand extends BaseSubCommand {
 
     public QuestReloadSubCommand(RVNKQuests plugin) {
         super(plugin, "reload", "Reload config. Args: reset (reset quests), reseed (re-seed definitions from config)",
-              "/quest reload [reset|reseed]", "rvnkquests.admin", false);
+              "/quest reload [reset|reseed]", "rvnkquests.admin.reload", false);
     }
 
     @Override
@@ -26,6 +26,20 @@ public class QuestReloadSubCommand extends BaseSubCommand {
         // Check sub-args
         boolean resetReload = args.length > 0 && "reset".equalsIgnoreCase(args[0]);
         boolean reseedReload = args.length > 0 && "reseed".equalsIgnoreCase(args[0]);
+
+        // Single-quest hot-reload: quest reload <quest_id>
+        if (args.length > 0 && !resetReload && !reseedReload) {
+            String questId = args[0];
+            sendInfoMessage(sender, "Hot-reloading quest: " + questId + "...");
+            plugin.getQuestManager().reloadQuest(questId).thenAccept(success -> {
+                if (success) {
+                    sendSuccessMessage(sender, "Hot-reloaded quest: " + questId);
+                } else {
+                    sendErrorMessage(sender, "Quest not found in DB: " + questId + ". Run 'quest reload reset' to do a full reload.");
+                }
+            });
+            return true;
+        }
 
         if (resetReload) {
             sendErrorMessage(sender, "Performing reset reload - resetting all quests and reloading configuration...");
@@ -78,16 +92,20 @@ public class QuestReloadSubCommand extends BaseSubCommand {
 
     @Override
     protected List<String> getTabCompletionOptions(CommandSender sender, String[] args) {
-        // Return "reset" as a tab completion option for the first argument
         if (args.length == 1) {
-            return List.of("reset", "reseed");
+            List<String> options = new java.util.ArrayList<>(List.of("reset", "reseed"));
+            options.addAll(plugin.getQuestManager().getQuestIds());
+            String partial = args[0].toLowerCase();
+            return options.stream()
+                .filter(o -> o.startsWith(partial))
+                .collect(java.util.stream.Collectors.toList());
         }
         return Collections.emptyList();
     }
 
     @Override
     public boolean hasPermission(CommandSender sender) {
-        return sender.hasPermission("rvnkquests.admin") || sender.isOp();
+        return sender.hasPermission("rvnkquests.admin.reload") || sender.isOp();
     }
     
     /**

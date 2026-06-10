@@ -122,10 +122,10 @@ public class RVNKQuests extends JavaPlugin {
             // Initialize quest definition repository (SQL primary, YAML fallback)
             if (databaseManager.isAvailable()) {
                 questRepository = new QuestRepositoryImpl(this, databaseManager);
-                logger.info("Quest definition repository initialized (SQL)");
+                logger.debug("Quest definition repository initialized (SQL)");
             } else {
                 questRepository = new QuestYamlRepository(this);
-                logger.info("Quest definition repository initialized (YAML fallback)");
+                logger.debug("Quest definition repository initialized (YAML fallback)");
             }
 
             // Initialize quest progress service
@@ -136,11 +136,12 @@ public class RVNKQuests extends JavaPlugin {
 
             // Initialize managers in correct dependency order
             questManager = new QuestManager(this);
-            commandManager = CommandManager.getInstance(this);
+            commandManager = new CommandManager(this);
             commandManager.initialize();
 
-            // Initialize service layer
-            rewardService = new RewardServiceImpl(this);
+            // Initialize service layer — RewardService receives questManager so that
+            // QuestUnlockRewardProcessor can start quests without a post-construction cast.
+            rewardService = new RewardServiceImpl(this, questManager);
             questChainService = new QuestChainServiceImpl(this, questProgressService, rewardService);
             objectiveService = new ObjectiveServiceImpl(this);
             journalService = new JournalServiceImpl(this);
@@ -156,14 +157,6 @@ public class RVNKQuests extends JavaPlugin {
             // Register chain progress listener — bridges quest completion to chain service
             getServer().getPluginManager().registerEvents(new ChainProgressListener(this), this);
 
-            // Wire QuestUnlockRewardProcessor to actually start quests via QuestManager
-            org.fourz.RVNKQuests.service.RewardProcessor unlockProc =
-                rewardService.getProcessor(org.fourz.RVNKQuests.data.dto.RewardType.QUEST_UNLOCK);
-            if (unlockProc instanceof org.fourz.RVNKQuests.service.reward.QuestUnlockRewardProcessor questUnlock) {
-                questUnlock.setUnlockCallback((playerId, questId) ->
-                    questManager.startQuest(playerId, questId));
-            }
-
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
                 loreDatabase = new LoreDatabase(this, databaseManager);
@@ -176,13 +169,16 @@ public class RVNKQuests extends JavaPlugin {
             questManager.initializeQuests();
 
             // Seed quest chain definitions (requires quests to be loaded first)
-            logger.info("About to seed quest chain definitions...");
+            logger.debug("About to seed quest chain definitions...");
             new QuestChainDefinitionSeeder(this).seedIfNeeded();
-            logger.info("Quest chain seeding complete");
+            logger.debug("Quest chain seeding complete");
 
             // Initialize lore integration and pre-populate quest books from lore DB
             loreIntegration = new LoreIntegrationImpl(this);
             QuestItem.setLoreIntegration(loreIntegration);
+            if (rewardService instanceof RewardServiceImpl) {
+                ((RewardServiceImpl) rewardService).setLoreIntegration(loreIntegration);
+            }
             // Seed known quest books (async, falls back to hardcoded if RVNKLore unavailable)
             QuestItem.populateFromLoreAsync("grotsnouts_journal",
                     "DIS AIN'T RIGHT!", "GrotSnout's journal about being stuck in the overworld.");
@@ -207,9 +203,23 @@ public class RVNKQuests extends JavaPlugin {
             // Unregister from RVNKCore first
             unregisterFromRVNKCore();
 
+            // Shut down commands before tearing down services they may reference
+            if (commandManager != null) {
+                commandManager.shutdown();
+            }
+
             // Clean up quests first
             if (questManager != null) {
                 questManager.cleanupQuests();
+            }
+
+            // Flush chain progress to DB before shutting down the connection pool
+            if (questChainService instanceof QuestChainServiceImpl chainServiceImpl) {
+                try {
+                    chainServiceImpl.flush().get(5, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    logger.warning("Chain progress flush timed out or failed: " + e.getMessage());
+                }
             }
 
             // Shutdown quest progress service (flushes pending saves)
@@ -446,6 +456,9 @@ public class RVNKQuests extends JavaPlugin {
     /**
      * Registers notification types with PlayerPreferencesService so players can control
      * which quest notifications they receive via /pref rvnkquests.
+     *
+     * <p>Wrapped in a ClassNotFoundException / NoClassDefFoundError catch so that this
+     * method is safe when RVNKCore classes are absent from the classpath (standalone mode).</p>
      */
     private void registerNotificationTypes() {
         try {
@@ -483,8 +496,10 @@ public class RVNKQuests extends JavaPlugin {
                     );
 
             prefsService.registerNotificationTypes("rvnkquests", types);
-            logger.info("Registered " + types.size() + " notification types with PlayerPreferencesService");
+            logger.debug("Registered " + types.size() + " notification types with PlayerPreferencesService");
 
+        } catch (NoClassDefFoundError e) {
+            logger.debug("RVNKCore not available for notification type registration");
         } catch (Exception e) {
             logger.debug("Failed to register notification types: " + e.getMessage());
         }

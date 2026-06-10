@@ -21,7 +21,8 @@ import java.util.Map;
  * <h3>Config keys:</h3>
  * <ul>
  *   <li>{@code item_type} — Material name (e.g., "WRITTEN_BOOK")</li>
- *   <li>{@code item_name} — Display name to match (optional)</li>
+ *   <li>{@code custom_name} — Display name to match (preferred; aliases {@code item_name})</li>
+ *   <li>{@code item_name} — Display name to match (legacy alias for {@code custom_name})</li>
  *   <li>{@code world} — World name restriction (optional)</li>
  *   <li>{@code advance_state} — State to advance to (default: "TRIGGER_FOUND")</li>
  * </ul>
@@ -41,7 +42,9 @@ public class GenericItemDiscoveryTrigger implements Listener {
         this.logger = LogManager.getInstance(plugin, "GenericItemDiscoveryTrigger");
 
         this.itemType = parseMaterial(QuestComponentFactory.getStringConfig(config, "item_type", "WRITTEN_BOOK"));
-        this.itemName = QuestComponentFactory.getStringConfig(config, "item_name", null);
+        String itemNameKey = QuestComponentFactory.getStringConfig(config, "custom_name",
+                QuestComponentFactory.getStringConfig(config, "item_name", null));
+        this.itemName = itemNameKey;
         this.worldName = QuestComponentFactory.getStringConfig(config, "world", null);
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
     }

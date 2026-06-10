@@ -27,7 +27,7 @@ public class ProgressSubCommand extends BaseSubCommand {
 
     public ProgressSubCommand(RVNKQuests plugin) {
         super(plugin, "progress", "Check quest progress",
-              "/quest progress <quest_id> [player]", "rvnkquests.command.progress", false);
+              "/quest progress <quest_id> [player]", "rvnkquests.progress", false);
     }
 
     @Override

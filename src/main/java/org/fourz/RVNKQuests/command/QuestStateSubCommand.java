@@ -20,7 +20,7 @@ public class QuestStateSubCommand extends BaseSubCommand {
 
     public QuestStateSubCommand(RVNKQuests plugin) {
         super(plugin, "state", "Changes the state of a quest",
-              "/quest state <quest_id> <state> [player]", "rvnkquests.command.state", false);
+              "/quest state <quest_id> <state> [player]", "rvnkquests.state", false);
     }
 
     @Override

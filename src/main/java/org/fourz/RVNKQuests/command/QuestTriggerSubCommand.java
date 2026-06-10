@@ -20,7 +20,7 @@ public class QuestTriggerSubCommand extends BaseSubCommand {
 
     public QuestTriggerSubCommand(RVNKQuests plugin) {
         super(plugin, "trigger", "Manually triggers a quest at your location", 
-              "/quest trigger <quest_id> [location]", "rvnkquests.command.trigger", true);
+              "/quest trigger <quest_id> [location]", "rvnkquests.trigger", true);
         this.triggerCommand = new TriggerCommand(plugin);
     }
 

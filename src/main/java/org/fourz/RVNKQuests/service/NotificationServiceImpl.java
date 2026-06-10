@@ -2,7 +2,6 @@ package org.fourz.RVNKQuests.service;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Sound;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -26,12 +25,33 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Respects PlayerPreferencesService from RVNKCore (Phase 3 integration) for
  * persistent, centralized notification preferences management.</p>
+ *
+ * <p>Channel dispatch is driven by a strategy map
+ * ({@link #channelSenders}) built once in the constructor.  Adding a new
+ * {@link NotificationChannel} value only requires registering one lambda here
+ * — no existing switch blocks need to be edited (Open/Closed Principle).</p>
  */
 public class NotificationServiceImpl implements INotificationService {
+
+    // ==================== Strategy: per-channel send logic ====================
+
+    /**
+     * Functional interface that delivers a text message to a player via a
+     * specific notification channel.
+     */
+    @FunctionalInterface
+    private interface NotificationChannelSender {
+        void send(Player player, String message);
+    }
+
+    // ==================== Fields ====================
 
     private final RVNKQuests plugin;
     private final LogManager logger;
     private final PreferencesServiceLookup prefsLookup;
+
+    /** Strategy map: channel → send lambda. */
+    private final Map<NotificationChannel, NotificationChannelSender> channelSenders;
 
     // Player boss bars for quest tracking
     private final Map<UUID, BossBar> playerBossBars = new ConcurrentHashMap<>();
@@ -50,11 +70,50 @@ public class NotificationServiceImpl implements INotificationService {
     private static final String SUCCESS_PREFIX = ChatColor.GREEN + "[Quest] " + ChatColor.RESET;
     private static final String ERROR_PREFIX = ChatColor.RED + "[Quest] " + ChatColor.RESET;
 
+    // ==================== Constructor ====================
+
     public NotificationServiceImpl(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
         this.prefsLookup = new PreferencesServiceLookup(plugin);
         initializeDefaultCooldowns();
+        this.channelSenders = buildChannelSenders();
+    }
+
+    /**
+     * Build the channel-to-sender strategy map.
+     *
+     * <p>Each entry maps a {@link NotificationChannel} to a lambda that
+     * delivers {@code message} to {@code player}.  No-op channels (BOSS_BAR,
+     * SOUND) are registered with a debug-logged lambda so that the map is
+     * complete and future implementors know exactly where to add logic.</p>
+     */
+    @SuppressWarnings("deprecation")
+    private Map<NotificationChannel, NotificationChannelSender> buildChannelSenders() {
+        Map<NotificationChannel, NotificationChannelSender> map = new EnumMap<>(NotificationChannel.class);
+
+        map.put(NotificationChannel.CHAT, (player, message) ->
+            player.sendMessage(message));
+
+        map.put(NotificationChannel.ACTION_BAR, (player, message) ->
+            player.spigot().sendMessage(
+                net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                net.md_5.bungee.api.chat.TextComponent.fromLegacyText(message)));
+
+        map.put(NotificationChannel.TITLE, (player, message) ->
+            player.sendTitle(message, "", 10, 40, 10));
+
+        // BOSS_BAR has a dedicated showQuestProgressBar API; text-only sends are no-ops.
+        map.put(NotificationChannel.BOSS_BAR, (player, message) ->
+            logger.debug("BOSS_BAR text send skipped for " + player.getName()
+                + " — use showQuestProgressBar() instead"));
+
+        // SOUND has no text message concept; callers drive sound via NotificationType.
+        map.put(NotificationChannel.SOUND, (player, message) ->
+            logger.debug("SOUND channel text send skipped for " + player.getName()
+                + " — play sounds directly via NotificationType.getDefaultSound()"));
+
+        return Collections.unmodifiableMap(map);
     }
 
     private void initializeDefaultCooldowns() {
@@ -69,22 +128,32 @@ public class NotificationServiceImpl implements INotificationService {
         cooldownSettings.put(NotificationType.CHAIN_PROGRESS, 1000L); // 1s cooldown
     }
 
+    // ==================== Guard Helper ====================
+
+    /**
+     * Returns true only when the notification should be delivered: preferences allow it
+     * AND the cooldown / channel-enabled gate passes.
+     *
+     * @param playerId  the target player
+     * @param type      the NotificationType for cooldown/channel checks
+     * @param prefKey   the preference key (e.g. "quest_start") for PlayerPreferencesService
+     * @return true if the notification should be sent
+     */
+    private boolean shouldSend(UUID playerId, NotificationType type, String prefKey) {
+        if (!shouldNotifyPlayerViaPreferences(playerId, prefKey)) {
+            logger.debug("Notification suppressed by preferences: " + prefKey + " for " + playerId);
+            return false;
+        }
+        return canSendNotification(playerId, type);
+    }
+
     // ==================== Quest Event Notifications ====================
 
     @Override
     public void notifyQuestStart(Player player, String questName, String questDescription) {
         UUID playerId = player.getUniqueId();
 
-        // Check PlayerPreferencesService first
-        if (!shouldNotifyPlayerViaPreferences(playerId, "quest_start")) {
-            logger.debug("Quest start notification suppressed for " + player.getName() +
-                    " (notifications disabled in preferences)");
-            return;
-        }
-
-        if (!canSendNotification(playerId, NotificationType.QUEST_START)) {
-            return;
-        }
+        if (!shouldSend(playerId, NotificationType.QUEST_START, "quest_start")) return;
 
         String title = ChatColor.GOLD + "Quest Started";
         String subtitle = ChatColor.YELLOW + questName;
@@ -106,16 +175,7 @@ public class NotificationServiceImpl implements INotificationService {
     public void notifyQuestComplete(Player player, String questName) {
         UUID playerId = player.getUniqueId();
 
-        // Check PlayerPreferencesService first
-        if (!shouldNotifyPlayerViaPreferences(playerId, "quest_complete")) {
-            logger.debug("Quest complete notification suppressed for " + player.getName() +
-                    " (notifications disabled in preferences)");
-            return;
-        }
-
-        if (!canSendNotification(playerId, NotificationType.QUEST_COMPLETE)) {
-            return;
-        }
+        if (!shouldSend(playerId, NotificationType.QUEST_COMPLETE, "quest_complete")) return;
 
         String title = ChatColor.GREEN + "Quest Complete!";
         String subtitle = ChatColor.GOLD + questName;
@@ -123,7 +183,7 @@ public class NotificationServiceImpl implements INotificationService {
         sendNotification(player, NotificationType.QUEST_COMPLETE, title, subtitle);
 
         sendToChannel(player, NotificationChannel.CHAT,
-            SUCCESS_PREFIX + "Completed: " + ChatColor.WHITE + questName + ChatColor.GREEN + " \u2713");
+            SUCCESS_PREFIX + "Completed: " + ChatColor.WHITE + questName + ChatColor.GREEN + " ✓");
 
         // Hide quest progress bar on completion
         hideQuestProgressBar(player);
@@ -136,16 +196,7 @@ public class NotificationServiceImpl implements INotificationService {
     public void notifyQuestFailed(Player player, String questName, String reason) {
         UUID playerId = player.getUniqueId();
 
-        // Check PlayerPreferencesService first
-        if (!shouldNotifyPlayerViaPreferences(playerId, "quest_failed")) {
-            logger.debug("Quest failed notification suppressed for " + player.getName() +
-                    " (notifications disabled in preferences)");
-            return;
-        }
-
-        if (!canSendNotification(playerId, NotificationType.QUEST_FAILED)) {
-            return;
-        }
+        if (!shouldSend(playerId, NotificationType.QUEST_FAILED, "quest_failed")) return;
 
         String title = ChatColor.RED + "Quest Failed";
         String subtitle = ChatColor.GRAY + questName;
@@ -171,14 +222,7 @@ public class NotificationServiceImpl implements INotificationService {
     public void notifyObjectiveProgress(Player player, String objectiveName, int current, int target) {
         UUID playerId = player.getUniqueId();
 
-        // Check PlayerPreferencesService first
-        if (!shouldNotifyPlayerViaPreferences(playerId, "objective_progress")) {
-            return;
-        }
-
-        if (!canSendNotification(playerId, NotificationType.OBJECTIVE_PROGRESS)) {
-            return;
-        }
+        if (!shouldSend(playerId, NotificationType.OBJECTIVE_PROGRESS, "objective_progress")) return;
 
         String message = ChatColor.YELLOW + objectiveName + ": " +
                         ChatColor.WHITE + current + "/" + target;
@@ -191,16 +235,9 @@ public class NotificationServiceImpl implements INotificationService {
     public void notifyObjectiveComplete(Player player, String objectiveName) {
         UUID playerId = player.getUniqueId();
 
-        // Check PlayerPreferencesService first
-        if (!shouldNotifyPlayerViaPreferences(playerId, "objective_complete")) {
-            return;
-        }
+        if (!shouldSend(playerId, NotificationType.OBJECTIVE_COMPLETE, "objective_complete")) return;
 
-        if (!canSendNotification(playerId, NotificationType.OBJECTIVE_COMPLETE)) {
-            return;
-        }
-
-        String message = ChatColor.GREEN + "\u2713 " + objectiveName + " Complete!";
+        String message = ChatColor.GREEN + "✓ " + objectiveName + " Complete!";
         sendToChannel(player, NotificationChannel.ACTION_BAR, message);
 
         // Play completion sound
@@ -219,14 +256,7 @@ public class NotificationServiceImpl implements INotificationService {
     public void notifyQuestAvailable(Player player, String questName) {
         UUID playerId = player.getUniqueId();
 
-        // Check PlayerPreferencesService first
-        if (!shouldNotifyPlayerViaPreferences(playerId, "quest_available")) {
-            return;
-        }
-
-        if (!canSendNotification(playerId, NotificationType.QUEST_AVAILABLE)) {
-            return;
-        }
+        if (!shouldSend(playerId, NotificationType.QUEST_AVAILABLE, "quest_available")) return;
 
         sendToChannel(player, NotificationChannel.CHAT,
             PREFIX + "New quest available: " + ChatColor.GOLD + questName);
@@ -243,16 +273,9 @@ public class NotificationServiceImpl implements INotificationService {
     public void notifyMilestone(Player player, String milestoneName) {
         UUID playerId = player.getUniqueId();
 
-        // Check PlayerPreferencesService first
-        if (!shouldNotifyPlayerViaPreferences(playerId, "milestone")) {
-            return;
-        }
+        if (!shouldSend(playerId, NotificationType.MILESTONE, "milestone")) return;
 
-        if (!canSendNotification(playerId, NotificationType.MILESTONE)) {
-            return;
-        }
-
-        String title = ChatColor.AQUA + "\u2605 Milestone \u2605";
+        String title = ChatColor.AQUA + "★ Milestone ★";
         String subtitle = ChatColor.WHITE + milestoneName;
 
         sendNotification(player, NotificationType.MILESTONE, title, subtitle);
@@ -263,14 +286,7 @@ public class NotificationServiceImpl implements INotificationService {
     public void notifyChainProgress(Player player, String chainName, int currentQuest, int totalQuests) {
         UUID playerId = player.getUniqueId();
 
-        // Check PlayerPreferencesService first
-        if (!shouldNotifyPlayerViaPreferences(playerId, "chain_progress")) {
-            return;
-        }
-
-        if (!canSendNotification(playerId, NotificationType.CHAIN_PROGRESS)) {
-            return;
-        }
+        if (!shouldSend(playerId, NotificationType.CHAIN_PROGRESS, "chain_progress")) return;
 
         sendToChannel(player, NotificationChannel.CHAT,
             PREFIX + "Chain Progress: " + ChatColor.GOLD + chainName +
@@ -286,7 +302,6 @@ public class NotificationServiceImpl implements INotificationService {
 
     // ==================== Custom Notifications ====================
 
-    @SuppressWarnings("deprecation")
     @Override
     public void sendNotification(Player player, NotificationType type, String title, String subtitle) {
         UUID playerId = player.getUniqueId();
@@ -296,27 +311,18 @@ public class NotificationServiceImpl implements INotificationService {
             return;
         }
 
-        switch (channel) {
-            case TITLE:
-                player.sendTitle(
-                    title != null ? title : "",
-                    subtitle != null ? subtitle : "",
-                    type.getFadeIn(),
-                    type.getStay(),
-                    type.getFadeOut()
-                );
-                break;
-            case ACTION_BAR:
-                player.spigot().sendMessage(
-                    net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-                    net.md_5.bungee.api.chat.TextComponent.fromLegacyText(title != null ? title : "")
-                );
-                break;
-            case CHAT:
-                player.sendMessage(title != null ? title : "");
-                break;
-            default:
-                break;
+        // TITLE carries both title + subtitle — handled inline since the channel
+        // sender map only supports a single message string.
+        if (channel == NotificationChannel.TITLE) {
+            player.sendTitle(
+                title != null ? title : "",
+                subtitle != null ? subtitle : "",
+                type.getFadeIn(),
+                type.getStay(),
+                type.getFadeOut()
+            );
+        } else {
+            sendToChannel(player, channel, title != null ? title : "");
         }
 
         // Play sound if configured
@@ -325,32 +331,17 @@ public class NotificationServiceImpl implements INotificationService {
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void sendToChannel(Player player, NotificationChannel channel, String message) {
         if (!isChannelEnabled(player.getUniqueId(), channel)) {
             return;
         }
 
-        switch (channel) {
-            case TITLE:
-                player.sendTitle(message, "", 10, 40, 10);
-                break;
-            case ACTION_BAR:
-                player.spigot().sendMessage(
-                    net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-                    net.md_5.bungee.api.chat.TextComponent.fromLegacyText(message)
-                );
-                break;
-            case CHAT:
-                player.sendMessage(message);
-                break;
-            case SOUND:
-                // No-op for sound-only channel
-                break;
-            case BOSS_BAR:
-                // Use showQuestProgressBar for boss bar
-                break;
+        NotificationChannelSender sender = channelSenders.get(channel);
+        if (sender != null) {
+            sender.send(player, message);
+        } else {
+            logger.warning("No sender registered for channel: " + channel);
         }
     }
 
@@ -483,7 +474,7 @@ public class NotificationServiceImpl implements INotificationService {
      * Returns true if service unavailable (graceful fallback).
      * This is a synchronous check with short timeout.
      *
-     * @param playerUuid Player UUID
+     * @param playerUuid       Player UUID
      * @param notificationType Notification type (e.g., "quest_start")
      * @return true if player should receive notifications
      */

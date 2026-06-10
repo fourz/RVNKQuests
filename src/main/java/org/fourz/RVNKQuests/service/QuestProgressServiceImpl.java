@@ -11,6 +11,7 @@ import org.fourz.RVNKQuests.data.dto.QuestRewardClaimedDTO;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.rvnkcore.util.log.LogManager;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,7 +32,6 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
     private final RVNKQuests plugin;
     private final LogManager logger;
-    private final DatabaseManager databaseManager;
 
     private IQuestProgressRepository primaryRepo;
     private final QuestProgressYamlRepository fallbackRepo;
@@ -54,14 +54,13 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
     public QuestProgressServiceImpl(RVNKQuests plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, "QuestProgressService");
-        this.databaseManager = databaseManager;
 
         // Initialize repositories
         this.fallbackRepo = new QuestProgressYamlRepository(plugin);
 
         if (databaseManager.isAvailable()) {
             this.primaryRepo = new QuestProgressRepositoryImpl(plugin, databaseManager);
-            logger.info("Using SQL repository as primary storage");
+            logger.debug("Using SQL repository as primary storage");
         } else {
             this.primaryRepo = fallbackRepo;
             logger.info("Using YAML repository (database not available)");
@@ -134,16 +133,20 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
             return CompletableFuture.completedFuture(null);
         }
 
-        List<CompletableFuture<Boolean>> saveFutures = playerProgress.values().stream()
-            .map(progress -> getActiveRepo().saveProgress(progress))
-            .toList();
+        // Build a single mutable list so all futures survive into allOf().
+        // Previously this used .toList() (unmodifiable) and then reassigned the
+        // variable inside the objectives loop — only the last objective future
+        // was ever passed to allOf(), silently discarding all earlier saves.
+        List<CompletableFuture<Boolean>> saveFutures = new ArrayList<>();
+        for (QuestProgressDTO progress : playerProgress.values()) {
+            saveFutures.add(getActiveRepo().saveProgress(progress));
+        }
 
         // Save objectives
         Map<String, Map<String, QuestObjectiveProgressDTO>> playerObjectives = objectiveCache.get(playerUuid);
         if (playerObjectives != null) {
             for (Map<String, QuestObjectiveProgressDTO> questObjectives : playerObjectives.values()) {
                 for (QuestObjectiveProgressDTO obj : questObjectives.values()) {
-                    saveFutures = new java.util.ArrayList<>(saveFutures);
                     saveFutures.add(getActiveRepo().saveObjectiveProgress(obj));
                 }
             }
@@ -439,7 +442,7 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
                 autosaveIntervalSeconds,
                 TimeUnit.SECONDS
             );
-            logger.info("Autosave scheduled every " + autosaveIntervalSeconds + " seconds");
+            logger.debug("Autosave scheduled every " + autosaveIntervalSeconds + " seconds");
         }
     }
 }

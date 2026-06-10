@@ -32,7 +32,7 @@ public class QuestChainSubCommand extends BaseSubCommand {
     public QuestChainSubCommand(RVNKQuests plugin) {
         super(plugin, "chain", "Quest chain management",
               "/quest chain <list|start|status|reset> [chain_id] [player]",
-              "rvnkquests.command.chain", false);
+              "rvnkquests.chain", false);
     }
 
     @Override

@@ -13,7 +13,7 @@ import org.fourz.RVNKQuests.RVNKQuests;
 public class QuestCommand extends BaseCommand {
 
     public QuestCommand(RVNKQuests plugin) {
-        super(plugin, "quest", "Main quest management command", "/quest <subcommand>", "rvnkquests.command.quest");
+        super(plugin, "quest", "Main quest management command", "/quest <subcommand>", "rvnkquests.quest");
         registerCoreCommands();
     }
 
@@ -49,6 +49,8 @@ public class QuestCommand extends BaseCommand {
         // Quest definition admin commands (generic quest engine)
         registerSubCommand("create", new QuestCreateSubCommand(plugin));
         registerSubCommand("edit", new QuestEditSubCommand(plugin));
+        registerSubCommand("component", new QuestComponentSubCommand(plugin));
+        registerSubCommand("def-objective", new QuestDefObjectiveSubCommand(plugin));
         registerSubCommand("reward", new QuestRewardSubCommand(plugin));
         registerSubCommand("export", new QuestExportSubCommand(plugin));
         registerSubCommand("import", new QuestImportSubCommand(plugin));

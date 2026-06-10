@@ -39,6 +39,19 @@ For detailed workflow documentation, see [Development Workflow - MCP Integration
 | `/quest menu` | Open quest browser GUI | `rvnkquests.command.menu` |
 | `/quest leaderboard` | View quest leaderboards | `rvnkquests.command.leaderboard` |
 
+### Staff Journal Commands
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/quest journal assign <quest_id> <player>` | Assign a quest to a player (online or offline) | `rvnkquests.journal.staff` |
+| `/quest journal unassign <quest_id> <player>` | Remove journal entries for a quest (progress preserved) | `rvnkquests.journal.staff` |
+| `/quest journal view <quest_id> [player]` | View journal entries for a specific quest | `rvnkquests.journal.other` |
+| `/quest journal remove <quest_id> [player]` | Delete all journal entries for a quest | `rvnkquests.journal.remove` |
+
+`assign` sets the quest state to `QUEST_ACTIVE` via `QuestManager.startQuest()` and records a `STARTED` journal entry with "Assigned by `<staff>`" context. Guards against double-assign — fails if the quest is already in any non-`NOT_STARTED` state. Supports offline players via `Bukkit.getOfflinePlayer()`.
+
+`unassign` clears journal entries via `journalService.clearQuestJournal()` but **does not** touch quest progress records. The quest state and objective counts are preserved in the database.
+
 ### Administrative Commands
 
 | Command | Description | Permission |
@@ -51,6 +64,8 @@ For detailed workflow documentation, see [Development Workflow - MCP Integration
 | `/quest validate` | Validate quest configurations | `rvnkquests.command.validate` |
 | `/quest config` | View/edit quest config | `rvnkquests.command.config` |
 | `/quest reload` | Reload plugin configuration | `rvnkquests.command.reload` |
+| `/quest reload reset` | Reload config and reinitialize all quest listeners | `rvnkquests.admin.reload` |
+| `/quest reload reseed` | Re-seed quest definitions from config then reinitialize | `rvnkquests.admin.reload` |
 | `/quest reset <quest_id> [player]` | Reset quest progress | `rvnkquests.command.reset` |
 | `/quest seed` | Seed quest definitions from DB | `rvnkquests.command.seed` |
 
@@ -147,8 +162,12 @@ public class MyQuestPlugin extends JavaPlugin {
 | `rvnkquests.command.validate` | Validate configurations | `op` |
 | `rvnkquests.command.config` | View/edit config | `op` |
 | `rvnkquests.command.reload` | Reload configuration | `op` |
+| `rvnkquests.admin.reload` | Reload with reset/reseed options | `op` |
 | `rvnkquests.command.reset` | Reset quest progress | `op` |
 | `rvnkquests.command.seed` | Seed quest definitions | `op` |
+| `rvnkquests.journal.staff` | Assign/unassign quests for players | `op` |
+| `rvnkquests.journal.other` | View other players' journals | `op` |
+| `rvnkquests.journal.remove` | Delete journal entries | `op` |
 
 ## Integration
 
@@ -471,13 +490,19 @@ A classic dungeon crawl scenario featuring a ghostly NPC and hidden treasure.
 | `/quest state <quest_id> <state>`      | Change a quest's state         | `rvnkquests.command.state`  |
 | `/quest progress <quest_id> [player]`  | View quest progress            | `rvnkquests.command.progress`|
 | `/quest journal [list\|view\|remove]`  | Quest journal operations       | `rvnkquests.command.journal`|
+| `/quest journal assign <quest_id> <player>` | Assign quest to player (staff) | `rvnkquests.journal.staff` |
+| `/quest journal unassign <quest_id> <player>` | Remove journal entries for quest (staff) | `rvnkquests.journal.staff` |
 | `/quest mobs [list\|kill]`             | List/kill active quest mobs    | `rvnkquests.command.mobs`   |
 | `/quest trigger <quest_id> [here\|around]` | Trigger a quest            | `rvnkquests.command.trigger`|
 | `/quest validate`                      | Validate quest configurations  | `rvnkquests.command.validate`|
 | `/quest menu`                          | Open quest browser GUI         | `rvnkquests.command.menu`   |
 | `/quest leaderboard`                   | View quest leaderboards        | `rvnkquests.command.leaderboard`|
 | `/quest config`                        | View/edit quest config         | `rvnkquests.command.config` |
-| `/quest reload`                        | Reload plugin configuration    | `rvnkquests.command.reload` |
+| `/quest journal assign <quest_id> <player>` | Assign quest to player (staff, offline-capable) | `rvnkquests.journal.staff` |
+| `/quest journal unassign <quest_id> <player>` | Clear journal entries, preserve progress (staff) | `rvnkquests.journal.staff` |
+| `/quest reload`                        | Reload plugin configuration    | `rvnkquests.admin.reload`   |
+| `/quest reload reset`                  | Reload + reinitialize quest listeners | `rvnkquests.admin.reload` |
+| `/quest reload reseed`                 | Re-seed DB definitions + reinitialize | `rvnkquests.admin.reload` |
 | `/quest reset <quest_id> [player]`     | Reset quest progress           | `rvnkquests.command.reset`  |
 | `/quest seed`                          | Seed quest definitions from DB | `rvnkquests.command.seed`   |
 
@@ -536,9 +561,58 @@ quests:
 
 ### Adding a New Quest
 
-**Data-Driven (preferred)**: Define quest in the database with QuestDefinitionSeeder. DataDrivenQuest reads `state_mapping` from QuestDTO metadata, and QuestComponentFactory wires generic trigger/objective components automatically. No new Java classes required.
+**Data-Driven (preferred)**: Define quest in the database with QuestDefinitionSeeder. DataDrivenQuest reads `state_mapping` from QuestDTO metadata, and QuestComponentFactory wires generic trigger/objective components automatically. No new Java classes required. See [Data-Driven Quest Engine](docs/quest-engine.md) for the full reference.
 
 **Custom (for unique mechanics)**: Implement `Quest` or extend `AbstractQuest`, create custom listeners, and register in `QuestManager.initializeQuests()`.
+
+## Data-Driven Quest Engine
+
+Quests are created entirely from JSON metadata stored in the `quest_definitions` table. No Java code changes are needed for new quests.
+
+### Trigger Types
+
+| Trigger Type | Description |
+|---|---|
+| `LOCATION_PROXIMITY` | Player walks within a radius of fixed coordinates |
+| `PROXIMITY_MOB_SPAWN` | A named custom mob spawns near a player |
+| `ENTITY_PROXIMITY` | Player approaches any entity of a given type |
+| `ITEM_DISCOVERY` | Player picks up or holds a named item |
+| `STRUCTURE_INTERACT` | Player right-clicks a specific block type |
+
+### Objective Types
+
+| Objective Type | Description |
+|---|---|
+| `KILL` | Kill entities by type, with optional `custom_name` filter |
+| `COLLECT` | Gather items, with optional `consume` and location constraints |
+| `REACH` | Walk to fixed coordinates or a context-stored location |
+| `INTERACT` | Right-click a block type, with optional coordinate constraints |
+| `ENCOUNTER` | Spawns named mobs at coordinates; player must kill them all |
+| `DISCOVER` | Find a structure identified by block material composition |
+
+### Reward Types
+
+| Reward Type | Description |
+|---|---|
+| `EXPERIENCE` | Awards XP points |
+| `ITEM` | Gives an item by material name |
+| `COMMAND` | Runs a console command (`%player%` substituted) |
+| `PERMISSION` | Grants a permission node via the server's permissions system |
+
+### Admin Flow (Console)
+
+```
+# Insert quest definition directly into the DB
+INSERT INTO quest_definitions ...
+
+# Load new definitions without restart
+/quest reload reset
+
+# Place a player into the quest (online or offline)
+/quest journal assign <quest_id> <player>
+```
+
+For the complete schema, JSON examples, and step-by-step INSERT instructions, see [docs/quest-engine.md](docs/quest-engine.md).
 
 ### Building
 

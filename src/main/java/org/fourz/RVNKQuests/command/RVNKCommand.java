@@ -1,91 +1,23 @@
 package org.fourz.RVNKQuests.command;
 
-import org.bukkit.command.CommandSender;
-import java.util.List;
-
 /**
- * Base interface for all RVNKQuests commands.
- * Provides a standardized contract for command execution, permissions, and metadata.
- * 
- * This interface follows the RVNK ecosystem command framework pattern,
- * providing consistent behavior across all RVNK plugins.
+ * Legacy unified command interface for RVNKQuests.
+ *
+ * <p>This interface is retained for backward compatibility. New code should
+ * prefer the segregated interfaces directly:</p>
+ * <ul>
+ *   <li>{@link ICommand} — execution and metadata (all commands)</li>
+ *   <li>{@link ICommandRouter} — subcommand registry (router/top-level commands only)</li>
+ * </ul>
+ *
+ * <p>{@link BaseCommand} implements both {@code ICommand} and
+ * {@code ICommandRouter} and therefore satisfies this interface.
+ * {@link BaseSubCommand} implements only {@code ICommand}; leaf subcommands
+ * are no longer required to carry routing methods they do not use.</p>
+ *
+ * @deprecated Prefer {@link ICommand} and {@link ICommandRouter} individually.
  */
-public interface RVNKCommand {
-    
-    /**
-     * Execute the command logic.
-     * 
-     * @param sender The command sender
-     * @param args Command arguments (excluding the base command name)
-     * @return true if the command was handled successfully
-     */
-    boolean execute(CommandSender sender, String[] args);
-    
-    /**
-     * Provide tab completion for the command.
-     * 
-     * @param sender The command sender
-     * @param args Command arguments being completed
-     * @return List of possible completions
-     */
-    List<String> tabComplete(CommandSender sender, String[] args);
-    
-    /**
-     * Get the command name.
-     * 
-     * @return The command name
-     */
-    String getName();
-    
-    /**
-     * Get the command description.
-     * 
-     * @return The command description
-     */
-    String getDescription();
-    
-    /**
-     * Get the command usage string.
-     * 
-     * @return The usage string
-     */
-    String getUsage();
-    
-    /**
-     * Get the permission required to use this command.
-     * 
-     * @return The permission string, or null if no permission is required
-     */
-    String getPermission();
-    
-    /**
-     * Check if the sender has permission to use this command.
-     * 
-     * @param sender The command sender
-     * @return true if the sender has permission
-     */
-    boolean hasPermission(CommandSender sender);
-    
-    /**
-     * Send help information to the command sender.
-     * 
-     * @param sender The command sender
-     */
-    void sendHelp(CommandSender sender);
-    
-    /**
-     * Register a subcommand with this command.
-     * 
-     * @param name The subcommand name
-     * @param subCommand The subcommand implementation
-     */
-    void registerSubCommand(String name, SubCommand subCommand);
-    
-    /**
-     * Get a subcommand by name.
-     * 
-     * @param name The subcommand name
-     * @return The subcommand, or null if not found
-     */
-    SubCommand getSubCommand(String name);
+@Deprecated
+public interface RVNKCommand extends ICommand, ICommandRouter {
+    // Intentionally empty: all methods are inherited from ICommand and ICommandRouter.
 }

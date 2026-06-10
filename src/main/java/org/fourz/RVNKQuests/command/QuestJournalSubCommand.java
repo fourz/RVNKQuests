@@ -1,11 +1,13 @@
 package org.fourz.RVNKQuests.command;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.data.dto.JournalEntryDTO;
 import org.fourz.RVNKQuests.data.dto.JournalEntryDTO.JournalAction;
+import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.service.IJournalService;
 
 import java.time.ZoneId;
@@ -14,7 +16,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -33,7 +34,7 @@ public class QuestJournalSubCommand extends BaseSubCommand {
 
     public QuestJournalSubCommand(RVNKQuests plugin) {
         super(plugin, "journal", "View and manage quest journal",
-              "/quest journal [view|remove] [quest_id] [player]", "rvnkquests.command.journal", false);
+              "/quest journal [view|remove] [quest_id] [player]", "rvnkquests.journal", false);
     }
 
     @Override
@@ -175,10 +176,22 @@ public class QuestJournalSubCommand extends BaseSubCommand {
         String questId = args[argOffset];
         String playerArg = args[argOffset + 1];
 
-        Player targetPlayer = Bukkit.getPlayer(playerArg);
-        if (targetPlayer == null) {
-            sendErrorMessage(sender, "Player not found or not online: " + playerArg);
-            return true;
+        // Support offline players so console can assign/unassign without requiring target to be online
+        Player onlinePlayer = Bukkit.getPlayer(playerArg);
+        UUID playerUuid;
+        String playerName;
+        if (onlinePlayer != null) {
+            playerUuid = onlinePlayer.getUniqueId();
+            playerName = onlinePlayer.getName();
+        } else {
+            @SuppressWarnings("deprecation")
+            OfflinePlayer offline = Bukkit.getOfflinePlayer(playerArg);
+            if (!offline.hasPlayedBefore()) {
+                sendErrorMessage(sender, "Player not found: " + playerArg);
+                return true;
+            }
+            playerUuid = offline.getUniqueId();
+            playerName = offline.getName() != null ? offline.getName() : playerArg;
         }
 
         // Validate quest exists
@@ -193,9 +206,6 @@ public class QuestJournalSubCommand extends BaseSubCommand {
             return true;
         }
 
-        UUID playerUuid = targetPlayer.getUniqueId();
-        String playerName = targetPlayer.getName();
-
         if (action.equals("assign")) {
             handleAssign(sender, playerUuid, playerName, questId, journalService);
         } else {
@@ -205,35 +215,37 @@ public class QuestJournalSubCommand extends BaseSubCommand {
     }
 
     private void handleAssign(CommandSender sender, UUID playerUuid, String playerName, String questId, IJournalService journalService) {
-        // Record a journal entry marking the quest as staff-assigned
-        journalService.recordAction(playerUuid, questId, JournalAction.STARTED,
-                "Assigned by " + sender.getName())
+        plugin.getQuestManager().getPlayerQuestState(playerUuid, questId)
+            .thenCompose(state -> {
+                if (state != QuestState.NOT_STARTED) {
+                    throw new IllegalStateException("Quest is already " + state.name().toLowerCase().replace('_', ' ') + " for " + playerName);
+                }
+                return plugin.getQuestManager().startQuest(playerUuid, questId)
+                    .thenCompose(started -> journalService.recordAction(
+                        playerUuid, questId, JournalAction.STARTED, "Assigned by " + sender.getName()));
+            })
             .thenAccept(entry -> Bukkit.getScheduler().runTask(plugin, () ->
-                sendSuccessMessage(sender, "Assigned quest " + formatQuestName(questId)
-                    + " to " + playerName + " (journal entry recorded)")))
+                sendSuccessMessage(sender, "Assigned quest " + formatQuestName(questId) + " to " + playerName)))
             .exceptionally(ex -> {
+                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                 Bukkit.getScheduler().runTask(plugin, () ->
-                    sendErrorMessage(sender, "Failed to assign quest: " + ex.getMessage()));
+                    sendErrorMessage(sender, "Failed to assign quest: " + cause.getMessage()));
                 return null;
             });
     }
 
     private void handleUnassign(CommandSender sender, UUID playerUuid, String playerName, String questId, IJournalService journalService) {
-        // Reset quest progress to NOT_STARTED, then clear journal entries
-        CompletableFuture<Boolean> resetFuture = plugin.getQuestManager().resetQuest(playerUuid, questId);
-
-        resetFuture.thenCompose(resetOk -> {
-            // Clear journal entries for this quest
-            return journalService.clearQuestJournal(playerUuid, questId)
-                .thenApply(deleted -> deleted);
-        }).thenAccept(deleted -> Bukkit.getScheduler().runTask(plugin, () ->
-            sendSuccessMessage(sender, "Unassigned quest " + formatQuestName(questId)
-                + " from " + playerName + " (progress reset, " + deleted + " journal entries cleared)")))
-        .exceptionally(ex -> {
-            Bukkit.getScheduler().runTask(plugin, () ->
-                sendErrorMessage(sender, "Failed to unassign quest: " + ex.getMessage()));
-            return null;
-        });
+        // Clear journal entries only — quest progress is preserved so history is not destroyed.
+        // Progress remains in the DB; the quest simply no longer appears in the player's journal view.
+        journalService.clearQuestJournal(playerUuid, questId)
+            .thenAccept(deleted -> Bukkit.getScheduler().runTask(plugin, () ->
+                sendSuccessMessage(sender, "Unassigned quest " + formatQuestName(questId)
+                    + " from " + playerName + " (" + deleted + " journal entries hidden, progress preserved)")))
+            .exceptionally(ex -> {
+                Bukkit.getScheduler().runTask(plugin, () ->
+                    sendErrorMessage(sender, "Failed to unassign quest: " + ex.getMessage()));
+                return null;
+            });
     }
 
     private void displayJournal(CommandSender sender, String playerName, List<JournalEntryDTO> entries) {

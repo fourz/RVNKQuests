@@ -29,7 +29,7 @@ public class QuestStartSubCommand extends BaseSubCommand {
 
     public QuestStartSubCommand(RVNKQuests plugin) {
         super(plugin, "start", "Start a quest for a player",
-              "/quest start <quest_id> [player]", "rvnkquests.command.start", false);
+              "/quest start <quest_id> [player]", "rvnkquests.start", false);
     }
 
     @Override

@@ -38,7 +38,7 @@ public class QuestAbandonSubCommand extends BaseSubCommand {
 
     public QuestAbandonSubCommand(RVNKQuests plugin) {
         super(plugin, "abandon", "Abandon an active quest",
-              "/quest abandon <quest_id> [player]", "rvnkquests.command.abandon", false);
+              "/quest abandon <quest_id> [player]", "rvnkquests.abandon", false);
     }
 
     @Override

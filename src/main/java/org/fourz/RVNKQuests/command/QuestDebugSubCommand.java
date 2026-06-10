@@ -28,7 +28,7 @@ import java.util.logging.Level;
 public class QuestDebugSubCommand extends BaseSubCommand {
 
     private static final List<String> SUB_COMMANDS = Arrays.asList(
-        "diagnostics", "list", "player", "loglevel", "seed", "setstate"
+        "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup"
     );
 
     private SeedSubCommand seedSubCommand;
@@ -70,6 +70,8 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 return seedSubCommand.execute(sender, subArgs);
             case "setstate":
                 return setStateSubCommand.execute(sender, subArgs);
+            case "setup":
+                return executeSetup(sender);
             default:
                 sendErrorMessage(sender, "Unknown debug command: " + subCommand);
                 showUsage(sender);
@@ -85,6 +87,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug loglevel [level] &8- View or change log level");
         sendMessage(sender, "&7/quest debug seed <action> &8- Seed/cleanup test data");
         sendMessage(sender, "&7/quest debug setstate <quest> <state> [player] &8- Set quest state (bypasses validation)");
+        sendMessage(sender, "&7/quest debug setup &8- Bootstrap LuckPerms permission defaults");
     }
 
     /**
@@ -357,6 +360,50 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         }
 
         return completions;
+    }
+
+    private boolean executeSetup(CommandSender sender) {
+        if (Bukkit.getPluginManager().getPlugin("LuckPerms") == null) {
+            sendErrorMessage(sender, "LuckPerms is not installed — cannot apply permission defaults.");
+            sendMessage(sender, "&7Install LuckPerms and run this command again.");
+            return true;
+        }
+
+        sendMessage(sender, "&6=== RVNKQuests Permission Setup ===");
+        sendMessage(sender, "&7Applying LuckPerms defaults...");
+
+        String[][] assignments = {
+            {"admin",     "rvnkquests.admin",            "true"},
+            {"moderator", "rvnkquests.admin.reset",      "true"},
+            {"moderator", "rvnkquests.admin.complete",   "true"},
+            {"default",   "rvnkquests.list",             "true"},
+            {"default",   "rvnkquests.start",            "true"},
+            {"default",   "rvnkquests.abandon",          "true"},
+            {"default",   "rvnkquests.progress",         "true"},
+            {"default",   "rvnkquests.journal",          "true"},
+            {"default",   "rvnkquests.leaderboard",      "true"},
+            {"default",   "rvnkquests.chain",            "true"},
+        };
+
+        org.bukkit.command.ConsoleCommandSender console = Bukkit.getConsoleSender();
+        int ok = 0;
+        int fail = 0;
+
+        for (String[] row : assignments) {
+            String cmd = "lp group " + row[0] + " permission set " + row[1] + " " + row[2];
+            try {
+                Bukkit.dispatchCommand(console, cmd);
+                sendMessage(sender, "&a✓ &7" + row[0] + " &8← &f" + row[1]);
+                ok++;
+            } catch (Exception e) {
+                sendErrorMessage(sender, "Failed: " + cmd + " (" + e.getMessage() + ")");
+                fail++;
+            }
+        }
+
+        sendMessage(sender, "&7Done. &f" + ok + " applied" + (fail > 0 ? "&c, " + fail + " failed" : "") + ".");
+        sendMessage(sender, "&8Run &7lp editor&8 to review or adjust group assignments.");
+        return true;
     }
 
     @Override
