@@ -155,34 +155,39 @@ public abstract class AbstractQuest implements Quest {
                 logger.debug("Advancing state for " + playerUuid + " from " + currentState + " to " + newState);
                 return progressService.updateQuestState(playerUuid, questId, newState)
                     .thenAccept(progress -> {
-                        // Record journal entry for the state transition
-                        recordStateTransitionJournal(playerUuid, currentState, newState);
+                        // All Bukkit operations (listener registration, event dispatch, player messages,
+                        // item delivery) must run on the main thread. The DB write above completes on
+                        // an async pool thread, so dispatch back to main before any Bukkit API calls.
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            // Record journal entry for the state transition
+                            recordStateTransitionJournal(playerUuid, currentState, newState);
 
-                        // Update listeners if needed
-                        questManager.updateQuestListenersForPlayer(this, playerUuid);
+                            // registerEvents/unregisterAll require main thread for all state transitions
+                            questManager.updateQuestListenersForPlayer(this, playerUuid);
 
-                        // Fire all completion side-effects regardless of how COMPLETED is reached
-                        // (trigger component, admin command, or direct complete() call)
-                        if (newState == QuestState.COMPLETED) {
-                            org.bukkit.entity.Player onlinePlayer = plugin.getServer().getPlayer(playerUuid);
-                            if (onlinePlayer != null) {
-                                onComplete(onlinePlayer);
+                            // Fire all completion side-effects regardless of how COMPLETED is reached
+                            // (trigger component, admin command, or direct complete() call)
+                            if (newState == QuestState.COMPLETED) {
+                                org.bukkit.entity.Player onlinePlayer = plugin.getServer().getPlayer(playerUuid);
+                                if (onlinePlayer != null) {
+                                    onComplete(onlinePlayer);
 
-                                if (notifService != null) {
-                                    notifService.notifyQuestComplete(onlinePlayer, name);
-                                } else {
-                                    onlinePlayer.sendMessage("§a[Quest Completed] §f" + name);
+                                    if (notifService != null) {
+                                        notifService.notifyQuestComplete(onlinePlayer, name);
+                                    } else {
+                                        onlinePlayer.sendMessage("§a[Quest Completed] §f" + name);
+                                    }
+
+                                    if (configManager.getConfig().getBoolean("quests.announce_completion", true)) {
+                                        plugin.getServer().broadcastMessage(
+                                            "§6" + onlinePlayer.getName() + " §ehas completed the quest §6" + name + "§e!"
+                                        );
+                                    }
+
+                                    Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(onlinePlayer, questId, name));
                                 }
-
-                                if (configManager.getConfig().getBoolean("quests.announce_completion", true)) {
-                                    plugin.getServer().broadcastMessage(
-                                        "§6" + onlinePlayer.getName() + " §ehas completed the quest §6" + name + "§e!"
-                                    );
-                                }
-
-                                Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(onlinePlayer, questId, name));
                             }
-                        }
+                        });
                     });
             });
     }
