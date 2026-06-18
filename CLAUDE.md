@@ -179,7 +179,7 @@ org.fourz.RVNKQuests
 │       ├── GenericMobSpawnTrigger.java       # Name+type+world mob detection, safe spawn, beg mechanic
 │       ├── GenericStructureInteractTrigger.java
 │       ├── GenericEntityProximityTrigger.java
-│       └── GenericItemDiscoveryTrigger.java
+│       └── GenericItemDiscoveryTrigger.java  # RIGHT_CLICK only, off-hand guard, Paper 1.21 mainhand fallback; config: item_type, custom_name (or item_name), world, required_state (default: NOT_STARTED), advance_state (default: TRIGGER_FOUND)
 ├── event/
 │   └── PlayerJoinQuitListener.java  # Progress load/save, stateCache preload/evict on join/quit
 ├── ui/
@@ -229,6 +229,7 @@ org.fourz.RVNKQuests
 **Per-Player State Cache**: AbstractQuest.stateCache (ConcurrentHashMap) with `preloadStateForPlayer()` on join, `evictStateForPlayer()` on quit, async DB load with NOT_STARTED default. `quest reset` evicts cache immediately — DB and memory are always consistent after reset.
 **COMPLETED state side-effects**: All completion logic (rewards via `onComplete()`, notifications, broadcast, `QuestCompleteEvent`) fires inside `AbstractQuest.advanceStateForPlayer()` when `newState == COMPLETED`. This ensures rewards and events trigger regardless of whether completion came from a trigger component or from `complete(Player)`. Do NOT put reward delivery inside `complete(Player)` — it will never fire for data-driven trigger completions.
 **Trigger/Objective event hooks**: All location-based components (GenericLocationProximityTrigger, GenericReachObjective, GenericCollectObjective) hook both `PlayerMoveEvent` AND `PlayerTeleportEvent`. Adding a new location component must hook both. AFK+ may freeze PlayerMoveEvent for static players — see #1138.
+**Off-hand guard**: `GenericItemDiscoveryTrigger` fires only on `RIGHT_CLICK_AIR` / `RIGHT_CLICK_BLOCK` with `EquipmentSlot.HAND` — prevents duplicate events from off-hand interactions. On Paper 1.21+, `event.getItem()` can return null for WRITTEN_BOOK right-clicks; the trigger falls back to `player.getInventory().getItemInMainHand()`. Item name comparison strips color codes via `ChatColor.stripColor` (#1140).
 **Mob Detection**: GenericMobSpawnTrigger scans for existing mobs by entity_type + custom_name + world; supports restart recovery and admin-placed mob adoption; config: `mob_detection.name_type_matching`, `mob_detection.scan_interval_ms`
 **Safe Spawn**: `world.getHighestBlockYAt(spawnLoc) + 1` prevents mob suffocation in GenericMobSpawnTrigger
 **Beg Mechanic**: `beg_on_attack` config with hit counting, knockback, and `beg_message` for quest mobs
