@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
@@ -50,8 +51,16 @@ public class GenericEntityProximityTrigger implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (event.getTo() == null) return;
+        checkEntityProximity(event.getPlayer());
+    }
 
-        Player player = event.getPlayer();
+    @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (event.getTo() == null) return;
+        checkEntityProximity(event.getPlayer());
+    }
+
+    private void checkEntityProximity(Player player) {
         if (quest.getStateForPlayer(player) != QuestState.NOT_STARTED) return;
 
         World world = player.getWorld();
