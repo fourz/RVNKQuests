@@ -104,29 +104,26 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
         // Display warning about debug command
         sendMessage(sender, "&e⚠ Debug command - bypassing normal state transitions");
 
-        // Get current state for logging, then set new state via quest object
-        // (updates stateCache + DB + journal + listeners in one call)
-        QuestState previousState = quest.getStateForPlayer(targetPlayer);
+        // Read previous state from DB (avoids stateCache race after reset+trigger sequences),
+        // then advance — all chained so the previous state is accurate in the success message.
+        quest.getStateForPlayer(playerId)
+            .thenCompose(previousState -> {
+                logger.info("ADMIN DEBUG STATE CHANGE: " + adminName + " setting quest '" + questId +
+                           "' for " + playerName + " from " + previousState + " to " + targetState);
+                return quest.advanceStateForPlayer(playerId, targetState)
+                    .thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        sendSuccessMessage(sender, "Set quest '" + quest.getName() + "' state for " + playerName);
+                        sendMessage(sender, "&7   Previous state: &e" + previousState);
+                        sendMessage(sender, "&7   New state: &a" + targetState);
+                        sendMessage(sender, "&7   &oJournal entry recorded (no rewards triggered)");
 
-        logger.info("ADMIN DEBUG STATE CHANGE: " + adminName + " setting quest '" + questId +
-                   "' for " + playerName + " from " + previousState + " to " + targetState);
+                        if (!sender.equals(targetPlayer)) {
+                            sendInfoMessage(targetPlayer, "Quest '" + quest.getName() + "' state changed to " + targetState + " (debug)");
+                        }
 
-        quest.advanceStateForPlayer(playerId, targetState)
-            .thenRun(() -> {
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    sendSuccessMessage(sender, "Set quest '" + quest.getName() + "' state for " + playerName);
-                    sendMessage(sender, "&7   Previous state: &e" + previousState);
-                    sendMessage(sender, "&7   New state: &a" + targetState);
-                    sendMessage(sender, "&7   &oJournal entry recorded (no rewards triggered)");
-
-                    // Notify target player if different from sender
-                    if (!sender.equals(targetPlayer)) {
-                        sendInfoMessage(targetPlayer, "Quest '" + quest.getName() + "' state changed to " + targetState + " (debug)");
-                    }
-
-                    logger.info("Quest '" + questId + "' state set to " + targetState +
-                               " for player: " + playerName + " (by: " + adminName + ")");
-                });
+                        logger.info("Quest '" + questId + "' state set to " + targetState +
+                                   " for player: " + playerName + " (by: " + adminName + ")");
+                    }));
             })
             .exceptionally(ex -> {
                 Bukkit.getScheduler().runTask(plugin, () -> {
