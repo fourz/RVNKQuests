@@ -12,9 +12,11 @@ import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,6 +46,9 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
     // Autosave scheduler
     private final ScheduledExecutorService autosaveScheduler;
     private final int autosaveIntervalSeconds;
+
+    // Dirty tracking — players whose progress changed since last autosave
+    private final Set<UUID> dirtyPlayers = ConcurrentHashMap.newKeySet();
 
     /**
      * Creates a new quest progress service.
@@ -154,9 +159,10 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
         return CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]))
             .thenRun(() -> {
-                // Clear caches
+                // Clear caches and dirty flag
                 progressCache.remove(playerUuid);
                 objectiveCache.remove(playerUuid);
+                dirtyPlayers.remove(playerUuid);
                 rewardCache.remove(playerUuid);
 
                 // If using YAML, unload from there too
@@ -198,6 +204,8 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
                 // Update cache
                 progressCache.computeIfAbsent(playerUuid, k -> new ConcurrentHashMap<>())
                     .put(questId, updated);
+
+                dirtyPlayers.add(playerUuid);
 
                 // Save to repository
                 return getActiveRepo().saveProgress(updated).thenApply(success -> updated);
@@ -288,6 +296,8 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
                 objectiveCache.computeIfAbsent(playerUuid, k -> new ConcurrentHashMap<>())
                     .computeIfAbsent(questId, k -> new ConcurrentHashMap<>())
                     .put(objectiveId, updated);
+
+                dirtyPlayers.add(playerUuid);
 
                 // Save to repository
                 return getActiveRepo().saveObjectiveProgress(updated).thenApply(success -> updated);
@@ -428,21 +438,59 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
     }
 
     private void startAutosave() {
-        if (autosaveIntervalSeconds > 0) {
-            autosaveScheduler.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        flush().join();
-                        logger.debug("Autosave completed");
-                    } catch (Exception e) {
-                        logger.error("Autosave failed", e);
+        if (autosaveIntervalSeconds <= 0) return;
+        autosaveScheduler.scheduleAtFixedRate(() -> {
+            try {
+                // Skip entirely if no players are online
+                if (plugin.getServer().getOnlinePlayers().isEmpty()) return;
+
+                // Snapshot and clear dirty set atomically
+                Set<UUID> toSave = new HashSet<>(dirtyPlayers);
+                dirtyPlayers.removeAll(toSave);
+                if (toSave.isEmpty()) return;
+
+                // Only save in-progress states — terminal states are saved on transition
+                List<CompletableFuture<?>> futures = new ArrayList<>();
+                int recordCount = 0;
+                for (UUID uuid : toSave) {
+                    Map<String, QuestProgressDTO> playerProgress = progressCache.get(uuid);
+                    if (playerProgress == null) continue;
+                    for (QuestProgressDTO p : playerProgress.values()) {
+                        if (isActiveState(p.state())) {
+                            futures.add(getActiveRepo().saveProgress(p));
+                            recordCount++;
+                        }
                     }
-                },
-                autosaveIntervalSeconds,
-                autosaveIntervalSeconds,
-                TimeUnit.SECONDS
-            );
-            logger.debug("Autosave scheduled every " + autosaveIntervalSeconds + " seconds");
-        }
+                    Map<String, Map<String, QuestObjectiveProgressDTO>> playerObjectives = objectiveCache.get(uuid);
+                    if (playerObjectives != null) {
+                        for (Map.Entry<String, QuestProgressDTO> qe : playerProgress.entrySet()) {
+                            if (isActiveState(qe.getValue().state())) {
+                                Map<String, QuestObjectiveProgressDTO> objs = playerObjectives.get(qe.getKey());
+                                if (objs != null) {
+                                    for (QuestObjectiveProgressDTO obj : objs.values()) {
+                                        futures.add(getActiveRepo().saveObjectiveProgress(obj));
+                                        recordCount++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!futures.isEmpty()) {
+                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+                    logger.debug("Autosave: " + recordCount + " records for " + toSave.size() + " players");
+                }
+            } catch (Exception e) {
+                logger.error("Autosave failed", e);
+            }
+        }, autosaveIntervalSeconds, autosaveIntervalSeconds, TimeUnit.SECONDS);
+        logger.debug("Autosave scheduled every " + autosaveIntervalSeconds + "s");
+    }
+
+    private boolean isActiveState(QuestState state) {
+        return state == QuestState.TRIGGER_FOUND
+            || state == QuestState.QUEST_ACTIVE
+            || state == QuestState.OBJECTIVE_FOUND;
     }
 }
