@@ -352,10 +352,11 @@ public class QuestManager implements IQuestService {
         Set<UUID> activePlayers = activePlayersByQuest.get(quest.getId());
         if (activePlayers != null) {
             quest.getStateForPlayer(playerUuid).thenAccept(state -> {
-                if (state != QuestState.NOT_STARTED && state != QuestState.COMPLETED) {
-                    activePlayers.add(playerUuid);
-                } else if (state == QuestState.COMPLETED) {
+                if (state == QuestState.NOT_STARTED || state == QuestState.COMPLETED
+                        || state == QuestState.PAUSED || state == QuestState.ABANDONED) {
                     activePlayers.remove(playerUuid);
+                } else {
+                    activePlayers.add(playerUuid);
                 }
             });
         }

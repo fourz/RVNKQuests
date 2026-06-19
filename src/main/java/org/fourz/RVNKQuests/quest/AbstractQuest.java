@@ -46,6 +46,12 @@ public abstract class AbstractQuest implements Quest {
     private final Map<UUID, QuestState> stateCache = new ConcurrentHashMap<>();
 
     /**
+     * Stores the state that was active immediately before a pause, so resume can restore it.
+     * Cleared on player quit. If absent at resume time, defaults to QUEST_ACTIVE.
+     */
+    private final Map<UUID, QuestState> pausedStateCache = new ConcurrentHashMap<>();
+
+    /**
      * Local path choice cache — mirrors stateCache pattern for branching quests.
      * Eagerly updated by setPathChoice(); lazily populated on first read.
      * Value is empty string when explicitly loaded but no path set (vs null = not yet loaded).
@@ -131,6 +137,7 @@ public abstract class AbstractQuest implements Quest {
     public void evictStateForPlayer(UUID playerUuid) {
         stateCache.remove(playerUuid);
         pathChoiceCache.remove(playerUuid);
+        pausedStateCache.remove(playerUuid);
     }
 
     @Override
@@ -212,6 +219,7 @@ public abstract class AbstractQuest implements Quest {
             case ABANDONED -> journalService.recordQuestAbandon(playerUuid, questId);
             case TRIGGER_FOUND -> journalService.recordObjectiveComplete(playerUuid, questId, "state:trigger_found");
             case OBJECTIVE_FOUND -> journalService.recordObjectiveComplete(playerUuid, questId, "state:objective_found");
+            case PAUSED -> {} // no journal action for pause/resume
         }
     }
 
@@ -305,6 +313,32 @@ public abstract class AbstractQuest implements Quest {
                 return advanceStateForPlayer(playerUuid, QuestState.COMPLETED)
                     .thenApply(v -> true);
             });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> pauseForPlayer(UUID playerUuid) {
+        return getStateForPlayer(playerUuid).thenCompose(currentState -> {
+            if (currentState != QuestState.QUEST_ACTIVE && currentState != QuestState.OBJECTIVE_FOUND) {
+                logger.debug("Cannot pause quest " + questId + " for " + playerUuid + ": state is " + currentState);
+                return CompletableFuture.completedFuture(false);
+            }
+            pausedStateCache.put(playerUuid, currentState);
+            return advanceStateForPlayer(playerUuid, QuestState.PAUSED).thenApply(v -> true);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> resumeForPlayer(UUID playerUuid) {
+        return getStateForPlayer(playerUuid).thenCompose(currentState -> {
+            if (currentState != QuestState.PAUSED) {
+                logger.debug("Cannot resume quest " + questId + " for " + playerUuid + ": state is " + currentState);
+                return CompletableFuture.completedFuture(false);
+            }
+            QuestState restoreState = pausedStateCache.getOrDefault(playerUuid, QuestState.QUEST_ACTIVE);
+            pausedStateCache.remove(playerUuid);
+            logger.debug("Resuming quest " + questId + " for " + playerUuid + " → " + restoreState);
+            return advanceStateForPlayer(playerUuid, restoreState).thenApply(v -> true);
+        });
     }
 
     /**

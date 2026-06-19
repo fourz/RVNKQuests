@@ -261,10 +261,11 @@ public class QuestMenuManager implements InventoryHolder {
      */
     private Material getQuestMaterial(QuestState state) {
         return switch (state) {
-            case COMPLETED -> Material.LIME_CONCRETE; // Green
-            case QUEST_ACTIVE, OBJECTIVE_FOUND -> Material.YELLOW_CONCRETE; // Yellow
-            case NOT_STARTED, TRIGGER_FOUND -> Material.LIGHT_GRAY_CONCRETE; // Gray
-            case ABANDONED -> Material.RED_CONCRETE; // Red
+            case COMPLETED -> Material.LIME_CONCRETE;
+            case QUEST_ACTIVE, OBJECTIVE_FOUND -> Material.YELLOW_CONCRETE;
+            case NOT_STARTED, TRIGGER_FOUND -> Material.LIGHT_GRAY_CONCRETE;
+            case ABANDONED -> Material.RED_CONCRETE;
+            case PAUSED -> Material.BLUE_CONCRETE;
         };
     }
 
@@ -277,6 +278,7 @@ public class QuestMenuManager implements InventoryHolder {
             case QUEST_ACTIVE, OBJECTIVE_FOUND -> ChatColor.YELLOW;
             case NOT_STARTED, TRIGGER_FOUND -> ChatColor.WHITE;
             case ABANDONED -> ChatColor.RED;
+            case PAUSED -> ChatColor.AQUA;
         };
     }
 
@@ -291,6 +293,7 @@ public class QuestMenuManager implements InventoryHolder {
             case NOT_STARTED -> ChatColor.WHITE + "Available";
             case TRIGGER_FOUND -> ChatColor.AQUA + "Discovered";
             case ABANDONED -> ChatColor.RED + "Abandoned";
+            case PAUSED -> ChatColor.AQUA + "Paused";
         };
     }
 
