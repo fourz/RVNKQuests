@@ -27,5 +27,14 @@ public enum TriggerType {
     COMMAND,
 
     /** Custom trigger with plugin-defined behavior. Config: custom handler class */
-    CUSTOM
+    CUSTOM,
+
+    /** Right-click a lectern that has a specific book placed on it. Config: world, book_name|lore_book_id, cancel_interaction */
+    LECTERN_BOOK_ON,
+
+    /** Right-click a lectern while holding a specific book (book places naturally). Config: world, book_name|lore_book_id */
+    LECTERN_BOOK_IN_HAND,
+
+    /** Take a specific book off a lectern (Paper API only). Config: world, book_name|lore_book_id */
+    LECTERN_BOOK_REMOVED
 }

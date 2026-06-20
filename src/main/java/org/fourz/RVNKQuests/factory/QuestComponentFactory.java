@@ -10,6 +10,7 @@ import org.fourz.RVNKQuests.objective.generic.*;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.trigger.generic.*;
+import org.fourz.RVNKQuests.trigger.lectern.*;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.*;
@@ -161,6 +162,9 @@ public class QuestComponentFactory {
             case ENTITY_PROXIMITY -> new GenericEntityProximityTrigger(plugin, quest, config);
             case LOCATION_PROXIMITY -> new GenericLocationProximityTrigger(plugin, quest, config);
             case ITEM_DISCOVERY -> new GenericItemDiscoveryTrigger(plugin, quest, config);
+            case LECTERN_BOOK_ON -> new LecternBookOnTrigger(plugin, quest, config);
+            case LECTERN_BOOK_IN_HAND -> new LecternBookInHandTrigger(plugin, quest, config);
+            case LECTERN_BOOK_REMOVED -> new LecternBookRemovedTrigger(plugin, quest, config);
             case COMMAND, WORLD_EVENT, CUSTOM -> {
                 logger.debug("Trigger type " + type + " not yet implemented for component " + componentId);
                 yield null;
