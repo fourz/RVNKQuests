@@ -9,6 +9,7 @@ import org.fourz.RVNKQuests.data.dto.RewardType;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -67,6 +68,11 @@ public class QuestRewardSubCommand extends BaseSubCommand {
 
         String rewardId = questId + "_" + type.name().toLowerCase() + "_" + System.currentTimeMillis() % 10000;
         RewardDTO reward = RewardDTO.create(rewardId, type, value, amount);
+
+        // RNG_ITEM uses value as pool_id — store in metadata where RngItemRewardProcessor reads it
+        if (type == RewardType.RNG_ITEM) {
+            reward = reward.withMetadata(Map.of("pool_id", value));
+        }
 
         repo.addReward(questId, reward).thenAccept(success -> {
             if (success) {
