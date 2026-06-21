@@ -83,9 +83,8 @@ public class GenericItemDiscoveryTrigger implements Listener {
                 logger.debug("Item discovery: " + player.getName() + " held item has no meta — skipping");
                 return;
             }
-            String displayName = item.getItemMeta().hasDisplayName()
-                    ? org.bukkit.ChatColor.stripColor(item.getItemMeta().getDisplayName())
-                    : "";
+            String resolved = org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(item);
+            String displayName = resolved != null ? resolved : "";
             if (!displayName.contains(itemName)) {
                 logger.debug("Item discovery: " + player.getName() + " name mismatch: '" + displayName + "' vs '" + itemName + "'");
                 return;

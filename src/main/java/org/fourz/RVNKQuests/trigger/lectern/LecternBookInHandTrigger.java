@@ -100,9 +100,8 @@ public class LecternBookInHandTrigger implements Listener {
             if (resolver == null) return false;
             return loreBookId.equals(resolver.getBookId(item));
         }
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null || !meta.hasDisplayName()) return false;
-        return bookName.equals(ChatColor.stripColor(meta.getDisplayName()));
+        String name = org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(item);
+        return name != null && bookName.equals(name);
     }
 
     private QuestState parseState(String name) {
