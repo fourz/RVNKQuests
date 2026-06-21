@@ -81,14 +81,23 @@ public class DataDrivenQuest extends AbstractQuest {
 
         // Build listeners for each state from the state_mapping metadata
         for (QuestState state : QuestState.values()) {
-            List<Listener> listeners = componentFactory.createListenersForState(state, definition);
-            stateListeners.put(state, listeners);
+            try {
+                List<Listener> listeners = componentFactory.createListenersForState(state, definition);
+                stateListeners.put(state, listeners);
+            } catch (Exception e) {
+                logger.error("Failed to create listeners for quest " + questId + " state " + state + " — state will have no listeners", e);
+                stateListeners.put(state, List.of());
+            }
         }
 
+        long statesWithListeners = stateListeners.entrySet().stream()
+            .filter(e -> !e.getValue().isEmpty())
+            .count();
         logger.debug("Data-driven quest initialized: " + questId +
-            " (states with listeners: " + stateListeners.entrySet().stream()
-                .filter(e -> !e.getValue().isEmpty())
-                .count() + ")");
+            " (states with listeners: " + statesWithListeners + ")");
+        if (statesWithListeners == 0 && !definition.metadata().isEmpty()) {
+            logger.warning("Quest " + questId + " loaded with zero listeners despite having metadata — check component configs and logs above for errors");
+        }
     }
 
     @Override
