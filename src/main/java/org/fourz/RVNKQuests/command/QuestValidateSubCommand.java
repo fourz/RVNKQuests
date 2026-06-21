@@ -102,6 +102,14 @@ public class QuestValidateSubCommand extends BaseSubCommand {
             valid = false;
         }
         
+        // Check for invalid state-name references (typo'd states silently soft-lock quests)
+        if (quest instanceof org.fourz.RVNKQuests.quest.DataDrivenQuest ddq) {
+            for (String issue : ddq.validateStateNames()) {
+                logger.warning(quest.getId() + " invalid state reference: " + issue);
+                valid = false;
+            }
+        }
+
         // Check listener creation for each state
         int totalListeners = 0;
         for (QuestState state : QuestState.values()) {

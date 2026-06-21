@@ -159,6 +159,55 @@ public abstract class AbstractQuest implements Quest {
 
         return getStateForPlayer(playerUuid)
             .thenCompose(currentState -> {
+                // Gate trigger-driven activation (NOT_STARTED -> TRIGGER_FOUND) on the quest's
+                // prerequisites. Admin start/complete target QUEST_ACTIVE/COMPLETED and bypass this.
+                if (currentState == QuestState.NOT_STARTED && newState == QuestState.TRIGGER_FOUND) {
+                    return arePrerequisitesMet(playerUuid).thenCompose(met -> {
+                        if (!met) {
+                            logger.debug("Quest " + questId + " trigger blocked for " + playerUuid
+                                + " — prerequisites not met");
+                            stateCache.put(playerUuid, currentState);
+                            return CompletableFuture.<Void>completedFuture(null);
+                        }
+                        return performAdvance(playerUuid, currentState, newState);
+                    });
+                }
+                return performAdvance(playerUuid, currentState, newState);
+            });
+    }
+
+    /**
+     * Quest IDs that must be COMPLETED before this quest's trigger may activate.
+     * Base quests have none; {@code DataDrivenQuest} overrides to expose its definition's
+     * {@code prerequisites}.
+     */
+    protected java.util.List<String> getPrerequisiteQuestIds() {
+        return java.util.List.of();
+    }
+
+    /**
+     * Checks that every prerequisite quest is COMPLETED for the player. Empty/no
+     * prerequisites resolve to {@code true}.
+     */
+    private CompletableFuture<Boolean> arePrerequisitesMet(UUID playerUuid) {
+        java.util.List<String> prereqs = getPrerequisiteQuestIds();
+        if (prereqs == null || prereqs.isEmpty()) {
+            return CompletableFuture.completedFuture(true);
+        }
+        CompletableFuture<Boolean> chain = CompletableFuture.completedFuture(true);
+        for (String prereqId : prereqs) {
+            chain = chain.thenCompose(ok -> {
+                if (!ok) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return progressService.getQuestState(playerUuid, prereqId)
+                    .thenApply(state -> state == QuestState.COMPLETED);
+            });
+        }
+        return chain;
+    }
+
+    private CompletableFuture<Void> performAdvance(UUID playerUuid, QuestState currentState, QuestState newState) {
                 logger.debug("Advancing state for " + playerUuid + " from " + currentState + " to " + newState);
                 return progressService.updateQuestState(playerUuid, questId, newState)
                     .thenAccept(progress -> {
@@ -196,7 +245,6 @@ public abstract class AbstractQuest implements Quest {
                             }
                         });
                     });
-            });
     }
 
     /**
