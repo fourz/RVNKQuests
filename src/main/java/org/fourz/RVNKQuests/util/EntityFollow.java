@@ -355,22 +355,30 @@ public class EntityFollow {
                     Mob mob = (Mob) followingMob.getMob();
                     // Save current target to restore after path update
                     Entity currentTarget = mob.getTarget();
-                    
+
                     // Clear target temporarily to avoid combat during navigation update
                     mob.setTarget(null);
-                    
+
                     // Update path
                     result = followingMob.getPathfinder().moveTo(target, followSpeed);
-                    
-                    // Restore original target if it wasn't a quest mob
-                    if (currentTarget != null && !currentTarget.hasMetadata("rvnkquests.questmob")) {
+
+                    // Restore original target if it wasn't a quest mob — and never
+                    // re-target the leader we're following (#1416)
+                    if (currentTarget != null && currentTarget != leader
+                            && !currentTarget.hasMetadata("rvnkquests.questmob")) {
                         mob.setTarget((LivingEntity)currentTarget);
                     }
                 } else {
                     result = followingMob.getPathfinder().moveTo(target, followSpeed);
                 }
-                
+
                 logger.debug("Updated pathfinding target, success: " + result + "");
+
+                // Ground pathfinding can't drive flying mobs (vex etc.) — moveTo
+                // returns false every tick. Fall back to velocity steering (#1416)
+                if (!result) {
+                    moveTowardsTarget(target);
+                }
             } catch (Exception e) {
                 logger.debug("Error updating navigation: " + e.getMessage());
                 // Fall back to velocity-based movement for this update

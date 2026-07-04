@@ -2,10 +2,12 @@ package org.fourz.RVNKQuests.objective.generic;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
@@ -104,6 +106,12 @@ public class GenericEscortObjective implements Listener {
         // Start following if not already
         UUID playerId = player.getUniqueId();
         if (!activeFollows.containsKey(playerId)) {
+            // Escorts are docile: drop any combat target the mob picked up
+            // before the follow started (#1416)
+            if (escortEntity instanceof Mob mob) {
+                mob.setTarget(null);
+            }
+
             EntityFollow follow = new EntityFollow(plugin)
                 .withDistances(followDistance, 30.0)
                 .withSpeed(followSpeed)
@@ -133,6 +141,22 @@ public class GenericEscortObjective implements Listener {
             }
             quest.advanceStateForPlayer(playerId, advanceState);
             logger.debug(player.getName() + " completed escort objective for quest " + quest.getId());
+        }
+    }
+
+    /**
+     * Escort mobs never fight: block all AI target acquisition by the escort
+     * entity while it is the quest's context entity (#1416). Vanilla AI
+     * (vex, zombie, etc.) re-targets constantly — cancelling the event here
+     * keeps hostile mob types permanently docile during the escort.
+     */
+    @EventHandler
+    public void onEntityTarget(EntityTargetEvent event) {
+        Entity escortEntity = quest.getContext(contextEntityKey, Entity.class);
+        if (escortEntity == null) return;
+
+        if (event.getEntity().getUniqueId().equals(escortEntity.getUniqueId())) {
+            event.setCancelled(true);
         }
     }
 
