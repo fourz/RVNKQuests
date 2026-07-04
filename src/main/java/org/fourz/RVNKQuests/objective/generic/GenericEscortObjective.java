@@ -116,7 +116,8 @@ public class GenericEscortObjective implements Listener {
                 .withDistances(followDistance, 30.0)
                 .withSpeed(followSpeed)
                 .useNavigator(true)
-                .ignoreQuestMobs(true);
+                .ignoreQuestMobs(true)
+                .teleportWhenLost(true);
 
             if (follow.start(escortEntity, player)) {
                 activeFollows.put(playerId, follow);

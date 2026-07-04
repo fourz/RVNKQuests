@@ -54,6 +54,7 @@ public class EntityFollow {
     private Location pathTarget = null;
     private boolean shouldUseNavigator = false;
     private boolean ignoreQuestMobs = false; // New flag to ignore quest mobs
+    private boolean teleportWhenLost = false; // Recover follower when beyond max follow distance
     
     // Cache of created FollowingMob instances
     private static final Map<UUID, FollowingMob> mobCache = new HashMap<>();
@@ -147,6 +148,18 @@ public class EntityFollow {
      */
     public EntityFollow ignoreQuestMobs(boolean ignoreQuestMobs) {
         this.ignoreQuestMobs = ignoreQuestMobs;
+        return this;
+    }
+
+    /**
+     * When the follower ends up beyond maxFollowDistance (fell in a hole,
+     * drifted into the sky, chunk desync), teleport it back to the leader
+     * instead of standing down forever.
+     * @param teleportWhenLost Whether to recover by teleporting
+     * @return this, for method chaining
+     */
+    public EntityFollow teleportWhenLost(boolean teleportWhenLost) {
+        this.teleportWhenLost = teleportWhenLost;
         return this;
     }
     
@@ -328,8 +341,14 @@ public class EntityFollow {
                 // Fall back to direct movement control
                 moveTowardsTarget(leaderLoc);
             }
+        } else if (teleportWhenLost && follower.getWorld().equals(leaderLoc.getWorld())) {
+            // Follower is lost (sky-drift, fell, desync) — recover next to the leader
+            follower.setVelocity(new Vector(0, 0, 0));
+            follower.teleport(leaderLoc.clone().add(1, 0.5, 0));
+            stuckCounter = 0;
+            logger.debug("Follower beyond max distance (" + (int) distance + ") — teleported to leader");
         }
-        // When beyond max follow distance, entity will stop moving but won't teleport
+        // Without teleportWhenLost, entity beyond max distance stops moving but won't teleport
     }
     
     /**
@@ -396,13 +415,17 @@ public class EntityFollow {
         
         // Calculate base direction vector
         Vector direction = target.toVector().subtract(followerLoc.toVector());
-        
+
+        // No-gravity flyers (vex etc.) steer in full 3D and never fall back
+        // down — stacking jump velocity launches them into the sky (#1418).
+        boolean flyer = !follower.hasGravity();
+
         // Check if there are obstacles in the way
-        boolean needsJump = hasObstacleAhead(followerLoc, direction) || stuckCounter > 0;
-        
+        boolean needsJump = !flyer && (hasObstacleAhead(followerLoc, direction) || stuckCounter > 0);
+
         // Normalize and scale by speed
         direction.normalize().multiply(followSpeed);
-        
+
         // Add jump component if needed
         if (needsJump) {
             direction.setY(jumpVelocity);
