@@ -40,15 +40,32 @@ public class QuestImportSubCommand extends BaseSubCommand {
             sendInfoMessage(sender, "Importing all quest definitions from YAML...");
             yamlRepo.findAll().thenAccept(quests -> {
                 int imported = 0;
+                int failed = 0;
                 for (QuestDTO quest : quests) {
-                    Boolean result = repo.save(quest).join();
-                    if (Boolean.TRUE.equals(result)) {
-                        imported++;
+                    // Isolate per-quest failures so one bad save doesn't abort the batch
+                    // and, crucially, doesn't escape this lambda as a swallowed exception (#1425)
+                    try {
+                        if (Boolean.TRUE.equals(repo.save(quest).join())) {
+                            imported++;
+                        } else {
+                            failed++;
+                            sendErrorMessage(sender, "Failed to import quest: " + quest.questId()
+                                + " (save returned false — check DB schema/fallback state)");
+                        }
+                    } catch (Exception e) {
+                        failed++;
+                        logger.error("Exception importing quest: " + quest.questId(), e);
+                        sendErrorMessage(sender, "Error importing quest " + quest.questId() + ": " + rootMessage(e));
                     }
                 }
                 // Reload quests in the quest manager
                 plugin.getQuestManager().loadQuestsFromRepository();
-                sendSuccessMessage(sender, "Imported " + imported + " quest(s) from YAML files.");
+                sendSuccessMessage(sender, "Imported " + imported + " quest(s) from YAML files"
+                    + (failed > 0 ? " (" + failed + " failed — see above)" : "") + ".");
+            }).exceptionally(ex -> {
+                logger.error("Import-all failed before completion", (Throwable) ex);
+                sendErrorMessage(sender, "Import failed: " + rootMessage(ex));
+                return null;
             });
         } else {
             // Remove .yml extension if provided
@@ -64,13 +81,32 @@ public class QuestImportSubCommand extends BaseSubCommand {
                         plugin.getQuestManager().reloadQuest(questId);
                         sendSuccessMessage(sender, "Imported quest: " + questId);
                     } else {
-                        sendErrorMessage(sender, "Failed to import quest.");
+                        sendErrorMessage(sender, "Failed to import quest: " + questId
+                            + " (save returned false — check DB schema/fallback state)");
                     }
+                }).exceptionally(ex -> {
+                    logger.error("Save failed while importing quest: " + questId, (Throwable) ex);
+                    sendErrorMessage(sender, "Failed to import quest " + questId + ": " + rootMessage(ex));
+                    return null;
                 });
+            }).exceptionally(ex -> {
+                logger.error("Failed to read quest YAML for import: " + questId, (Throwable) ex);
+                sendErrorMessage(sender, "Failed to read " + questId + ".yml: " + rootMessage(ex));
+                return null;
             });
         }
 
         return true;
+    }
+
+    /** Unwraps CompletionException/wrapper layers to the most useful message for the operator. */
+    private static String rootMessage(Throwable t) {
+        Throwable cur = t;
+        while (cur.getCause() != null && cur.getCause() != cur) {
+            cur = cur.getCause();
+        }
+        String msg = cur.getMessage();
+        return (msg != null ? msg : cur.getClass().getSimpleName());
     }
 
     @Override

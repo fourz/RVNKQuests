@@ -73,11 +73,15 @@ public class QuestYamlRepository implements IQuestRepository {
         int cooldownMinutes = yaml.getInt("cooldown_minutes", 0);
         List<String> prerequisites = yaml.getStringList("prerequisites");
 
-        // Load metadata
+        // Load metadata. Deep-convert to a plain nested Map: getValues(true) leaves raw
+        // Bukkit ConfigurationSection objects in the map, which (a) Gson cannot serialize on
+        // Java 17+ (InaccessibleObjectException reflecting into TimeZone) — silently failing
+        // repo.save on import — and (b) break the component factory's `instanceof Map` checks
+        // for state_mapping/components (#1425).
         Map<String, Object> metadata = Map.of();
         ConfigurationSection metaSection = yaml.getConfigurationSection("metadata");
         if (metaSection != null) {
-            metadata = new LinkedHashMap<>(metaSection.getValues(true));
+            metadata = sectionToMap(metaSection);
         }
 
         // Load objectives
@@ -156,6 +160,26 @@ public class QuestYamlRepository implements IQuestRepository {
         return new QuestDTO(questId, name, description, category, repeatable,
                            cooldownMinutes, objectives, rewards, prerequisites,
                            Instant.now(), metadata);
+    }
+
+    /**
+     * Recursively converts a Bukkit {@link ConfigurationSection} into a plain nested
+     * {@code Map<String, Object>} of primitives, lists, and maps only — no
+     * {@code ConfigurationSection} objects. Required so the resulting metadata is both
+     * Gson-serializable (repo.save) and shaped correctly for consumers that expect nested
+     * Maps (e.g. QuestComponentFactory's state_mapping/components lookups).
+     */
+    private static Map<String, Object> sectionToMap(ConfigurationSection section) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (String key : section.getKeys(false)) {
+            Object value = section.get(key);
+            if (value instanceof ConfigurationSection sub) {
+                map.put(key, sectionToMap(sub));
+            } else {
+                map.put(key, value);
+            }
+        }
+        return map;
     }
 
     private void saveQuestToFile(QuestDTO quest) throws IOException {
