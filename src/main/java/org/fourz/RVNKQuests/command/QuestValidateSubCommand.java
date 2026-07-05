@@ -108,6 +108,13 @@ public class QuestValidateSubCommand extends BaseSubCommand {
                 logger.warning(quest.getId() + " invalid state reference: " + issue);
                 valid = false;
             }
+            // Components whose constructors threw at initialize() — their states are
+            // running with fewer listeners than the state_mapping declares (#1424)
+            for (var failure : ddq.getComponentFailures().entrySet()) {
+                logger.warning(quest.getId() + " component '" + failure.getKey()
+                    + "' failed construction: " + failure.getValue());
+                valid = false;
+            }
         }
 
         // Check listener creation for each state

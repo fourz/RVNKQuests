@@ -201,6 +201,14 @@ public class DataDrivenQuest extends AbstractQuest {
     }
 
     /**
+     * Components that threw during listener construction at initialize() time,
+     * keyed by component ID → error message. Surfaced by {@code quest validate}.
+     */
+    public Map<String, String> getComponentFailures() {
+        return componentFactory.getComponentFailures();
+    }
+
+    /**
      * Validates that every {@code state_mapping} key and every component
      * {@code advance_state} / {@code required_state} value is a real
      * {@link QuestState} name. Invalid names do not error at runtime —

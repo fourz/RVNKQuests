@@ -6,6 +6,8 @@ import org.bukkit.command.CommandSender;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.data.IQuestRepository;
 import org.fourz.RVNKQuests.data.dto.QuestDTO;
+import org.fourz.RVNKQuests.factory.QuestComponentFactory;
+import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -108,6 +110,17 @@ public class QuestComponentSubCommand extends BaseSubCommand {
         repo.findById(questId).thenAccept(opt -> {
             if (opt.isEmpty()) { sendErrorMessage(sender, "Quest not found: " + questId); return; }
             QuestDTO quest = opt.get();
+
+            // Dry-construct before saving — a config that fails listener construction would
+            // otherwise save "successfully" and strip its state's listeners on reload (#1424)
+            DataDrivenQuest probe = new DataDrivenQuest(plugin, quest);
+            String constructionError = new QuestComponentFactory(plugin, probe)
+                .validateComponentConfig(compId, compDef);
+            if (constructionError != null) {
+                sendErrorMessage(sender, "Component rejected (not saved): " + constructionError);
+                return;
+            }
+
             Map<String, Object> metadata = new HashMap<>(quest.metadata());
             @SuppressWarnings("unchecked")
             Map<String, Object> components = metadata.containsKey("components")
