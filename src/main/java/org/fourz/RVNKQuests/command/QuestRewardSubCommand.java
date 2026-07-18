@@ -63,8 +63,18 @@ public class QuestRewardSubCommand extends BaseSubCommand {
             return;
         }
 
-        String value = args[3];
-        int amount = args.length >= 5 ? parseIntSafe(args[4], 1) : 1;
+        // COMMAND reward values are full command lines (spaces + placeholders like %player%),
+        // so join the remaining args; a single-token value silently truncated them. Other types
+        // keep the token value + optional [amount] (#reward-command).
+        String value;
+        int amount;
+        if (type == RewardType.COMMAND) {
+            value = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
+            amount = 1;
+        } else {
+            value = args[3];
+            amount = args.length >= 5 ? parseIntSafe(args[4], 1) : 1;
+        }
 
         String rewardId = questId + "_" + type.name().toLowerCase() + "_" + System.currentTimeMillis() % 10000;
         RewardDTO reward = RewardDTO.create(rewardId, type, value, amount);
