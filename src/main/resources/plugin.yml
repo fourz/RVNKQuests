@@ -4,7 +4,7 @@ version: '${project.version}'
 description: A quest system for Minecraft
 authors: [Fourz]
 main: org.fourz.RVNKQuests.RVNKQuests
-api-version: 1.17
+api-version: '26.1'
 depend: [RVNKCore]
 softdepend: [RVNKLore]
 

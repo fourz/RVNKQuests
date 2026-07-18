@@ -305,6 +305,16 @@ public class RVNKQuests extends JavaPlugin {
     }
 
     /**
+     * Gets the shared RVNKLore integration (soft-dep). May be null before startup
+     * completes or if RVNKLore is absent; callers should null-check and treat null
+     * as "lore unavailable". This is the single RVNKLore reflection surface (#1494).
+     * @return The lore integration, or null
+     */
+    public ILoreIntegration getLoreIntegration() {
+        return loreIntegration;
+    }
+
+    /**
      * Gets the fallback tracker for database failure handling.
      * @return The fallback tracker
      */

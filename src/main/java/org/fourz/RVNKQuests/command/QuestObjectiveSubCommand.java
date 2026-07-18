@@ -108,11 +108,16 @@ public class QuestObjectiveSubCommand extends BaseSubCommand {
             case "set" -> {
                 final int value = setValue;
                 objService.setProgress(playerId, questId, objectiveId, value)
-                    .thenAccept(progress -> Bukkit.getScheduler().runTask(plugin, () ->
-                        sendSuccessMessage(sender, "Set " + objectiveId + " to " + value +
-                            "/" + progress.targetCount() + " for " + playerName +
-                            " (quest: " + questId + ")")
-                    ))
+                    .thenAccept(progress -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (progress == null) {
+                            sendErrorMessage(sender, "Objective '" + objectiveId + "' has no progress record yet.");
+                            sendInfoMessage(sender, "Trigger the objective naturally first, or use 'complete' to mark it done.");
+                        } else {
+                            sendSuccessMessage(sender, "Set " + objectiveId + " to " + value +
+                                "/" + progress.targetCount() + " for " + playerName +
+                                " (quest: " + questId + ")");
+                        }
+                    }))
                     .exceptionally(ex -> {
                         Bukkit.getScheduler().runTask(plugin, () -> sendErrorMessage(sender, getExMessage(ex)));
                         return null;

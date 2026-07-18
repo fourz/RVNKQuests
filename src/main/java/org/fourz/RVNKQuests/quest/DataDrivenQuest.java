@@ -79,16 +79,32 @@ public class DataDrivenQuest extends AbstractQuest {
     public void initialize() {
         logger.debug("Initializing data-driven quest: " + questId);
 
-        // Build listeners for each state from the state_mapping metadata
-        for (QuestState state : QuestState.values()) {
-            List<Listener> listeners = componentFactory.createListenersForState(state, definition);
-            stateListeners.put(state, listeners);
+        // Validate state-name references up front — an invalid name (e.g. "TRIGGERED")
+        // silently soft-locks the quest: advance_state falls back to TRIGGER_FOUND and
+        // a bad state_mapping key never registers its listeners.
+        for (String issue : validateStateNames()) {
+            logger.warning("Quest " + questId + " has invalid state reference: " + issue);
         }
 
+        // Build listeners for each state from the state_mapping metadata
+        for (QuestState state : QuestState.values()) {
+            try {
+                List<Listener> listeners = componentFactory.createListenersForState(state, definition);
+                stateListeners.put(state, listeners);
+            } catch (Exception e) {
+                logger.error("Failed to create listeners for quest " + questId + " state " + state + " — state will have no listeners", e);
+                stateListeners.put(state, List.of());
+            }
+        }
+
+        long statesWithListeners = stateListeners.entrySet().stream()
+            .filter(e -> !e.getValue().isEmpty())
+            .count();
         logger.debug("Data-driven quest initialized: " + questId +
-            " (states with listeners: " + stateListeners.entrySet().stream()
-                .filter(e -> !e.getValue().isEmpty())
-                .count() + ")");
+            " (states with listeners: " + statesWithListeners + ")");
+        if (statesWithListeners == 0 && !definition.metadata().isEmpty()) {
+            logger.warning("Quest " + questId + " loaded with zero listeners despite having metadata — check component configs and logs above for errors");
+        }
     }
 
     @Override
@@ -177,5 +193,72 @@ public class DataDrivenQuest extends AbstractQuest {
     public String getStartTrigger() {
         Object trigger = definition.metadata().get("start_trigger");
         return trigger != null ? trigger.toString() : definition.name();
+    }
+
+    @Override
+    protected List<String> getPrerequisiteQuestIds() {
+        return definition.prerequisites();
+    }
+
+    /**
+     * Components that threw during listener construction at initialize() time,
+     * keyed by component ID → error message. Surfaced by {@code quest validate}.
+     */
+    public Map<String, String> getComponentFailures() {
+        return componentFactory.getComponentFailures();
+    }
+
+    /**
+     * Validates that every {@code state_mapping} key and every component
+     * {@code advance_state} / {@code required_state} value is a real
+     * {@link QuestState} name. Invalid names do not error at runtime —
+     * {@code advance_state} falls back to TRIGGER_FOUND and unknown state_mapping
+     * keys never register listeners — so they must be caught explicitly.
+     *
+     * @return list of human-readable problems; empty if all state references are valid
+     */
+    public List<String> validateStateNames() {
+        List<String> issues = new ArrayList<>();
+        Map<String, Object> metadata = definition.metadata();
+        if (metadata == null || metadata.isEmpty()) {
+            return issues;
+        }
+
+        Object stateMappingObj = metadata.get("state_mapping");
+        if (stateMappingObj instanceof Map<?, ?> stateMapping) {
+            for (Object key : stateMapping.keySet()) {
+                if (!isValidState(String.valueOf(key))) {
+                    issues.add("state_mapping key '" + key + "' is not a valid QuestState");
+                }
+            }
+        }
+
+        Object componentsObj = metadata.get("components");
+        if (componentsObj instanceof Map<?, ?> components) {
+            for (Map.Entry<?, ?> entry : components.entrySet()) {
+                if (entry.getValue() instanceof Map<?, ?> config) {
+                    checkStateField(config, "advance_state", String.valueOf(entry.getKey()), issues);
+                    checkStateField(config, "required_state", String.valueOf(entry.getKey()), issues);
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    private void checkStateField(Map<?, ?> config, String field, String componentId, List<String> issues) {
+        Object value = config.get(field);
+        if (value != null && !isValidState(String.valueOf(value))) {
+            issues.add("component '" + componentId + "' " + field + " '" + value + "' is not a valid QuestState");
+        }
+    }
+
+    private static boolean isValidState(String name) {
+        for (QuestState state : QuestState.values()) {
+            if (state.name().equals(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

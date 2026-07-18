@@ -42,5 +42,12 @@ public enum QuestState {
     /**
      * Quest was abandoned by the player
      */
-    ABANDONED
+    ABANDONED,
+
+    /**
+     * Quest is suspended by an admin — progress preserved, listeners effectively inactive.
+     * Resume restores the pre-pause state (QUEST_ACTIVE or OBJECTIVE_FOUND).
+     * Pre-pause state is held in memory; defaults to QUEST_ACTIVE after server restart.
+     */
+    PAUSED
 }

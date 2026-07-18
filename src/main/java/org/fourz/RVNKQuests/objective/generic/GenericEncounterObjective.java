@@ -186,50 +186,67 @@ public class GenericEncounterObjective implements Listener {
     @EventHandler
     public void onEntityDeath(EntityDeathEvent event) {
         LivingEntity entity = event.getEntity();
-        Player killer = entity.getKiller();
-        if (killer == null) return;
 
-        UUID playerId = killer.getUniqueId();
-        if (quest.getStateForPlayer(killer) != requiredState) return;
-
-        // Check if this was one of our spawned mobs
+        // Quick filter before any per-player work
         if (!entity.hasMetadata(QUEST_MOB_METADATA)) return;
         if (entity.getType() != entityType) return;
 
-        List<Entity> mobs = spawnedMobs.get(playerId);
-        if (mobs == null) return;
+        Player killer = entity.getKiller();
 
-        // Remove from tracked mobs
-        mobs.removeIf(m -> m.getUniqueId().equals(entity.getUniqueId()));
+        if (killer != null) {
+            UUID playerId = killer.getUniqueId();
+            if (quest.getStateForPlayer(killer) != requiredState) return;
 
-        int count = killCounts.merge(playerId, 1, Integer::sum);
-        logger.debug(killer.getName() + " killed encounter mob (" + count + "/" + requiredKills + ")");
+            List<Entity> mobs = spawnedMobs.get(playerId);
+            if (mobs == null) return;
 
-        if (count >= requiredKills) {
-            // Add loot drops to the last mob's death
-            if (!lootDrops.isEmpty()) {
-                for (Map.Entry<Material, Integer> loot : lootDrops.entrySet()) {
-                    event.getDrops().add(new ItemStack(loot.getKey(), loot.getValue()));
+            mobs.removeIf(m -> m.getUniqueId().equals(entity.getUniqueId()));
+
+            int count = killCounts.merge(playerId, 1, Integer::sum);
+            logger.debug(killer.getName() + " killed encounter mob (" + count + "/" + requiredKills + ")");
+
+            if (count >= requiredKills) {
+                // Add loot drops to the last mob's death
+                if (!lootDrops.isEmpty()) {
+                    for (Map.Entry<Material, Integer> loot : lootDrops.entrySet()) {
+                        event.getDrops().add(new ItemStack(loot.getKey(), loot.getValue()));
+                    }
+                }
+                cleanupEncounter(playerId, mobs);
+                if (setsPath != null) quest.setPathChoice(killer, setsPath);
+                quest.advanceStateForPlayer(playerId, advanceState);
+                logger.debug(killer.getName() + " completed encounter objective for quest " + quest.getId());
+            } else if (mobs.isEmpty()) {
+                // Player got some kills but remaining mobs died by other means — reset so encounter can re-fire
+                cleanupEncounter(playerId, mobs);
+                logger.debug("All encounter mobs gone for " + killer.getName() + " before required kills — resetting encounter");
+            }
+        } else {
+            // No player killer (burned, suffocated, etc.) — find owning player and reset if all their mobs are gone
+            UUID ownerUuid = null;
+            for (Map.Entry<UUID, List<Entity>> entry : spawnedMobs.entrySet()) {
+                if (entry.getValue().removeIf(m -> m.getUniqueId().equals(entity.getUniqueId()))) {
+                    ownerUuid = entry.getKey();
+                    break;
                 }
             }
-
-            // Clean up remaining mobs
-            for (Entity remaining : mobs) {
-                if (remaining.isValid() && !remaining.isDead()) {
-                    remaining.remove();
+            if (ownerUuid != null) {
+                List<Entity> remaining = spawnedMobs.get(ownerUuid);
+                if (remaining != null && remaining.isEmpty()) {
+                    cleanupEncounter(ownerUuid, remaining);
+                    logger.debug("All encounter mobs died naturally for player " + ownerUuid + " on quest " + quest.getId() + " — resetting encounter");
                 }
             }
-            spawnedMobs.remove(playerId);
-            killCounts.remove(playerId);
-            encounterTriggered.remove(playerId);
-
-            // Set path choice if configured
-            if (setsPath != null) {
-                quest.setPathChoice(killer, setsPath);
-            }
-            quest.advanceStateForPlayer(playerId, advanceState);
-            logger.debug(killer.getName() + " completed encounter objective for quest " + quest.getId());
         }
+    }
+
+    private void cleanupEncounter(UUID playerId, List<Entity> mobs) {
+        for (Entity mob : mobs) {
+            if (mob.isValid() && !mob.isDead()) mob.remove();
+        }
+        spawnedMobs.remove(playerId);
+        killCounts.remove(playerId);
+        encounterTriggered.remove(playerId);
     }
 
     /**

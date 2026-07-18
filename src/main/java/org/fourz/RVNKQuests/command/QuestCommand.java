@@ -58,6 +58,9 @@ public class QuestCommand extends BaseCommand {
         // Chain management commands
         registerSubCommand("chain", new QuestChainSubCommand(plugin));
 
+        // Admin diagnostic commands
+        registerSubCommand("probe", new QuestProbeSubCommand(plugin));
+
         // Player preference commands (Phase 4 - with database persistence)
         registerSubCommand("prefs", new QuestPrefsSubCommand(plugin, plugin.getPreferenceRepository()));
 

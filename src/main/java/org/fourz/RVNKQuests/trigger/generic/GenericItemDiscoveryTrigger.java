@@ -3,8 +3,10 @@ package org.fourz.RVNKQuests.trigger.generic;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
@@ -24,6 +26,7 @@ import java.util.Map;
  *   <li>{@code custom_name} — Display name to match (preferred; aliases {@code item_name})</li>
  *   <li>{@code item_name} — Display name to match (legacy alias for {@code custom_name})</li>
  *   <li>{@code world} — World name restriction (optional)</li>
+ *   <li>{@code required_state} — State required for this trigger to fire (default: "NOT_STARTED")</li>
  *   <li>{@code advance_state} — State to advance to (default: "TRIGGER_FOUND")</li>
  * </ul>
  */
@@ -35,6 +38,7 @@ public class GenericItemDiscoveryTrigger implements Listener {
     private final Material itemType;
     private final String itemName;
     private final String worldName;
+    private final QuestState requiredState;
     private final QuestState advanceState;
 
     public GenericItemDiscoveryTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
@@ -46,29 +50,49 @@ public class GenericItemDiscoveryTrigger implements Listener {
                 QuestComponentFactory.getStringConfig(config, "item_name", null));
         this.itemName = itemNameKey;
         this.worldName = QuestComponentFactory.getStringConfig(config, "world", null);
+        this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "NOT_STARTED"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
     }
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
+        // Only right-click actions; ignore off-hand to avoid duplicate fires
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+        if (event.getHand() != EquipmentSlot.HAND) return;
+
         Player player = event.getPlayer();
-        if (quest.getStateForPlayer(player) != QuestState.NOT_STARTED) return;
+        QuestState currentState = quest.getStateForPlayer(player);
+        if (currentState != requiredState) {
+            logger.debug("Item discovery: " + player.getName() + " state " + currentState + " != required " + requiredState + " — skipping");
+            return;
+        }
 
         if (worldName != null && !player.getWorld().getName().equalsIgnoreCase(worldName)) return;
 
+        // Paper 1.21+ may return null from event.getItem() for book interactions — fall back to main hand
         ItemStack item = event.getItem();
+        if (item == null || item.getType() == Material.AIR) {
+            item = player.getInventory().getItemInMainHand();
+        }
         if (item == null || item.getType() != itemType) return;
 
-        // Check item name if configured
-        if (itemName != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
-            String displayName = item.getItemMeta().getDisplayName();
-            if (!displayName.contains(itemName)) return;
-        } else if (itemName != null) {
-            return; // Item name required but item has no display name
+        // Check item name if configured — strip color codes for comparison
+        if (itemName != null) {
+            if (!item.hasItemMeta()) {
+                logger.debug("Item discovery: " + player.getName() + " held item has no meta — skipping");
+                return;
+            }
+            String resolved = org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(item);
+            String displayName = resolved != null ? resolved : "";
+            if (!displayName.contains(itemName)) {
+                logger.debug("Item discovery: " + player.getName() + " name mismatch: '" + displayName + "' vs '" + itemName + "'");
+                return;
+            }
         }
 
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
-        logger.debug("Item discovery trigger fired for " + player.getName() + " with " + itemType);
+        logger.debug("Item discovery trigger fired for " + player.getName() + " on quest " + quest.getId() + " — advancing to " + advanceState);
     }
 
     private Material parseMaterial(String name) {

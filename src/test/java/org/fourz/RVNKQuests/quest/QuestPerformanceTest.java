@@ -151,8 +151,14 @@ class QuestPerformanceTest {
         @Override public java.util.concurrent.CompletableFuture<QuestState> getStateForPlayer(UUID uuid) { 
             return java.util.concurrent.CompletableFuture.completedFuture(QuestState.NOT_STARTED); 
         }
-        @Override public java.util.concurrent.CompletableFuture<Void> advanceStateForPlayer(UUID uuid, QuestState state) { 
-            return java.util.concurrent.CompletableFuture.completedFuture(null); 
+        @Override public java.util.concurrent.CompletableFuture<Void> advanceStateForPlayer(UUID uuid, QuestState state) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+        @Override public java.util.concurrent.CompletableFuture<Boolean> pauseForPlayer(UUID uuid) {
+            return java.util.concurrent.CompletableFuture.completedFuture(false);
+        }
+        @Override public java.util.concurrent.CompletableFuture<Boolean> resumeForPlayer(UUID uuid) {
+            return java.util.concurrent.CompletableFuture.completedFuture(false);
         }
     }
 

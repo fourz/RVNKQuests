@@ -160,6 +160,18 @@ public record QuestDTO(
     }
 
     /**
+     * Returns a copy of this quest with its prerequisites replaced wholesale.
+     *
+     * @param newPrerequisites The full prerequisite list (null is treated as empty)
+     * @return A new QuestDTO with the given prerequisites
+     */
+    public QuestDTO withPrerequisites(List<String> newPrerequisites) {
+        return new QuestDTO(questId, name, description, category, repeatable,
+                           cooldownMinutes, objectives, rewards, newPrerequisites,
+                           createdAt, metadata);
+    }
+
+    /**
      * Builder for constructing QuestDTO with fluent API.
      */
     public static Builder builder() {

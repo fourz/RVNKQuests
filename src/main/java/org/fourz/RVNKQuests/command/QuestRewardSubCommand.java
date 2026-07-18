@@ -9,6 +9,7 @@ import org.fourz.RVNKQuests.data.dto.RewardType;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -62,11 +63,26 @@ public class QuestRewardSubCommand extends BaseSubCommand {
             return;
         }
 
-        String value = args[3];
-        int amount = args.length >= 5 ? parseIntSafe(args[4], 1) : 1;
+        // COMMAND reward values are full command lines (spaces + placeholders like %player%),
+        // so join the remaining args; a single-token value silently truncated them. Other types
+        // keep the token value + optional [amount] (#reward-command).
+        String value;
+        int amount;
+        if (type == RewardType.COMMAND) {
+            value = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
+            amount = 1;
+        } else {
+            value = args[3];
+            amount = args.length >= 5 ? parseIntSafe(args[4], 1) : 1;
+        }
 
         String rewardId = questId + "_" + type.name().toLowerCase() + "_" + System.currentTimeMillis() % 10000;
         RewardDTO reward = RewardDTO.create(rewardId, type, value, amount);
+
+        // RNG_ITEM uses value as pool_id — store in metadata where RngItemRewardProcessor reads it
+        if (type == RewardType.RNG_ITEM) {
+            reward = reward.withMetadata(Map.of("pool_id", value));
+        }
 
         repo.addReward(questId, reward).thenAccept(success -> {
             if (success) {

@@ -65,6 +65,9 @@ class LoreIntegrationSpawnTest {
         @Override public CompletableFuture<List<ItemStack>> getQuestPresetItems(String questId) {
             return CompletableFuture.completedFuture(List.of());
         }
+        @Override public String resolveItemId(ItemStack item) {
+            return null;
+        }
     }
 
     private static class UnavailableLoreIntegration extends StubLoreIntegration {

@@ -350,6 +350,7 @@ public class QuestDetailMenu implements InventoryHolder {
             case NOT_STARTED -> ChatColor.WHITE + "Available";
             case TRIGGER_FOUND -> ChatColor.AQUA + "Discovered";
             case ABANDONED -> ChatColor.RED + "Abandoned";
+            case PAUSED -> ChatColor.AQUA + "Paused";
         };
     }
 

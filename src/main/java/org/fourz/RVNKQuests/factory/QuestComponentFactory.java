@@ -10,6 +10,7 @@ import org.fourz.RVNKQuests.objective.generic.*;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.trigger.generic.*;
+import org.fourz.RVNKQuests.trigger.lectern.*;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.*;
@@ -54,6 +55,9 @@ public class QuestComponentFactory {
 
     /** Cached component listeners by component ID. */
     private final Map<String, Listener> componentCache = new HashMap<>();
+
+    /** Components whose constructors threw during listener creation: component ID → error message. */
+    private final Map<String, String> componentFailures = new LinkedHashMap<>();
 
     public QuestComponentFactory(RVNKQuests plugin, DataDrivenQuest quest) {
         this.plugin = plugin;
@@ -100,13 +104,69 @@ public class QuestComponentFactory {
 
         List<Listener> listeners = new ArrayList<>();
         for (String componentId : componentIds) {
-            Listener listener = getOrCreateComponent(componentId, components, definition);
-            if (listener != null) {
-                listeners.add(listener);
+            try {
+                Listener listener = getOrCreateComponent(componentId, components, definition);
+                if (listener != null) {
+                    listeners.add(listener);
+                }
+            } catch (Exception e) {
+                // One bad component must not take out the state's other listeners (#1424)
+                String message = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                componentFailures.put(componentId, message);
+                logger.error("Component '" + componentId + "' failed construction for quest "
+                    + definition.questId() + " state " + state.name()
+                    + " — skipping it, keeping the state's other listeners", e);
             }
         }
 
         return listeners;
+    }
+
+    /**
+     * Components that threw during listener construction, keyed by component ID.
+     * Populated as {@link #createListenersForState} runs; surfaced by {@code quest validate}.
+     */
+    public Map<String, String> getComponentFailures() {
+        return Collections.unmodifiableMap(componentFailures);
+    }
+
+    /**
+     * Dry-constructs a component config without caching or registering it, so bad
+     * configs can be rejected at {@code quest component add} time instead of silently
+     * degrading the quest on reload (#1424).
+     *
+     * @return null if the config constructs cleanly; otherwise a human-readable error
+     */
+    public String validateComponentConfig(String componentId, Map<String, Object> config) {
+        String typeStr = getStringConfig(config, "type", null);
+        String objectiveTypeStr = getStringConfig(config, "objective_type", null);
+
+        if (typeStr == null && objectiveTypeStr == null) {
+            return "Component " + componentId + " has neither 'type' (trigger) nor 'objective_type' (objective)";
+        }
+
+        try {
+            if (typeStr != null) {
+                TriggerType type;
+                try {
+                    type = TriggerType.valueOf(typeStr);
+                } catch (IllegalArgumentException e) {
+                    return "Unknown trigger type: " + typeStr;
+                }
+                newTriggerListener(type, config);
+            } else {
+                ObjectiveType type;
+                try {
+                    type = ObjectiveType.valueOf(objectiveTypeStr);
+                } catch (IllegalArgumentException e) {
+                    return "Unknown objective type: " + objectiveTypeStr;
+                }
+                newObjectiveListener(type, config);
+            }
+        } catch (Exception e) {
+            return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -155,16 +215,24 @@ public class QuestComponentFactory {
             return null;
         }
 
+        Listener listener = newTriggerListener(type, config);
+        if (listener == null) {
+            logger.debug("Trigger type " + type + " not yet implemented for component " + componentId);
+        }
+        return listener;
+    }
+
+    private Listener newTriggerListener(TriggerType type, Map<String, Object> config) {
         return switch (type) {
             case PROXIMITY_MOB_SPAWN -> new GenericMobSpawnTrigger(plugin, quest, config);
             case STRUCTURE_INTERACT -> new GenericStructureInteractTrigger(plugin, quest, config);
             case ENTITY_PROXIMITY -> new GenericEntityProximityTrigger(plugin, quest, config);
             case LOCATION_PROXIMITY -> new GenericLocationProximityTrigger(plugin, quest, config);
             case ITEM_DISCOVERY -> new GenericItemDiscoveryTrigger(plugin, quest, config);
-            case COMMAND, WORLD_EVENT, CUSTOM -> {
-                logger.debug("Trigger type " + type + " not yet implemented for component " + componentId);
-                yield null;
-            }
+            case LECTERN_BOOK_ON -> new LecternBookOnTrigger(plugin, quest, config);
+            case LECTERN_BOOK_IN_HAND -> new LecternBookInHandTrigger(plugin, quest, config);
+            case LECTERN_BOOK_REMOVED -> new LecternBookRemovedTrigger(plugin, quest, config);
+            case COMMAND, WORLD_EVENT, CUSTOM -> null;
         };
     }
 
@@ -177,6 +245,14 @@ public class QuestComponentFactory {
             return null;
         }
 
+        Listener listener = newObjectiveListener(type, config);
+        if (listener == null) {
+            logger.debug("Objective type " + type + " not yet implemented for component " + componentId);
+        }
+        return listener;
+    }
+
+    private Listener newObjectiveListener(ObjectiveType type, Map<String, Object> config) {
         return switch (type) {
             case KILL -> new GenericKillObjective(plugin, quest, config);
             case REACH -> new GenericReachObjective(plugin, quest, config);
@@ -185,10 +261,7 @@ public class QuestComponentFactory {
             case ESCORT -> new GenericEscortObjective(plugin, quest, config);
             case ENCOUNTER -> new GenericEncounterObjective(plugin, quest, config);
             case COLLECT -> new GenericCollectObjective(plugin, quest, config);
-            default -> {
-                logger.debug("Objective type " + type + " not yet implemented for component " + componentId);
-                yield null;
-            }
+            default -> null;
         };
     }
 

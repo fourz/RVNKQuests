@@ -109,6 +109,25 @@ public interface Quest {
     void advanceState(QuestState newState);
 
     /**
+     * Pauses the quest for a player. Only valid from QUEST_ACTIVE or OBJECTIVE_FOUND.
+     * Advances state to PAUSED and snapshots the current state for later resume.
+     *
+     * @param playerUuid The player's UUID
+     * @return CompletableFuture completing with true if paused, false if state is ineligible
+     */
+    CompletableFuture<Boolean> pauseForPlayer(UUID playerUuid);
+
+    /**
+     * Resumes a paused quest. Only valid from PAUSED state.
+     * Restores the pre-pause state (QUEST_ACTIVE or OBJECTIVE_FOUND); defaults to
+     * QUEST_ACTIVE if the snapshot was lost (e.g. server restarted while paused).
+     *
+     * @param playerUuid The player's UUID
+     * @return CompletableFuture completing with true if resumed, false if not PAUSED
+     */
+    CompletableFuture<Boolean> resumeForPlayer(UUID playerUuid);
+
+    /**
      * Returns the starting location for this quest
      * @return The location where this quest begins, or null if not applicable
      */

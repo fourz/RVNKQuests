@@ -102,18 +102,40 @@ public class QuestValidateSubCommand extends BaseSubCommand {
             valid = false;
         }
         
+        // Check for invalid state-name references (typo'd states silently soft-lock quests)
+        if (quest instanceof org.fourz.RVNKQuests.quest.DataDrivenQuest ddq) {
+            for (String issue : ddq.validateStateNames()) {
+                logger.warning(quest.getId() + " invalid state reference: " + issue);
+                valid = false;
+            }
+            // Components whose constructors threw at initialize() — their states are
+            // running with fewer listeners than the state_mapping declares (#1424)
+            for (var failure : ddq.getComponentFailures().entrySet()) {
+                logger.warning(quest.getId() + " component '" + failure.getKey()
+                    + "' failed construction: " + failure.getValue());
+                valid = false;
+            }
+        }
+
         // Check listener creation for each state
+        int totalListeners = 0;
         for (QuestState state : QuestState.values()) {
             try {
                 List<Listener> listeners = quest.createListenersForState(state);
                 if (listeners == null) {
-                    logger.warning("" + quest.getId() + " returned null listeners for state: " + state + "");
+                    logger.warning(quest.getId() + " returned null listeners for state: " + state);
                     valid = false;
+                } else {
+                    totalListeners += listeners.size();
                 }
             } catch (Exception e) {
                 logger.error("Error creating listeners for quest " + quest.getId() + " state " + state, e);
                 valid = false;
             }
+        }
+        if (totalListeners == 0) {
+            logger.warning(quest.getId() + " has zero registered listeners across all states — triggers/objectives will not fire");
+            valid = false;
         }
         
     logger.debug("Quest validation result for " + quest.getId() + ": " + (valid ? "Valid" : "Invalid"));

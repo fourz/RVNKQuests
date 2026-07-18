@@ -54,7 +54,15 @@ public enum RewardType {
      * Value: Lore entry ID
      */
     LORE,
-    
+
+    /**
+     * Lore ITEM reward — gives the player a specific RVNKLore item (book, artifact,
+     * etc.) built by name via RVNKLore's item service. Unlike {@link #LORE} (which
+     * unlocks a lore entry) this hands over a physical ItemStack.
+     * Value: RVNKLore item name (e.g. "welcome_note_alphac"); Amount: copies to give.
+     */
+    LORE_ITEM,
+
     /**
      * RNG lore item reward — rolls a weighted-random item from an RVNKLore pool.
      * Metadata: pool_id (required), rarity_tier (optional filter)

@@ -280,6 +280,12 @@ public class ConfigManager {
         
         if (config.isConfigurationSection("quests")) {
             for (String questId : config.getConfigurationSection("quests").getKeys(false)) {
+                // Only per-quest mapping entries (quests.<id>.enable: ...) are quests. Scalar
+                // settings that live under the quests section (announce_completion, default_world)
+                // are not quests — skip them, or they get logged and counted as enabled quests (#1423).
+                if (!config.isConfigurationSection(KEY_QUESTS_PREFIX + questId)) {
+                    continue;
+                }
                 boolean enabled = config.getBoolean(KEY_QUESTS_PREFIX + questId + KEY_ENABLE_SUFFIX, true);
                 questEnableStatus.put(questId, enabled);
                 logger.debug("Quest " + questId + " is " + (enabled ? "enabled" : "disabled"));

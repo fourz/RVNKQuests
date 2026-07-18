@@ -46,6 +46,12 @@ public abstract class AbstractQuest implements Quest {
     private final Map<UUID, QuestState> stateCache = new ConcurrentHashMap<>();
 
     /**
+     * Stores the state that was active immediately before a pause, so resume can restore it.
+     * Cleared on player quit. If absent at resume time, defaults to QUEST_ACTIVE.
+     */
+    private final Map<UUID, QuestState> pausedStateCache = new ConcurrentHashMap<>();
+
+    /**
      * Local path choice cache — mirrors stateCache pattern for branching quests.
      * Eagerly updated by setPathChoice(); lazily populated on first read.
      * Value is empty string when explicitly loaded but no path set (vs null = not yet loaded).
@@ -131,6 +137,7 @@ public abstract class AbstractQuest implements Quest {
     public void evictStateForPlayer(UUID playerUuid) {
         stateCache.remove(playerUuid);
         pathChoiceCache.remove(playerUuid);
+        pausedStateCache.remove(playerUuid);
     }
 
     @Override
@@ -152,39 +159,92 @@ public abstract class AbstractQuest implements Quest {
 
         return getStateForPlayer(playerUuid)
             .thenCompose(currentState -> {
+                // Gate trigger-driven activation (NOT_STARTED -> TRIGGER_FOUND) on the quest's
+                // prerequisites. Admin start/complete target QUEST_ACTIVE/COMPLETED and bypass this.
+                if (currentState == QuestState.NOT_STARTED && newState == QuestState.TRIGGER_FOUND) {
+                    return arePrerequisitesMet(playerUuid).thenCompose(met -> {
+                        if (!met) {
+                            logger.debug("Quest " + questId + " trigger blocked for " + playerUuid
+                                + " — prerequisites not met");
+                            stateCache.put(playerUuid, currentState);
+                            return CompletableFuture.<Void>completedFuture(null);
+                        }
+                        return performAdvance(playerUuid, currentState, newState);
+                    });
+                }
+                return performAdvance(playerUuid, currentState, newState);
+            });
+    }
+
+    /**
+     * Quest IDs that must be COMPLETED before this quest's trigger may activate.
+     * Base quests have none; {@code DataDrivenQuest} overrides to expose its definition's
+     * {@code prerequisites}.
+     */
+    protected java.util.List<String> getPrerequisiteQuestIds() {
+        return java.util.List.of();
+    }
+
+    /**
+     * Checks that every prerequisite quest is COMPLETED for the player. Empty/no
+     * prerequisites resolve to {@code true}.
+     */
+    private CompletableFuture<Boolean> arePrerequisitesMet(UUID playerUuid) {
+        java.util.List<String> prereqs = getPrerequisiteQuestIds();
+        if (prereqs == null || prereqs.isEmpty()) {
+            return CompletableFuture.completedFuture(true);
+        }
+        CompletableFuture<Boolean> chain = CompletableFuture.completedFuture(true);
+        for (String prereqId : prereqs) {
+            chain = chain.thenCompose(ok -> {
+                if (!ok) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return progressService.getQuestState(playerUuid, prereqId)
+                    .thenApply(state -> state == QuestState.COMPLETED);
+            });
+        }
+        return chain;
+    }
+
+    private CompletableFuture<Void> performAdvance(UUID playerUuid, QuestState currentState, QuestState newState) {
                 logger.debug("Advancing state for " + playerUuid + " from " + currentState + " to " + newState);
                 return progressService.updateQuestState(playerUuid, questId, newState)
                     .thenAccept(progress -> {
-                        // Record journal entry for the state transition
-                        recordStateTransitionJournal(playerUuid, currentState, newState);
+                        // All Bukkit operations (listener registration, event dispatch, player messages,
+                        // item delivery) must run on the main thread. The DB write above completes on
+                        // an async pool thread, so dispatch back to main before any Bukkit API calls.
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            // Record journal entry for the state transition
+                            recordStateTransitionJournal(playerUuid, currentState, newState);
 
-                        // Update listeners if needed
-                        questManager.updateQuestListenersForPlayer(this, playerUuid);
+                            // registerEvents/unregisterAll require main thread for all state transitions
+                            questManager.updateQuestListenersForPlayer(this, playerUuid);
 
-                        // Fire all completion side-effects regardless of how COMPLETED is reached
-                        // (trigger component, admin command, or direct complete() call)
-                        if (newState == QuestState.COMPLETED) {
-                            org.bukkit.entity.Player onlinePlayer = plugin.getServer().getPlayer(playerUuid);
-                            if (onlinePlayer != null) {
-                                onComplete(onlinePlayer);
+                            // Fire all completion side-effects regardless of how COMPLETED is reached
+                            // (trigger component, admin command, or direct complete() call)
+                            if (newState == QuestState.COMPLETED) {
+                                org.bukkit.entity.Player onlinePlayer = plugin.getServer().getPlayer(playerUuid);
+                                if (onlinePlayer != null) {
+                                    onComplete(onlinePlayer);
 
-                                if (notifService != null) {
-                                    notifService.notifyQuestComplete(onlinePlayer, name);
-                                } else {
-                                    onlinePlayer.sendMessage("§a[Quest Completed] §f" + name);
+                                    if (notifService != null) {
+                                        notifService.notifyQuestComplete(onlinePlayer, name);
+                                    } else {
+                                        onlinePlayer.sendMessage("§a[Quest Completed] §f" + name);
+                                    }
+
+                                    if (configManager.getConfig().getBoolean("quests.announce_completion", true)) {
+                                        plugin.getServer().broadcastMessage(
+                                            "§6" + onlinePlayer.getName() + " §ehas completed the quest §6" + name + "§e!"
+                                        );
+                                    }
+
+                                    Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(onlinePlayer, questId, name));
                                 }
-
-                                if (configManager.getConfig().getBoolean("quests.announce_completion", true)) {
-                                    plugin.getServer().broadcastMessage(
-                                        "§6" + onlinePlayer.getName() + " §ehas completed the quest §6" + name + "§e!"
-                                    );
-                                }
-
-                                Bukkit.getPluginManager().callEvent(new QuestCompleteEvent(onlinePlayer, questId, name));
                             }
-                        }
+                        });
                     });
-            });
     }
 
     /**
@@ -207,6 +267,7 @@ public abstract class AbstractQuest implements Quest {
             case ABANDONED -> journalService.recordQuestAbandon(playerUuid, questId);
             case TRIGGER_FOUND -> journalService.recordObjectiveComplete(playerUuid, questId, "state:trigger_found");
             case OBJECTIVE_FOUND -> journalService.recordObjectiveComplete(playerUuid, questId, "state:objective_found");
+            case PAUSED -> {} // no journal action for pause/resume
         }
     }
 
@@ -300,6 +361,32 @@ public abstract class AbstractQuest implements Quest {
                 return advanceStateForPlayer(playerUuid, QuestState.COMPLETED)
                     .thenApply(v -> true);
             });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> pauseForPlayer(UUID playerUuid) {
+        return getStateForPlayer(playerUuid).thenCompose(currentState -> {
+            if (currentState != QuestState.QUEST_ACTIVE && currentState != QuestState.OBJECTIVE_FOUND) {
+                logger.debug("Cannot pause quest " + questId + " for " + playerUuid + ": state is " + currentState);
+                return CompletableFuture.completedFuture(false);
+            }
+            pausedStateCache.put(playerUuid, currentState);
+            return advanceStateForPlayer(playerUuid, QuestState.PAUSED).thenApply(v -> true);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> resumeForPlayer(UUID playerUuid) {
+        return getStateForPlayer(playerUuid).thenCompose(currentState -> {
+            if (currentState != QuestState.PAUSED) {
+                logger.debug("Cannot resume quest " + questId + " for " + playerUuid + ": state is " + currentState);
+                return CompletableFuture.completedFuture(false);
+            }
+            QuestState restoreState = pausedStateCache.getOrDefault(playerUuid, QuestState.QUEST_ACTIVE);
+            pausedStateCache.remove(playerUuid);
+            logger.debug("Resuming quest " + questId + " for " + playerUuid + " → " + restoreState);
+            return advanceStateForPlayer(playerUuid, restoreState).thenApply(v -> true);
+        });
     }
 
     /**

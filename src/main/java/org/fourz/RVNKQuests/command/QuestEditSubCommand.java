@@ -20,13 +20,14 @@ import java.util.stream.Collectors;
  */
 public class QuestEditSubCommand extends BaseSubCommand {
 
-    private static final List<String> PROPERTIES = List.of("description", "category", "repeatable", "cooldown", "metadata");
+    private static final List<String> PROPERTIES = List.of("description", "category", "repeatable", "cooldown", "metadata", "prerequisite");
+    private static final List<String> PREREQ_ACTIONS = List.of("add", "remove", "clear", "list");
     private static final Gson GSON = new Gson();
     private static final Type METADATA_TYPE = new TypeToken<Map<String, Object>>(){}.getType();
 
     public QuestEditSubCommand(RVNKQuests plugin) {
         super(plugin, "edit", "Edit a quest definition property",
-              "/quest edit <id> <description|category|repeatable|cooldown> <value>",
+              "/quest edit <id> <description|category|repeatable|cooldown|metadata|prerequisite> <value>",
               "rvnkquests.admin.edit", false);
     }
 
@@ -47,6 +48,12 @@ public class QuestEditSubCommand extends BaseSubCommand {
         // Metadata is handled separately — validate JSON before touching the repository
         if ("metadata".equals(property)) {
             handleMetadata(sender, questId, value);
+            return true;
+        }
+
+        // Prerequisite has sub-actions (add/remove/clear/list) rather than a single value
+        if ("prerequisite".equals(property) || "prerequisites".equals(property)) {
+            handlePrerequisite(sender, questId, args);
             return true;
         }
 
@@ -141,6 +148,87 @@ public class QuestEditSubCommand extends BaseSubCommand {
         });
     }
 
+    /**
+     * Sets quest prerequisites directly, bypassing the YAML export→edit→import round-trip
+     * that silently drops the field on schema-drifted servers (#1425).
+     *
+     * <p>Usage: {@code /quest edit <id> prerequisite <add|remove|clear|list> [questId]}</p>
+     */
+    private void handlePrerequisite(CommandSender sender, String questId, String[] args) {
+        String action = args.length >= 3 ? args[2].toLowerCase() : "list";
+        if (!PREREQ_ACTIONS.contains(action)) {
+            sendErrorMessage(sender, "Unknown prerequisite action: " + action + ". Valid: " + String.join(", ", PREREQ_ACTIONS));
+            return;
+        }
+        if (("add".equals(action) || "remove".equals(action)) && args.length < 4) {
+            sendErrorMessage(sender, "Usage: /quest edit " + questId + " prerequisite " + action + " <questId>");
+            return;
+        }
+        String targetQuest = args.length >= 4 ? args[3] : null;
+
+        IQuestRepository repo = plugin.getQuestRepository();
+        if (repo == null) {
+            sendErrorMessage(sender, "Quest repository not available.");
+            return;
+        }
+
+        repo.findById(questId).thenAccept(opt -> {
+            if (opt.isEmpty()) {
+                sendErrorMessage(sender, "Quest not found: " + questId);
+                return;
+            }
+            QuestDTO quest = opt.get();
+            List<String> current = quest.prerequisites();
+
+            if ("list".equals(action)) {
+                if (current.isEmpty()) {
+                    sendInfoMessage(sender, "Quest " + questId + " has no prerequisites.");
+                } else {
+                    sendMessage(sender, "&6Prerequisites for &f" + questId + " &7(" + current.size() + "):");
+                    for (String p : current) sendMessage(sender, "&7  &f" + p);
+                }
+                return;
+            }
+
+            List<String> updated = new java.util.ArrayList<>(current);
+            switch (action) {
+                case "add" -> {
+                    if (updated.contains(targetQuest)) {
+                        sendErrorMessage(sender, "Prerequisite already present: " + targetQuest);
+                        return;
+                    }
+                    updated.add(targetQuest);
+                }
+                case "remove" -> {
+                    if (!updated.remove(targetQuest)) {
+                        sendErrorMessage(sender, "Prerequisite not present: " + targetQuest);
+                        return;
+                    }
+                }
+                case "clear" -> updated.clear();
+                default -> { return; }
+            }
+
+            QuestDTO saved = quest.withPrerequisites(updated);
+            repo.save(saved).thenAccept(success -> {
+                if (success) {
+                    plugin.getQuestManager().reloadQuest(questId);
+                    sendSuccessMessage(sender, "Prerequisites for " + questId + " now: "
+                        + (updated.isEmpty() ? "(none)" : String.join(", ", updated)));
+                } else {
+                    sendErrorMessage(sender, "Failed to save prerequisites (save returned false — check DB schema/fallback state).");
+                }
+            }).exceptionally(ex -> {
+                Throwable cur = ex;
+                while (cur.getCause() != null && cur.getCause() != cur) cur = cur.getCause();
+                logger.error("Failed to save prerequisites for quest: " + questId, cur);
+                sendErrorMessage(sender, "Failed to save prerequisites: "
+                    + (cur.getMessage() != null ? cur.getMessage() : cur.getClass().getSimpleName()));
+                return null;
+            });
+        });
+    }
+
     private String stripQuotes(String s) {
         if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
             return s.substring(1, s.length() - 1);
@@ -162,6 +250,17 @@ public class QuestEditSubCommand extends BaseSubCommand {
         }
         if (args.length == 3 && args[1].equalsIgnoreCase("repeatable")) {
             return List.of("true", "false");
+        }
+        if (args.length == 3 && (args[1].equalsIgnoreCase("prerequisite") || args[1].equalsIgnoreCase("prerequisites"))) {
+            return PREREQ_ACTIONS.stream()
+                .filter(a -> a.startsWith(args[2].toLowerCase()))
+                .collect(Collectors.toList());
+        }
+        if (args.length == 4 && (args[1].equalsIgnoreCase("prerequisite") || args[1].equalsIgnoreCase("prerequisites"))
+                && (args[2].equalsIgnoreCase("add") || args[2].equalsIgnoreCase("remove"))) {
+            return plugin.getQuestManager().getQuestIds().stream()
+                .filter(id -> id.startsWith(args[3].toLowerCase()))
+                .collect(Collectors.toList());
         }
         return Collections.emptyList();
     }

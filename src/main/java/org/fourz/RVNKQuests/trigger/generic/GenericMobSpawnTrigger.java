@@ -14,6 +14,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -116,9 +117,16 @@ public class GenericMobSpawnTrigger implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (event.getTo() == null) return;
+        checkMobSpawn(event.getPlayer());
+    }
 
-        Player player = event.getPlayer();
+    @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (event.getTo() == null) return;
+        checkMobSpawn(event.getPlayer());
+    }
 
+    private void checkMobSpawn(Player player) {
         if (!firstMoveLogged) {
             firstMoveLogged = true;
             QuestState debugState = quest.getStateForPlayer(player);
