@@ -15,7 +15,7 @@ import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.RVNKQuests.quest.QuestState;
-import org.fourz.RVNKQuests.util.LoreItemResolverBridge;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.Map;
@@ -45,7 +45,7 @@ public class LecternBookOnTrigger implements Listener {
     private final boolean cancelInteraction;
     private final String bookName;
     private final String loreBookId;
-    private final LoreItemResolverBridge resolver;
+    private final RVNKQuests plugin;
 
     public LecternBookOnTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.quest = quest;
@@ -69,11 +69,7 @@ public class LecternBookOnTrigger implements Listener {
 
         this.loreBookId = loreId;
         this.bookName = nameVal;
-        this.resolver = (loreId != null) ? LoreItemResolverBridge.create(plugin) : null;
-
-        if (loreId != null && resolver == null) {
-            logger.warning("lore_book_id configured but ILoreItemResolver unavailable — trigger will not fire");
-        }
+        this.plugin = plugin;
     }
 
     @EventHandler
@@ -101,8 +97,9 @@ public class LecternBookOnTrigger implements Listener {
 
     private boolean bookMatches(ItemStack item) {
         if (loreBookId != null) {
-            if (resolver == null) return false;
-            return loreBookId.equals(resolver.getBookId(item));
+            ILoreIntegration lore = plugin.getLoreIntegration();
+            if (lore == null) return false;
+            return loreBookId.equals(lore.resolveItemId(item));
         }
         String name = org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(item);
         return name != null && bookName.equals(name);

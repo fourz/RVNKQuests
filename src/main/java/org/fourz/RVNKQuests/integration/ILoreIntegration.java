@@ -247,4 +247,19 @@ public interface ILoreIntegration {
      * @return Future containing list of ItemStacks (may be empty)
      */
     CompletableFuture<List<ItemStack>> getQuestPresetItems(String questId);
+
+    /**
+     * Resolves the RVNKLore item identifier stored in an item's PDC (the
+     * {@code lore_item_name} tag), or null if the item is not a lore item or
+     * RVNKLore is unavailable.
+     *
+     * <p>Synchronous — reads only item metadata, no I/O. Consolidates the former
+     * {@code LoreItemResolverBridge} so all RVNKLore reflection lives in one place
+     * (#1494). Prefers RVNKLore's {@code resolveItemId}, falling back to the
+     * deprecated {@code getBookId} alias for older RVNKLore builds (#1498).</p>
+     *
+     * @param item The item to inspect; may be null
+     * @return The item identifier (e.g. {@code "heralds_mandate"}), or null
+     */
+    String resolveItemId(ItemStack item);
 }

@@ -44,6 +44,10 @@ public class LoreIntegrationImpl implements ILoreIntegration {
     private Object rngItemService = null;
     private Method rollRngMethod = null;
 
+    // RVNKLore item resolver references (consolidated from LoreItemResolverBridge, #1494)
+    private Object itemResolverService = null;
+    private Method resolveItemIdMethod = null;
+
     public LoreIntegrationImpl(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
@@ -135,6 +139,26 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                 logger.debug("RVNKLore RNG item service available");
             } catch (Exception e) {
                 logger.debug("IRngItemService not registered - RNG item integration unavailable: " + e.getMessage());
+            }
+
+            // Also look up ILoreItemResolver for PDC item-id resolution (lectern triggers).
+            // Consolidated here from the former LoreItemResolverBridge so all RVNKLore
+            // reflection lives in one place (#1494).
+            try {
+                Class<?> resolverInterface = Class.forName("org.fourz.RVNKLore.service.ILoreItemResolver");
+                itemResolverService = getServiceMethod.invoke(serviceRegistry, resolverInterface);
+                // Prefer the canonical resolveItemId; fall back to the deprecated getBookId
+                // alias so we still work against older RVNKLore builds (#1498).
+                try {
+                    resolveItemIdMethod = itemResolverService.getClass()
+                            .getMethod("resolveItemId", ItemStack.class);
+                } catch (NoSuchMethodException nsme) {
+                    resolveItemIdMethod = itemResolverService.getClass()
+                            .getMethod("getBookId", ItemStack.class);
+                }
+                logger.debug("RVNKLore item resolver available (" + resolveItemIdMethod.getName() + ")");
+            } catch (Exception e) {
+                logger.debug("ILoreItemResolver not registered - item id resolution unavailable: " + e.getMessage());
             }
 
             loreAvailable = true;
@@ -359,6 +383,19 @@ public class LoreIntegrationImpl implements ILoreIntegration {
                 return Collections.emptyList();
             }
         });
+    }
+
+    @Override
+    public String resolveItemId(ItemStack item) {
+        if (item == null || itemResolverService == null || resolveItemIdMethod == null) {
+            return null;
+        }
+        try {
+            return (String) resolveItemIdMethod.invoke(itemResolverService, item);
+        } catch (Exception e) {
+            logger.warning("Failed to resolve lore item id: " + e.getMessage());
+            return null;
+        }
     }
 
     /**
