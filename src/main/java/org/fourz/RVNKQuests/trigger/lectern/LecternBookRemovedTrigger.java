@@ -70,14 +70,47 @@ public class LecternBookRemovedTrigger implements Listener {
     public void onPlayerTakeLecternBook(PlayerTakeLecternBookEvent event) {
         Player player = event.getPlayer();
         if (!player.getWorld().getName().equalsIgnoreCase(worldName)) return;
-        if (quest.getStateForPlayer(player) != requiredState) return;
 
         ItemStack book = event.getBook();
         if (book == null) return;
-        if (!bookMatches(book)) return;
+
+        boolean matched = bookMatches(book);
+        logBookSeen(player, book, matched);
+
+        if (quest.getStateForPlayer(player) != requiredState) return;
+        if (!matched) return;
 
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
         logger.debug("LecternBookRemovedTrigger fired for " + player.getName());
+    }
+
+    /**
+     * Logs every book taken off a lectern in this trigger's world, matched or not (#1499).
+     *
+     * <p>Previously the only output was a DEBUG line on a successful match, so an author whose
+     * book did not match had nothing to go on. The most common cause is confusing the signed
+     * book title with the anvil display name — {@code book_name} matches the latter. Emitting
+     * the name actually seen lets an author copy it straight into the trigger config.
+     *
+     * <p>Runs before the required-state check on purpose: a book taken while the player is in
+     * the wrong state is exactly the case an author needs to see.
+     */
+    private void logBookSeen(Player player, ItemStack book, boolean matched) {
+        String seenName = org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(book);
+        ILoreIntegration lore = plugin.getLoreIntegration();
+        String seenLoreId = (lore != null) ? lore.resolveItemId(book) : null;
+        String expected = (loreBookId != null)
+                ? "lore_book_id=" + loreBookId
+                : "book_name=" + bookName;
+
+        logger.info("[lectern] quest=" + quest.getId()
+                + " player=" + player.getName()
+                + " world=" + player.getWorld().getName()
+                + " seen_name=" + seenName
+                + " seen_lore_id=" + seenLoreId
+                + " expected=" + expected
+                + " state=" + quest.getStateForPlayer(player)
+                + " matched=" + matched);
     }
 
     private boolean bookMatches(ItemStack item) {
