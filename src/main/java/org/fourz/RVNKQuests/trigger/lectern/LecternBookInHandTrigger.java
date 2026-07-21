@@ -31,6 +31,8 @@ import java.util.Map;
  *   <li>{@code lore_book_id} — RVNKLore item name from PDC (preferred; requires RVNKLore)</li>
  *   <li>{@code required_state} — Player state that allows this trigger (default: NOT_STARTED)</li>
  *   <li>{@code advance_state} — State to advance to on match (default: TRIGGER_FOUND)</li>
+ *   <li>{@code debug} — when true, log an author-facing diagnostic at WARNING for every candidate
+ *       interaction, naming which gate stopped it (world/book/state). Default: false (#1499)</li>
  * </ul>
  * Exactly one of {@code book_name} or {@code lore_book_id} must be provided.
  */
@@ -44,6 +46,7 @@ public class LecternBookInHandTrigger implements Listener {
     private final QuestState advanceState;
     private final String bookName;
     private final String loreBookId;
+    private final boolean debug;
     private final RVNKQuests plugin;
 
     public LecternBookInHandTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
@@ -67,6 +70,7 @@ public class LecternBookInHandTrigger implements Listener {
 
         this.loreBookId = loreId;
         this.bookName = nameVal;
+        this.debug = QuestComponentFactory.getBoolConfig(config, "debug", false);
         this.plugin = plugin;
     }
 
@@ -79,12 +83,18 @@ public class LecternBookInHandTrigger implements Listener {
         if (block == null || block.getType() != Material.LECTERN) return;
 
         Player player = event.getPlayer();
+        ItemStack inHand = player.getInventory().getItemInMainHand();
+        boolean hasBook = inHand.getType() != Material.AIR;
+        boolean matched = hasBook && bookMatches(inHand);
+
+        // Emit BEFORE the world/state guards so wrong-world and empty-hand cases are visible (#1499).
+        LecternDebug.emit(plugin, logger, debug, "BOOK_IN_HAND", quest.getId(), player,
+                worldName, hasBook ? inHand : null, bookName, loreBookId, matched,
+                quest.getStateForPlayer(player), requiredState);
+
         if (!player.getWorld().getName().equalsIgnoreCase(worldName)) return;
         if (quest.getStateForPlayer(player) != requiredState) return;
-
-        ItemStack inHand = player.getInventory().getItemInMainHand();
-        if (inHand.getType() == Material.AIR) return;
-        if (!bookMatches(inHand)) return;
+        if (!matched) return;
 
         // Do NOT cancel — book places on the lectern naturally
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState);

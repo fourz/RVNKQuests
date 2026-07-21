@@ -31,6 +31,8 @@ import java.util.Map;
  *   <li>{@code cancel_interaction} — Whether to cancel the lectern open event (default: false)</li>
  *   <li>{@code required_state} — Player state that allows this trigger (default: NOT_STARTED)</li>
  *   <li>{@code advance_state} — State to advance to on match (default: TRIGGER_FOUND)</li>
+ *   <li>{@code debug} — when true, log an author-facing diagnostic at WARNING for every candidate
+ *       interaction, naming which gate stopped it (world/book/state). Default: false (#1499)</li>
  * </ul>
  * Exactly one of {@code book_name} or {@code lore_book_id} must be provided.
  */
@@ -45,6 +47,7 @@ public class LecternBookOnTrigger implements Listener {
     private final boolean cancelInteraction;
     private final String bookName;
     private final String loreBookId;
+    private final boolean debug;
     private final RVNKQuests plugin;
 
     public LecternBookOnTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
@@ -69,6 +72,7 @@ public class LecternBookOnTrigger implements Listener {
 
         this.loreBookId = loreId;
         this.bookName = nameVal;
+        this.debug = QuestComponentFactory.getBoolConfig(config, "debug", false);
         this.plugin = plugin;
     }
 
@@ -78,16 +82,21 @@ public class LecternBookOnTrigger implements Listener {
 
         Block block = event.getClickedBlock();
         if (block == null || block.getType() != Material.LECTERN) return;
-
-        Player player = event.getPlayer();
-        if (!player.getWorld().getName().equalsIgnoreCase(worldName)) return;
-        if (quest.getStateForPlayer(player) != requiredState) return;
-
         if (!(block.getState() instanceof Lectern lectern)) return;
 
+        Player player = event.getPlayer();
         ItemStack bookOnLectern = lectern.getInventory().getItem(0);
-        if (bookOnLectern == null || bookOnLectern.getType() == Material.AIR) return;
-        if (!bookMatches(bookOnLectern)) return;
+        boolean hasBook = bookOnLectern != null && bookOnLectern.getType() != Material.AIR;
+        boolean matched = hasBook && bookMatches(bookOnLectern);
+
+        // Emit BEFORE the world/state guards so wrong-world and empty-lectern cases are visible (#1499).
+        LecternDebug.emit(plugin, logger, debug, "BOOK_ON", quest.getId(), player,
+                worldName, hasBook ? bookOnLectern : null, bookName, loreBookId, matched,
+                quest.getStateForPlayer(player), requiredState);
+
+        if (!player.getWorld().getName().equalsIgnoreCase(worldName)) return;
+        if (quest.getStateForPlayer(player) != requiredState) return;
+        if (!matched) return;
 
         if (cancelInteraction) event.setCancelled(true);
 
