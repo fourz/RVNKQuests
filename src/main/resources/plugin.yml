@@ -115,6 +115,9 @@ permissions:
   rvnkquests.admin.create:
     description: Create quest definitions (/quest create)
     default: op
+  rvnkquests.admin.delete:
+    description: Permanently delete quest definitions (/quest delete)
+    default: op
   rvnkquests.admin.edit:
     description: Edit quest definitions, objectives, and rewards (/quest edit, /quest reward)
     default: op

@@ -48,6 +48,7 @@ public class QuestCommand extends BaseCommand {
 
         // Quest definition admin commands (generic quest engine)
         registerSubCommand("create", new QuestCreateSubCommand(plugin));
+        registerSubCommand("delete", new QuestDeleteSubCommand(plugin));
         registerSubCommand("edit", new QuestEditSubCommand(plugin));
         registerSubCommand("component", new QuestComponentSubCommand(plugin));
         registerSubCommand("def-objective", new QuestDefObjectiveSubCommand(plugin));
