@@ -64,16 +64,23 @@ public class QuestRewardSubCommand extends BaseSubCommand {
         }
 
         // COMMAND reward values are full command lines (spaces + placeholders like %player%),
-        // so join the remaining args; a single-token value silently truncated them. Other types
-        // keep the token value + optional [amount] (#reward-command).
+        // so join the remaining args; a single-token value silently truncated them (#reward-command).
+        // Other value-bearing types (LORE_ITEM, ITEM) can also be multi-word — e.g.
+        // "The Book of Open Gates" was truncated to "The" by taking args[3] alone (#1640). Treat a
+        // trailing integer as the optional [amount] and join everything before it as the value.
         String value;
         int amount;
         if (type == RewardType.COMMAND) {
             value = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
             amount = 1;
         } else {
-            value = args[3];
-            amount = args.length >= 5 ? parseIntSafe(args[4], 1) : 1;
+            int end = args.length;
+            amount = 1;
+            if (args.length > 4 && isInteger(args[args.length - 1])) {
+                amount = parseIntSafe(args[args.length - 1], 1);
+                end = args.length - 1;
+            }
+            value = String.join(" ", Arrays.copyOfRange(args, 3, end));
         }
 
         String rewardId = questId + "_" + type.name().toLowerCase() + "_" + System.currentTimeMillis() % 10000;
@@ -84,9 +91,16 @@ public class QuestRewardSubCommand extends BaseSubCommand {
             reward = reward.withMetadata(Map.of("pool_id", value));
         }
 
+        final String finalValue = value;
+        final int finalAmount = amount;
         repo.addReward(questId, reward).thenAccept(success -> {
             if (success) {
-                sendSuccessMessage(sender, "Added " + type + " reward to quest " + questId + " (id: " + rewardId + ")");
+                // Refresh the live quest so onComplete sees the new reward — the in-memory
+                // DataDrivenQuest.definition is final and otherwise keeps its stale reward list,
+                // so a reward added mid-session was silently never delivered (#1640).
+                plugin.getQuestManager().reloadQuest(questId);
+                sendSuccessMessage(sender, "Added " + type + " reward to quest " + questId
+                    + " (value: '" + finalValue + "', amount: " + finalAmount + ", id: " + rewardId + ") (hot-reloaded)");
             } else {
                 sendErrorMessage(sender, "Failed to add reward. Does quest '" + questId + "' exist?");
             }
@@ -116,7 +130,9 @@ public class QuestRewardSubCommand extends BaseSubCommand {
         String rewardId = args[2];
         repo.removeReward(questId, rewardId).thenAccept(success -> {
             if (success) {
-                sendSuccessMessage(sender, "Removed reward " + rewardId + " from quest " + questId);
+                // Refresh the live quest so the removed reward stops being delivered (#1640).
+                plugin.getQuestManager().reloadQuest(questId);
+                sendSuccessMessage(sender, "Removed reward " + rewardId + " from quest " + questId + " (hot-reloaded)");
             } else {
                 sendErrorMessage(sender, "Reward not found: " + rewardId);
             }
@@ -128,6 +144,16 @@ public class QuestRewardSubCommand extends BaseSubCommand {
             return Integer.parseInt(s);
         } catch (NumberFormatException e) {
             return defaultValue;
+        }
+    }
+
+    private boolean isInteger(String s) {
+        if (s == null || s.isEmpty()) return false;
+        try {
+            Integer.parseInt(s);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 
