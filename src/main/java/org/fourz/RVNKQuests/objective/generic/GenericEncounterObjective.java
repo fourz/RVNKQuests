@@ -1,11 +1,13 @@
 package org.fourz.RVNKQuests.objective.generic;
 
+import org.bukkit.Difficulty;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Monster;
 import org.bukkit.entity.PiglinAbstract;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -83,6 +85,8 @@ public class GenericEncounterObjective implements Listener {
     private final Map<UUID, Integer> killCounts = new ConcurrentHashMap<>();
     /** Whether the encounter has been triggered per player. */
     private final Map<UUID, Boolean> encounterTriggered = new ConcurrentHashMap<>();
+    /** Players already warned that the encounter can't spawn at PEACEFUL — throttles the log to once. */
+    private final Set<UUID> peacefulWarned = ConcurrentHashMap.newKeySet();
 
     public GenericEncounterObjective(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.plugin = plugin;
@@ -149,31 +153,58 @@ public class GenericEncounterObjective implements Listener {
         if (spawnLoc.getWorld() != null && !player.getWorld().equals(spawnLoc.getWorld())) return;
         if (player.getLocation().distanceSquared(spawnLoc) > triggerRadius * triggerRadius) return;
 
-        // Trigger the encounter — spawn mobs
+        // #1765 Bug 1: a monster cannot spawn at PEACEFUL — spawnEntity throws IllegalStateException,
+        // and (unhandled) it re-throws on every PlayerMoveEvent while the player sits in the trigger →
+        // log flood / availability risk. Skip gracefully WITHOUT marking triggered (so it fires once the
+        // world difficulty is raised), and log at most once per player.
+        World world = spawnLoc.getWorld();
+        if (world == null) return;
+        if (world.getDifficulty() == Difficulty.PEACEFUL && isMonster(entityType)) {
+            if (peacefulWarned.add(playerId)) {
+                logger.warning("Encounter '" + quest.getId() + "': cannot spawn " + entityType
+                    + " in world '" + world.getName() + "' at PEACEFUL difficulty — encounter skipped."
+                    + " Raise the world to EASY+ to enable it.");
+            }
+            return;
+        }
+        peacefulWarned.remove(playerId);
+
+        // #1765 Bug 2: mark triggered BEFORE spawning so a re-entered move cannot double-spawn, and wrap
+        // the spawn so an unexpected failure rolls back partial mobs and never floods or leaves a
+        // half-spawned wave. Exactly spawnCount mobs spawn once per activation.
         encounterTriggered.put(playerId, true);
         List<Entity> mobs = new ArrayList<>();
         Random rng = new Random();
+        try {
+            for (int i = 0; i < spawnCount; i++) {
+                double offsetX = (rng.nextDouble() - 0.5) * spawnRadius * 2;
+                double offsetZ = (rng.nextDouble() - 0.5) * spawnRadius * 2;
+                Location mobLoc = spawnLoc.clone().add(offsetX, 0, offsetZ);
 
-        for (int i = 0; i < spawnCount; i++) {
-            double offsetX = (rng.nextDouble() - 0.5) * spawnRadius * 2;
-            double offsetZ = (rng.nextDouble() - 0.5) * spawnRadius * 2;
-            Location mobLoc = spawnLoc.clone().add(offsetX, 0, offsetZ);
+                Entity mob = world.spawnEntity(mobLoc, entityType);
+                if (mob instanceof LivingEntity living) {
+                    if (customName != null) {
+                        living.setCustomName(customName);
+                        living.setCustomNameVisible(true);
+                    }
+                    living.setRemoveWhenFarAway(false);
 
-            Entity mob = spawnLoc.getWorld().spawnEntity(mobLoc, entityType);
-            if (mob instanceof LivingEntity living) {
-                if (customName != null) {
-                    living.setCustomName(customName);
-                    living.setCustomNameVisible(true);
+                    // Prevent piglins from zombifying in the overworld
+                    if (living instanceof PiglinAbstract piglin) {
+                        piglin.setImmuneToZombification(true);
+                    }
                 }
-                living.setRemoveWhenFarAway(false);
-
-                // Prevent piglins from zombifying in the overworld
-                if (living instanceof PiglinAbstract piglin) {
-                    piglin.setImmuneToZombification(true);
-                }
+                mob.setMetadata(QUEST_MOB_METADATA, new FixedMetadataValue(plugin, quest.getId()));
+                mobs.add(mob);
             }
-            mob.setMetadata(QUEST_MOB_METADATA, new FixedMetadataValue(plugin, quest.getId()));
-            mobs.add(mob);
+        } catch (Exception e) {
+            // Roll back the partial wave; keep encounterTriggered set so we don't re-spawn / flood.
+            for (Entity m : mobs) {
+                if (m.isValid() && !m.isDead()) m.remove();
+            }
+            logger.error("Encounter '" + quest.getId() + "' spawn failed for " + player.getName()
+                + " (" + entityType + " in '" + world.getName() + "'): " + e.getMessage());
+            return;
         }
 
         spawnedMobs.put(playerId, mobs);
@@ -247,6 +278,13 @@ public class GenericEncounterObjective implements Listener {
         spawnedMobs.remove(playerId);
         killCounts.remove(playerId);
         encounterTriggered.remove(playerId);
+        peacefulWarned.remove(playerId);
+    }
+
+    /** True when the entity type is a hostile monster (which cannot spawn at PEACEFUL difficulty). */
+    private static boolean isMonster(EntityType type) {
+        Class<?> cls = type.getEntityClass();
+        return cls != null && Monster.class.isAssignableFrom(cls);
     }
 
     /**
