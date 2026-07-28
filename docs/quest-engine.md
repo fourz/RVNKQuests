@@ -268,6 +268,47 @@ Player right-clicks a specific block type to trigger the quest.
 | `x`, `y`, `z` | Number | Optional — restrict to specific coordinates |
 | `radius` | Number | Optional — tolerance radius around coordinates |
 
+`STRUCTURE_INTERACT` is item-state-unaware — any right-click on the block fires it. For book-aware
+lectern interactions, use the `LECTERN_BOOK_*` triggers below.
+
+---
+
+### Lectern book triggers — `LECTERN_BOOK_ON`, `LECTERN_BOOK_IN_HAND`, `LECTERN_BOOK_REMOVED`
+
+Three variants that match a **specific book** at a lectern, for quest-giver / activation / relic
+mechanics. All three share the same book-matching and config; they differ only in the interaction.
+
+| Type | Fires when | Event |
+|---|---|---|
+| `LECTERN_BOOK_ON` | player right-clicks a lectern that **already has** the book on it (read) | `PlayerInteractEvent` |
+| `LECTERN_BOOK_IN_HAND` | player right-clicks a lectern while **holding** the book (place) | `PlayerInteractEvent` |
+| `LECTERN_BOOK_REMOVED` | player **takes** the book off a lectern | `PlayerTakeLecternBookEvent` |
+
+```json
+{
+  "type": "LECTERN_BOOK_REMOVED",
+  "world": "alphac",
+  "book_name": "Welcome to Alpha Centauri",
+  "advance_state": "COMPLETED"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `world` | String | **Required.** World the lectern must be in. |
+| `book_name` | String | Display name to match — the **anvil/custom name** (`ItemMeta.getDisplayName()`), *not* the signed book title. Color codes are stripped before comparison. |
+| `lore_book_id` | String | RVNKLore item name from the item's PDC tag (preferred; requires RVNKLore). Exactly one of `book_name` or `lore_book_id` is required. |
+| `required_state` | String | Player state that allows the trigger. Default `NOT_STARTED`. |
+| `advance_state` | String | State to advance to on match. Default `TRIGGER_FOUND`. |
+| `cancel_interaction` | Boolean | `LECTERN_BOOK_ON` only — cancel the lectern-open event. Default `false`. |
+| `debug` | Boolean | When `true`, logs an author-facing diagnostic **at WARNING** for every candidate interaction, naming which gate stopped it (world / book / state) and showing seen-vs-expected book. Default `false`. Set it while wiring a trigger, then remove it. |
+
+> **Matching gotcha:** `book_name` matches the item **display name** (an anvil rename or a `custom_name`
+> component), not the written-book title. A book titled "Arcology" but renamed to "Welcome" matches
+> `book_name: "Welcome"`. If a trigger silently never fires, set `"debug": true` — without it a
+> wrong-world interaction and a name mismatch produce identical silence, and the diagnostic is
+> suppressed entirely on a server running at the default WARNING log level unless `debug` forces it.
+
 ---
 
 ## 5. Objective Types

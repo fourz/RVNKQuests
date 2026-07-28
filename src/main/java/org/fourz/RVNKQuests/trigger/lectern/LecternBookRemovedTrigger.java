@@ -27,6 +27,8 @@ import java.util.Map;
  *   <li>{@code lore_book_id} — RVNKLore item name from PDC (preferred; requires RVNKLore)</li>
  *   <li>{@code required_state} — Player state that allows this trigger (default: NOT_STARTED)</li>
  *   <li>{@code advance_state} — State to advance to on match (default: TRIGGER_FOUND)</li>
+ *   <li>{@code debug} — when true, log an author-facing diagnostic at WARNING for every candidate
+ *       interaction, naming which gate stopped it (world/book/state). Default: false (#1499)</li>
  * </ul>
  * Exactly one of {@code book_name} or {@code lore_book_id} must be provided.
  */
@@ -40,6 +42,7 @@ public class LecternBookRemovedTrigger implements Listener {
     private final QuestState advanceState;
     private final String bookName;
     private final String loreBookId;
+    private final boolean debug;
     private final RVNKQuests plugin;
 
     public LecternBookRemovedTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
@@ -63,54 +66,29 @@ public class LecternBookRemovedTrigger implements Listener {
 
         this.loreBookId = loreId;
         this.bookName = nameVal;
+        this.debug = QuestComponentFactory.getBoolConfig(config, "debug", false);
         this.plugin = plugin;
     }
 
     @EventHandler
     public void onPlayerTakeLecternBook(PlayerTakeLecternBookEvent event) {
         Player player = event.getPlayer();
-        if (!player.getWorld().getName().equalsIgnoreCase(worldName)) return;
-
         ItemStack book = event.getBook();
+        boolean matched = book != null && bookMatches(book);
+
+        // Emit BEFORE the world guard so a wrong-world take is visible (#1499). The old logging
+        // ran after the world check, so nothing showed for the most common author error.
+        LecternDebug.emit(plugin, logger, debug, "BOOK_REMOVED", quest.getId(), player,
+                worldName, book, bookName, loreBookId, matched,
+                quest.getStateForPlayer(player), requiredState);
+
+        if (!player.getWorld().getName().equalsIgnoreCase(worldName)) return;
         if (book == null) return;
-
-        boolean matched = bookMatches(book);
-        logBookSeen(player, book, matched);
-
         if (quest.getStateForPlayer(player) != requiredState) return;
         if (!matched) return;
 
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
         logger.debug("LecternBookRemovedTrigger fired for " + player.getName());
-    }
-
-    /**
-     * Logs every book taken off a lectern in this trigger's world, matched or not (#1499).
-     *
-     * <p>Previously the only output was a DEBUG line on a successful match, so an author whose
-     * book did not match had nothing to go on. The most common cause is confusing the signed
-     * book title with the anvil display name — {@code book_name} matches the latter. Emitting
-     * the name actually seen lets an author copy it straight into the trigger config.
-     *
-     * <p>Runs before the required-state check on purpose: a book taken while the player is in
-     * the wrong state is exactly the case an author needs to see.
-     */
-    private void logBookSeen(Player player, ItemStack book, boolean matched) {
-        String seenName = org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(book);
-        ILoreIntegration lore = plugin.getLoreIntegration();
-        String seenLoreId = (lore != null) ? lore.resolveItemId(book) : null;
-        String expected = (loreBookId != null)
-                ? "lore_book_id=" + loreBookId
-                : "book_name=" + bookName;
-
-        logger.info("[lectern] quest=" + quest.getId()
-                + " player=" + player.getName()
-                + " world=" + player.getWorld().getName()
-                + " seen_name=" + seenName
-                + " seen_lore_id=" + seenLoreId
-                + " expected=" + expected
-                + " state=" + quest.getStateForPlayer(player)
-                + " matched=" + matched);
     }
 
     private boolean bookMatches(ItemStack item) {

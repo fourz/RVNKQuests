@@ -6,7 +6,7 @@
 
     <groupId>org.fourz.RVNKQuests</groupId>
     <artifactId>RVNKQuests</artifactId>
-    <version>1.1.9</version>
+    <version>1.1.13</version>
 
     <name>RVNKQuests</name>
     <description></description>
@@ -14,8 +14,13 @@
 
     <properties>
         <java.version>21</java.version>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <!--
+          release (not source/target): the build JDK is 25 (#1549). source/target would compile
+          against the JDK 25 class library while stamping Java 21 bytecode, so a Java-25-only API
+          would compile silently and the jar's Java 21 claim would be false. release swaps in the
+          Java 21 API signatures and makes the guarantee real.
+        -->
+        <maven.compiler.release>21</maven.compiler.release>
     </properties>
     <repositories>
         <repository>

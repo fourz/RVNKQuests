@@ -1,6 +1,6 @@
 # RVNKQuests: AI Assistant Instructions
 
-@import ../../.claude/rules/archon-workflow.md
+@import ../../.claude/rules/task-workflow.md
 @import ../../.claude/rules/java-plugin-build.md
 
 ---
@@ -101,7 +101,7 @@ org.fourz.RVNKQuests
 │   │   ├── ObjectiveGroup.java
 │   │   ├── ObjectiveCondition.java
 │   │   ├── ObjectiveType.java
-│   │   ├── TriggerType.java            # Enum: MOB_SPAWN, STRUCTURE_INTERACT, ENTITY_PROXIMITY, ITEM_DISCOVERY
+│   │   ├── TriggerType.java            # Enum: LOCATION_PROXIMITY, PROXIMITY_MOB_SPAWN, ENTITY_PROXIMITY, ITEM_DISCOVERY, STRUCTURE_INTERACT, LECTERN_BOOK_ON, LECTERN_BOOK_IN_HAND, LECTERN_BOOK_REMOVED
 │   │   ├── RewardDTO.java
 │   │   ├── RewardType.java
 │   │   ├── QuestChainDTO.java

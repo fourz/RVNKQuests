@@ -105,7 +105,7 @@ public class QuestComponentFactory {
         List<Listener> listeners = new ArrayList<>();
         for (String componentId : componentIds) {
             try {
-                Listener listener = getOrCreateComponent(componentId, components, definition);
+                Listener listener = getOrCreateComponent(componentId, components, definition, state);
                 if (listener != null) {
                     listeners.add(listener);
                 }
@@ -170,7 +170,8 @@ public class QuestComponentFactory {
     }
 
     @SuppressWarnings("unchecked")
-    private Listener getOrCreateComponent(String componentId, Map<String, Object> components, QuestDTO definition) {
+    private Listener getOrCreateComponent(String componentId, Map<String, Object> components,
+                                          QuestDTO definition, QuestState bucketState) {
         // Return cached component if already created
         if (componentCache.containsKey(componentId)) {
             return componentCache.get(componentId);
@@ -182,7 +183,21 @@ public class QuestComponentFactory {
             return null;
         }
 
-        Map<String, Object> config = (Map<String, Object>) configObj;
+        // #1764: the state_mapping bucket is the authoritative gate. Inject required_state = the bucket
+        // state into a defensive copy of the config so a component only fires when the player is in that
+        // state — regardless of (or absent) the component's own required_state. Without this, a terminal
+        // REACH (advance_state: COMPLETED) placed under state_mapping.OBJECTIVE_FOUND would keep its
+        // config default (QUEST_ACTIVE) and could fire at a high-traffic location from the wrong state.
+        Map<String, Object> rawConfig = (Map<String, Object>) configObj;
+        Object explicit = rawConfig.get("required_state");
+        if (explicit != null && !bucketState.name().equalsIgnoreCase(String.valueOf(explicit))) {
+            logger.debug("Component " + componentId + " in quest " + definition.questId()
+                    + ": required_state '" + explicit + "' overridden by state_mapping bucket '"
+                    + bucketState.name() + "'");
+        }
+        Map<String, Object> config = new java.util.HashMap<>(rawConfig);
+        config.put("required_state", bucketState.name());
+
         Listener listener = null;
 
         // Determine if this is a trigger or objective component
