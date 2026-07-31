@@ -1,0 +1,57 @@
+quest_id: tfah_zeal_sanctum
+name: The Ring Closes
+description: Sol Sanctum. Among the ten gates, find the one marked for the Kingdom
+  of Zeal and step onto it. The ring closes and the gate takes you home.
+repeatable: false
+cooldown_minutes: 0
+prerequisites:
+- tfah_zeal_tower
+metadata:
+  components:
+    sanctum_trigger:
+      type: LOCATION_PROXIMITY
+      world: alphac
+      x: -329.0
+      y: 145.0
+      z: 440.0
+      radius: 50.0
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+    sanctum_reach:
+      objective_type: REACH
+      world: alphac
+      x: -316.0
+      y: 145.0
+      z: 440.0
+      radius: 15.0
+      required_state: TRIGGER_FOUND
+      advance_state: OBJECTIVE_FOUND
+    koz_reach:
+      objective_type: REACH
+      world: world
+      x: -127.0
+      y: 82.0
+      z: -5.0
+      radius: 20.0
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - sanctum_trigger
+    TRIGGER_FOUND:
+    - sanctum_reach
+    OBJECTIVE_FOUND:
+    - koz_reach
+rewards:
+  sanctum_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 800
+  sanctum_broadcast:
+    type: COMMAND
+    value: 'say [Ring of Zeal] %player% completed the Ring. The sanctum stirs.'
+    amount: 1
+  sanctum_token:
+    type: COMMAND
+    value: 'give %player% echo_shard[custom_name={text:"Zeal Circuit Token",color:"light_purple",italic:false},enchantment_glint_override=true]'
+    amount: 1

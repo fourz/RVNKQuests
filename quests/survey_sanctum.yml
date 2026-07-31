@@ -1,0 +1,58 @@
+quest_id: survey_sanctum
+name: The Sanctum Remembers
+description: The high portal in the Zeal ruins hums with old power. Cross to Sol Sanctum,
+  the floating island of Alpha Centauri, and read the ledger kept there. The Arcology
+  remembers six worlds. Come home to the plaza and tell of them.
+repeatable: false
+cooldown_minutes: 0
+prerequisites:
+- survey_choice
+metadata:
+  components:
+    obj_ledger:
+      type: LECTERN_BOOK_ON
+      world: alphac
+      book_name: Sanctum Ledger
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
+    obj_sanctum:
+      objective_type: REACH
+      world: alphac
+      x: -324.5
+      y: 144.0
+      z: 452.5
+      radius: 15.0
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+    trig_highportal:
+      type: LOCATION_PROXIMITY
+      world: zeal
+      x: -202.0
+      y: 99.0
+      z: 166.0
+      radius: 12.0
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+    obj_report:
+      objective_type: REACH
+      world: world
+      x: -134.0
+      y: 75.0
+      z: -7.0
+      radius: 12.0
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - trig_highportal
+    TRIGGER_FOUND:
+    - obj_sanctum
+    QUEST_ACTIVE:
+    - obj_ledger
+    OBJECTIVE_FOUND:
+    - obj_report
+rewards:
+  survey_sanctum_experience_989:
+    type: EXPERIENCE
+    value: '800'
+    amount: 1
