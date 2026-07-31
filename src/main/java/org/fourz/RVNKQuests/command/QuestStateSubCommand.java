@@ -73,7 +73,7 @@ public class QuestStateSubCommand extends BaseSubCommand {
         logger.debug("Changing quest " + questId + " state from " + currentState + " to " + newState + " for " + targetPlayer.getName());
 
         // Use per-player state advancement
-        quest.advanceStateForPlayer(targetPlayer.getUniqueId(), newState)
+        quest.setStateForPlayer(targetPlayer.getUniqueId(), newState)
             .thenRun(() -> {
                 // Run on main thread for message sending
                 Bukkit.getScheduler().runTask(plugin, () -> {

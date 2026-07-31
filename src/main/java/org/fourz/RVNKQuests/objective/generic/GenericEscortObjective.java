@@ -172,7 +172,7 @@ public class GenericEscortObjective implements Listener {
             // Escort entity died — fail for all active players
             for (Map.Entry<UUID, EntityFollow> entry : activeFollows.entrySet()) {
                 entry.getValue().cleanup();
-                quest.advanceStateForPlayer(entry.getKey(), failState);
+                quest.setStateForPlayer(entry.getKey(), failState);
             }
             activeFollows.clear();
             logger.debug("Escort entity died for quest " + quest.getId() + " — advancing to fail state");

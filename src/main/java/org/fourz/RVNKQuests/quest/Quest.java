@@ -92,13 +92,35 @@ public interface Quest {
     QuestState getCurrentState();
 
     /**
-     * Updates the quest's state for a specific player.
+     * Advances the quest's state for a specific player.
+     *
+     * <p>This is the path for automatic, component-driven progress (triggers and
+     * objectives). Changes are serialized per player and may only move the quest
+     * <em>forward</em> along the linear progression, so two components firing in the
+     * same tick cannot clobber each other (#1853). Use
+     * {@link #setStateForPlayer(UUID, QuestState)} for admin operations that must be
+     * able to set any state.</p>
      *
      * @param playerUuid The player's UUID
      * @param newState The new state to advance to
      * @return CompletableFuture that completes when state is updated
      */
     CompletableFuture<Void> advanceStateForPlayer(UUID playerUuid, QuestState newState);
+
+    /**
+     * Sets the quest's state for a specific player without the forward-progress guard.
+     *
+     * <p>For explicit operations — admin state overrides, reset, abandon, pause and
+     * resume — which legitimately move a quest backwards. Still serialized per player
+     * alongside {@link #advanceStateForPlayer(UUID, QuestState)}.</p>
+     *
+     * @param playerUuid The player's UUID
+     * @param newState The state to set
+     * @return CompletableFuture that completes when state is updated
+     */
+    default CompletableFuture<Void> setStateForPlayer(UUID playerUuid, QuestState newState) {
+        return advanceStateForPlayer(playerUuid, newState);
+    }
 
     /**
      * Updates the quest's state and triggers any necessary changes.

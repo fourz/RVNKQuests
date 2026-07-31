@@ -59,6 +59,22 @@ public abstract class AbstractQuest implements Quest {
     private final Map<UUID, String> pathChoiceCache = new ConcurrentHashMap<>();
 
     /**
+     * Per-player serialization chain for state mutations (#1853).
+     *
+     * <p>Every state change appends itself to the player's chain, so the
+     * read-decide-write sequence in {@link #applyStateChange} can never interleave
+     * with another change to the same player's copy of this quest. Without this,
+     * two components firing in the same tick (a co-located LOCATION_PROXIMITY
+     * trigger and a REACH objective, typically on arrival by teleport or portal)
+     * both read the same stale snapshot and both write — last write wins, and the
+     * persisted state is non-deterministic.</p>
+     *
+     * <p>Entries self-remove once
+     * the chain drains.</p>
+     */
+    private final Map<UUID, CompletableFuture<Void>> writeChains = new ConcurrentHashMap<>();
+
+    /**
      * Creates a new quest with the specified ID and name.
      *
      * @param plugin The main plugin instance
@@ -138,6 +154,9 @@ public abstract class AbstractQuest implements Quest {
         stateCache.remove(playerUuid);
         pathChoiceCache.remove(playerUuid);
         pausedStateCache.remove(playerUuid);
+        // writeChains is deliberately NOT cleared here — a chain may still be in flight,
+        // and dropping it would let a rejoin start a second chain racing the first.
+        // Entries self-remove once they drain.
     }
 
     @Override
@@ -149,16 +168,80 @@ public abstract class AbstractQuest implements Quest {
 
     @Override
     public CompletableFuture<Void> advanceStateForPlayer(UUID playerUuid, QuestState newState) {
+        return enqueueStateChange(playerUuid, newState, true);
+    }
+
+    @Override
+    public CompletableFuture<Void> setStateForPlayer(UUID playerUuid, QuestState newState) {
+        return enqueueStateChange(playerUuid, newState, false);
+    }
+
+    /**
+     * Appends a state change to the player's serialization chain (#1853).
+     *
+     * <p>{@code compute()} is atomic per key, so only one thread ever links the next
+     * change onto the chain. Each link waits for the previous one to settle before its
+     * own read-decide-write runs, which is what makes the outcome deterministic when
+     * several components fire in the same tick.</p>
+     *
+     * @param monotonic when true the change is rejected if it would move the quest
+     *                  backwards along the linear progression — see
+     *                  {@link #isForwardProgress(QuestState, QuestState)}
+     */
+    private CompletableFuture<Void> enqueueStateChange(UUID playerUuid, QuestState newState, boolean monotonic) {
         if (progressService == null) {
             logger.warning("QuestProgressService not available - cannot advance state");
             return CompletableFuture.completedFuture(null);
         }
 
-        // Eagerly update local cache so event handlers see the new state immediately
-        QuestState previousCached = stateCache.put(playerUuid, newState);
+        CompletableFuture<Void> result = new CompletableFuture<>();
 
+        CompletableFuture<Void> tail = writeChains.compute(playerUuid, (uuid, prior) -> {
+            CompletableFuture<Void> base = (prior != null) ? prior : CompletableFuture.completedFuture(null);
+            // handle() first so a failed predecessor cannot stall every later change.
+            // *Async so applyStateChange never runs while compute() holds the bin lock.
+            base.handle((v, ex) -> (Void) null)
+                .thenComposeAsync(ignored -> applyStateChange(uuid, newState, monotonic))
+                .whenComplete((v, ex) -> {
+                    if (ex != null) {
+                        result.completeExceptionally(ex);
+                    } else {
+                        result.complete(null);
+                    }
+                });
+            // The next link waits on this one regardless of outcome.
+            return result.handle((v, ex) -> (Void) null);
+        });
+
+        // Drop the entry once the chain drains, but only if nothing has been appended since.
+        tail.whenComplete((v, ex) -> writeChains.remove(playerUuid, tail));
+
+        return result;
+    }
+
+    /**
+     * Performs one state change. Runs inside the player's write chain, so the state read
+     * here is still current when the write below lands — no other change can slip between.
+     */
+    private CompletableFuture<Void> applyStateChange(UUID playerUuid, QuestState newState, boolean monotonic) {
         return getStateForPlayer(playerUuid)
             .thenCompose(currentState -> {
+                // No-op: re-firing side effects (rewards, broadcast, QuestCompleteEvent)
+                // for a state the player already holds would double-deliver.
+                if (currentState == newState) {
+                    stateCache.put(playerUuid, currentState);
+                    return CompletableFuture.<Void>completedFuture(null);
+                }
+
+                // Reject regressions from automatic (component-driven) advances. Explicit
+                // admin operations use setStateForPlayer() and skip this.
+                if (monotonic && !isForwardProgress(currentState, newState)) {
+                    logger.debug("Quest " + questId + " advance " + currentState + " -> " + newState
+                        + " for " + playerUuid + " ignored — not forward progress (#1853)");
+                    stateCache.put(playerUuid, currentState);
+                    return CompletableFuture.<Void>completedFuture(null);
+                }
+
                 // Gate trigger-driven activation (NOT_STARTED -> TRIGGER_FOUND) on the quest's
                 // prerequisites. Admin start/complete target QUEST_ACTIVE/COMPLETED and bypass this.
                 if (currentState == QuestState.NOT_STARTED && newState == QuestState.TRIGGER_FOUND) {
@@ -174,6 +257,37 @@ public abstract class AbstractQuest implements Quest {
                 }
                 return performAdvance(playerUuid, currentState, newState);
             });
+    }
+
+    /**
+     * Position of a state on the linear quest progression, or {@code -1} for states that
+     * sit outside it ({@code ABANDONED}, {@code PAUSED}).
+     */
+    private static int progressRank(QuestState state) {
+        return switch (state) {
+            case NOT_STARTED -> 0;
+            case TRIGGER_FOUND -> 1;
+            case QUEST_ACTIVE -> 2;
+            case OBJECTIVE_FOUND -> 3;
+            case COMPLETED -> 4;
+            case ABANDONED, PAUSED -> -1;
+        };
+    }
+
+    /**
+     * Whether an automatic advance may be applied.
+     *
+     * <p>Only the linear progression is ordered. Transitions involving {@code PAUSED} or
+     * {@code ABANDONED} are lifecycle operations rather than progress, so they are left
+     * unguarded and behave exactly as they did before #1853.</p>
+     */
+    private static boolean isForwardProgress(QuestState from, QuestState to) {
+        int fromRank = progressRank(from);
+        int toRank = progressRank(to);
+        if (fromRank < 0 || toRank < 0) {
+            return true;
+        }
+        return toRank > fromRank;
     }
 
     /**
@@ -209,6 +323,10 @@ public abstract class AbstractQuest implements Quest {
 
     private CompletableFuture<Void> performAdvance(UUID playerUuid, QuestState currentState, QuestState newState) {
                 logger.debug("Advancing state for " + playerUuid + " from " + currentState + " to " + newState);
+                // Update the local cache now that the change is committed to, so event handlers
+                // firing before the DB write lands already see the new state. Deliberately AFTER
+                // the gates above — an unconditional pre-write was half of #1853.
+                stateCache.put(playerUuid, newState);
                 return progressService.updateQuestState(playerUuid, questId, newState)
                     .thenAccept(progress -> {
                         // All Bukkit operations (listener registration, event dispatch, player messages,
@@ -371,7 +489,7 @@ public abstract class AbstractQuest implements Quest {
                 return CompletableFuture.completedFuture(false);
             }
             pausedStateCache.put(playerUuid, currentState);
-            return advanceStateForPlayer(playerUuid, QuestState.PAUSED).thenApply(v -> true);
+            return setStateForPlayer(playerUuid, QuestState.PAUSED).thenApply(v -> true);
         });
     }
 
@@ -385,7 +503,7 @@ public abstract class AbstractQuest implements Quest {
             QuestState restoreState = pausedStateCache.getOrDefault(playerUuid, QuestState.QUEST_ACTIVE);
             pausedStateCache.remove(playerUuid);
             logger.debug("Resuming quest " + questId + " for " + playerUuid + " → " + restoreState);
-            return advanceStateForPlayer(playerUuid, restoreState).thenApply(v -> true);
+            return setStateForPlayer(playerUuid, restoreState).thenApply(v -> true);
         });
     }
 

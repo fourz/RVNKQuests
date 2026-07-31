@@ -110,7 +110,7 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
             .thenCompose(previousState -> {
                 logger.info("ADMIN DEBUG STATE CHANGE: " + adminName + " setting quest '" + questId +
                            "' for " + playerName + " from " + previousState + " to " + targetState);
-                return quest.advanceStateForPlayer(playerId, targetState)
+                return quest.setStateForPlayer(playerId, targetState)
                     .thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
                         sendSuccessMessage(sender, "Set quest '" + quest.getName() + "' state for " + playerName);
                         sendMessage(sender, "&7   Previous state: &e" + previousState);

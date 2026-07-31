@@ -51,7 +51,14 @@ public class TriggerCommand {
         }
 
         QuestState advanceTo = force ? QuestState.QUEST_ACTIVE : QuestState.TRIGGER_FOUND;
-        quest.advanceStateForPlayer(target.getUniqueId(), advanceTo);
+        // --force is an explicit admin override and must be able to move the quest
+        // backwards (e.g. re-arming a COMPLETED quest), so it skips the forward-progress
+        // guard that automatic advances use (#1853).
+        if (force) {
+            quest.setStateForPlayer(target.getUniqueId(), advanceTo);
+        } else {
+            quest.advanceStateForPlayer(target.getUniqueId(), advanceTo);
+        }
 
         String forceNote = force ? " [--force → " + advanceTo + "]" : "";
         sender.sendMessage(ChatColor.GREEN + "Triggered '" + questId + "' for " + target.getName() + forceNote);
