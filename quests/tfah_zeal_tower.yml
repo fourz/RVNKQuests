@@ -1,6 +1,6 @@
 quest_id: tfah_zeal_tower
 name: Cross the Dead City
-description: Cross the city and climb to the Tower. Its portal still burns.
+description: Cross the city and climb to the Tower, below the burning portal.
 repeatable: false
 cooldown_minutes: 0
 prerequisites:
@@ -8,27 +8,16 @@ prerequisites:
 metadata:
   state_mapping:
     NOT_STARTED:
-    - tower_trigger
-    TRIGGER_FOUND:
     - tower_reach
   components:
-    tower_trigger:
-      type: LOCATION_PROXIMITY
-      world: zeal
-      x: -190.0
-      y: 80.0
-      z: 210.0
-      radius: 30.0
-      required_state: NOT_STARTED
-      advance_state: TRIGGER_FOUND
     tower_reach:
       objective_type: REACH
       world: zeal
-      x: -202.0
-      y: 99.0
-      z: 166.0
-      radius: 10.0
-      required_state: TRIGGER_FOUND
+      x: -205.0
+      y: 92.0
+      z: 165.0
+      radius: 8.0
+      required_state: NOT_STARTED
       advance_state: COMPLETED
 rewards:
   tower_title:
