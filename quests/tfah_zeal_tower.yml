@@ -1,0 +1,30 @@
+quest_id: tfah_zeal_tower
+name: Cross the Dead City
+description: Cross the city and climb to the Tower, below the burning portal.
+repeatable: false
+cooldown_minutes: 0
+prerequisites:
+- tfah_zeal_arrival
+metadata:
+  state_mapping:
+    NOT_STARTED:
+    - tower_reach
+  components:
+    tower_reach:
+      objective_type: REACH
+      world: zeal
+      x: -205.0
+      y: 92.0
+      z: 165.0
+      radius: 8.0
+      required_state: NOT_STARTED
+      advance_state: COMPLETED
+rewards:
+  tower_title:
+    type: COMMAND
+    value: title %player% title {"text":"The Tower Falls Behind","color":"gray","italic":true}
+    amount: 1
+  tower_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 500

@@ -68,6 +68,7 @@ class QuestStateTest {
                 case OBJECTIVE_FOUND:
                 case COMPLETED:
                 case ABANDONED:
+                case PAUSED:
                     coveredStates++;
                     break;
                 default:

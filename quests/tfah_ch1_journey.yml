@@ -1,0 +1,68 @@
+quest_id: tfah_ch1_journey
+name: The Quiet World
+description: A lectern stands in the ruins of Alpha Centauri. Read the Hat's tale, then follow the road -- across the great bridge, through Ravenport, to the Archean Railway -- and ride the line north to Nocturne, city of the dead.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  start_trigger: The Quiet World
+  chain: tfah_chapter1
+  chapter: 1
+  components:
+    lectern_trigger:
+      type: STRUCTURE_INTERACT
+      block_type: LECTERN
+      world: alphac
+      x: -315
+      y: 118
+      z: 446
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+    reach_bridge:
+      objective_type: REACH
+      world: alphac
+      x: -456.0
+      y: 69.0
+      z: 365.0
+      radius: 20.0
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+    reach_railway:
+      objective_type: REACH
+      world: alphac
+      x: -783.0
+      y: 65.0
+      z: 286.0
+      radius: 20.0
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
+    reach_nocturne:
+      objective_type: REACH
+      world: alphac
+      x: 1443.0
+      y: 82.0
+      z: 1149.0
+      radius: 30.0
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - lectern_trigger
+    TRIGGER_FOUND:
+    - reach_bridge
+    QUEST_ACTIVE:
+    - reach_railway
+    OBJECTIVE_FOUND:
+    - reach_nocturne
+rewards:
+  journey_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 400
+  journey_book:
+    type: COMMAND
+    value: 'lore item give "THE RECORD OF NOCTURNE" %player%'
+    amount: 1
+  journey_say:
+    type: COMMAND
+    value: 'say [The Hat] Nocturne keeps the record of the dead. Read it well.'
+    amount: 1

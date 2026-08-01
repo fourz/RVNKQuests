@@ -1,0 +1,91 @@
+quest_id: tfah_ch1_archea
+name: The Knights of the Darkness
+description: Archea's dead garrison rises where the Hunger passed. Put the Knights of the Darkness back in the ground, and chapter one closes.
+repeatable: false
+cooldown_minutes: 0
+prerequisites:
+- tfah_ch1_journey
+metadata:
+  start_trigger: The Knights of the Darkness
+  chain: tfah_chapter1
+  chapter: 1
+  components:
+    arena_trigger:
+      type: LOCATION_PROXIMITY
+      world: alphac
+      x: 1502.0
+      y: 97.0
+      z: 2192.0
+      radius: 20.0
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+    wave1_knights:
+      objective_type: ENCOUNTER
+      entity_type: ZOMBIFIED_PIGLIN
+      spawn_count: 5
+      required_kills: 5
+      custom_name: Knight of the Darkness
+      world: alphac
+      x: 1502
+      y: 97
+      z: 2192
+      trigger_radius: 25
+      spawn_radius: 8
+      prevent_infighting: true
+      block_portals: true
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+    wave2_bowmen:
+      objective_type: ENCOUNTER
+      entity_type: SKELETON
+      spawn_count: 3
+      required_kills: 3
+      custom_name: Darkness Bowman
+      world: alphac
+      x: 1502
+      y: 97
+      z: 2192
+      trigger_radius: 40
+      spawn_radius: 10
+      prevent_infighting: true
+      block_portals: true
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
+    wave3_captain:
+      objective_type: ENCOUNTER
+      entity_type: ZOMBIFIED_PIGLIN
+      spawn_count: 1
+      required_kills: 1
+      custom_name: The Black Knight
+      world: alphac
+      x: 1502
+      y: 97
+      z: 2192
+      trigger_radius: 40
+      spawn_radius: 4
+      prevent_infighting: true
+      block_portals: true
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - arena_trigger
+    TRIGGER_FOUND:
+    - wave1_knights
+    QUEST_ACTIVE:
+    - wave2_bowmen
+    OBJECTIVE_FOUND:
+    - wave3_captain
+rewards:
+  ch1_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 1000
+  ch1_broadcast:
+    type: COMMAND
+    value: 'say [Chapter I] %player% has put the Knights of the Darkness back in the ground. The Hunger recoils -- for now.'
+    amount: 1
+  ch1_shard:
+    type: COMMAND
+    value: 'give %player% gold_ingot[custom_name={text:"Ravenforge Shard",color:"gold",italic:false},lore=[{text:"Torn from the Black Knight.",color:"gray",italic:true},{text:"Nickel9 was digging for this.",color:"gray",italic:true}],enchantment_glint_override=true]'
+    amount: 1

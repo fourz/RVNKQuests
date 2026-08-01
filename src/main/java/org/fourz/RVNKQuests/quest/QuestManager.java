@@ -575,7 +575,7 @@ public class QuestManager implements IQuestService {
         if (quest == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Quest not found: " + questId));
         }
-        return quest.advanceStateForPlayer(playerId, newState);
+        return quest.setStateForPlayer(playerId, newState);
     }
 
     @Override
@@ -644,7 +644,7 @@ public class QuestManager implements IQuestService {
                 if (currentState == QuestState.NOT_STARTED || currentState == QuestState.COMPLETED) {
                     return CompletableFuture.completedFuture(false);
                 }
-                return quest.advanceStateForPlayer(playerId, QuestState.NOT_STARTED)
+                return quest.setStateForPlayer(playerId, QuestState.NOT_STARTED)
                     .thenApply(v -> true);
             });
     }

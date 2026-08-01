@@ -1,0 +1,56 @@
+quest_id: survey_trail
+name: The Surveyor's Trail
+description: A surveyor's mark glows by the Zeal portal in the plaza. Cross to the
+  old dome of 2013, find the crash site on its inner edge, and read the field notes
+  there — then return to the plaza and report what you saw.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  components:
+    obj_dome:
+      objective_type: REACH
+      world: zeal
+      x: -173.5
+      y: 64.0
+      z: 266.5
+      radius: 20.0
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+    obj_notes:
+      type: LECTERN_BOOK_ON
+      world: zeal
+      book_name: Zeal Field Notes
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
+    trig_plaza:
+      type: LOCATION_PROXIMITY
+      world: world
+      x: -134.0
+      y: 75.0
+      z: -7.0
+      radius: 12.0
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+    obj_report:
+      objective_type: REACH
+      world: world
+      x: -134.0
+      y: 75.0
+      z: -7.0
+      radius: 12.0
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - trig_plaza
+    TRIGGER_FOUND:
+    - obj_dome
+    QUEST_ACTIVE:
+    - obj_notes
+    OBJECTIVE_FOUND:
+    - obj_report
+rewards:
+  survey_trail_experience_9339:
+    type: EXPERIENCE
+    value: points
+    amount: 300

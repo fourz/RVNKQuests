@@ -1,0 +1,39 @@
+quest_id: tfah_zeal_arrival
+name: The Breach Point
+description: You stepped through into the dead city. Find the old center.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  components:
+    arr_trigger:
+      type: LOCATION_PROXIMITY
+      world: zeal
+      x: -178.0
+      y: 65.0
+      z: 265.0
+      radius: 30.0
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+    arr_reach:
+      objective_type: REACH
+      world: zeal
+      x: -173.0
+      y: 64.0
+      z: 268.0
+      radius: 15.0
+      required_state: TRIGGER_FOUND
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - arr_trigger
+    TRIGGER_FOUND:
+    - arr_reach
+rewards:
+  arr_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 300
+  arr_title:
+    type: COMMAND
+    value: 'title %player% title {"text":"The Breach","color":"dark_red","bold":true}'
+    amount: 1

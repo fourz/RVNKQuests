@@ -49,6 +49,7 @@ class QuestCompletionDispatchTest {
     @Mock private Player player;
     @Mock private PluginManager pluginManager;
     @Mock private org.bukkit.configuration.file.FileConfiguration config;
+    @Mock private org.bukkit.scheduler.BukkitScheduler scheduler;
 
     private UUID playerId;
     private AtomicInteger onCompleteCallCount;
@@ -69,6 +70,14 @@ class QuestCompletionDispatchTest {
         when(journalService.isAvailable()).thenReturn(false);
         when(server.getPlayer(playerId)).thenReturn(player);
         when(server.getPluginManager()).thenReturn(pluginManager);
+        // performAdvance() marshals all Bukkit work through the scheduler; run it inline
+        // so assertions see the side effects without a real server tick.
+        when(server.getScheduler()).thenReturn(scheduler);
+        when(scheduler.runTask(any(org.bukkit.plugin.Plugin.class), any(Runnable.class)))
+            .thenAnswer(invocation -> {
+                invocation.getArgument(1, Runnable.class).run();
+                return null;
+            });
         when(player.getUniqueId()).thenReturn(playerId);
         when(player.getName()).thenReturn("test_player");
 

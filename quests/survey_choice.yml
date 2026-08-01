@@ -1,0 +1,59 @@
+quest_id: survey_choice
+name: Wanderer or Historian
+description: 'The field notes still lie where they fell at the crash site. Choose
+  your reading of them: walk the ruins north-west to the high portal, or study the
+  records at the lectern here. Then bring word home to the plaza.'
+repeatable: false
+cooldown_minutes: 0
+prerequisites:
+- survey_trail
+metadata:
+  components:
+    obj_wanderer:
+      objective_type: REACH
+      world: zeal
+      x: -202.0
+      y: 99.0
+      z: 166.0
+      radius: 10.0
+      required_state: TRIGGER_FOUND
+      advance_state: OBJECTIVE_FOUND
+      sets_path: WANDERER
+    obj_historian:
+      objective_type: INTERACT
+      block_type: LECTERN
+      world: zeal
+      required_state: TRIGGER_FOUND
+      advance_state: OBJECTIVE_FOUND
+      sets_path: HISTORIAN
+    trig_crash:
+      type: LOCATION_PROXIMITY
+      world: zeal
+      x: -65.4
+      y: 69.0
+      z: 380.6
+      radius: 15.0
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+    obj_report:
+      objective_type: REACH
+      world: world
+      x: -134.0
+      y: 75.0
+      z: -7.0
+      radius: 12.0
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - trig_crash
+    TRIGGER_FOUND:
+    - obj_wanderer
+    - obj_historian
+    OBJECTIVE_FOUND:
+    - obj_report
+rewards:
+  survey_choice_experience_188:
+    type: EXPERIENCE
+    value: points
+    amount: 500
