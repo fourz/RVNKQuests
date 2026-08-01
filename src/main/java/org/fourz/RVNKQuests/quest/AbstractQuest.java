@@ -243,8 +243,22 @@ public abstract class AbstractQuest implements Quest {
                 }
 
                 // Gate trigger-driven activation (NOT_STARTED -> TRIGGER_FOUND) on the quest's
-                // prerequisites. Admin start/complete target QUEST_ACTIVE/COMPLETED and bypass this.
-                if (currentState == QuestState.NOT_STARTED && newState == QuestState.TRIGGER_FOUND) {
+                // prerequisites.
+                //
+                // #1884: this must apply to component-driven advances ONLY. It previously ran for
+                // every caller, including setStateForPlayer() — the explicit admin path behind
+                // `/quest state` and `/quest debug setstate`, the latter of which announces
+                // "bypassing normal state transitions". Setting a mid-chain state on a quest whose
+                // prereq was unmet therefore did nothing at all, while the command still printed
+                // success, because the no-op below completes the future normally. It read as the
+                // state "reverting" moments later; in fact it was never applied. That cost two full
+                // false-negative test runs during the #1765 QA session and very nearly produced a
+                // bogus ENCOUNTER bug report.
+                //
+                // `monotonic` already distinguishes the two callers — true for advanceStateForPlayer
+                // (components), false for setStateForPlayer (admin) — so it is the honest gate, and
+                // it makes the documented "bypasses validation" behaviour real.
+                if (monotonic && currentState == QuestState.NOT_STARTED && newState == QuestState.TRIGGER_FOUND) {
                     return arePrerequisitesMet(playerUuid).thenCompose(met -> {
                         if (!met) {
                             logger.debug("Quest " + questId + " trigger blocked for " + playerUuid
