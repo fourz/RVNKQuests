@@ -39,6 +39,12 @@ public class WorldActivationService {
      */
     private static final String CODE_ALREADY_LOADED = "CONFLICT";
 
+    /**
+     * Identifies this plugin's holds to RVNKWorlds (#1883). Holds are per-holder, so this must stay
+     * stable across calls or a release will not match the hold that placed it.
+     */
+    private static final String HOLDER_ID = "RVNKQuests";
+
     private final LogManager logger;
 
     /** Logged once, not per call — an absent RVNKWorlds is a steady state, not an incident. */
@@ -83,11 +89,17 @@ public class WorldActivationService {
         if (worldName == null || worldName.isBlank()) {
             return CompletableFuture.completedFuture(false);
         }
+        IRVNKWorldsApiService worlds = resolve();
+
+        // Already loaded is still worth holding, and this is the COMMON case: RVNKWorlds auto-loads
+        // previously-active worlds at boot, so a quest's world is usually up before the quest asks.
+        // Returning early without a hold left exactly those worlds reclaimable — which is how the
+        // #1883 failure was reached on Event, where alphac was auto-loaded and then swept anyway.
         if (isActive(worldName)) {
+            if (worlds != null) hold(worlds, worldName);
             return CompletableFuture.completedFuture(true);
         }
 
-        IRVNKWorldsApiService worlds = resolve();
         if (worlds == null) {
             logUnavailableOnce(worldName);
             return CompletableFuture.completedFuture(false);
@@ -95,10 +107,63 @@ public class WorldActivationService {
 
         return worlds.loadWorld(worldName)
             .thenApply(response -> interpret(worldName, response))
+            .thenApply(active -> {
+                if (active) hold(worlds, worldName);
+                return active;
+            })
             .exceptionally(ex -> {
                 logger.warning("World activation failed for '" + worldName + "': " + ex.getMessage());
                 return false;
             });
+    }
+
+    /**
+     * Claims the world so RVNKWorlds' inactivity sweep does not reclaim it (#1883).
+     *
+     * <p>Loading is not keeping. {@code WorldCleanupScheduler} unloads any unprotected world left
+     * empty past the inactivity threshold and writes it back to {@code IMPORTED} — and a world just
+     * activated for a quest has, by definition, nobody standing in it. Observed on Event
+     * 2026-08-01: {@code zeal} activated at 08:32 was {@code IMPORTED} and un-teleportable by 09:22,
+     * so the quest that asked for it had gone quietly unplayable again.</p>
+     *
+     * <p>Best-effort by design. An older RVNKWorlds answers {@code NOT_SUPPORTED} via the interface
+     * default; the world is still loaded and the quest still works, it is merely reclaimable again.
+     * That is strictly better than failing the activation, so a hold failure is logged at debug and
+     * never propagates.</p>
+     */
+    private void hold(IRVNKWorldsApiService worlds, String worldName) {
+        try {
+            worlds.holdWorld(worldName, HOLDER_ID).thenAccept(response -> {
+                if (response != null && response.success()) {
+                    logger.debug("Holding world '" + worldName + "' against inactivity cleanup");
+                } else {
+                    String msg = (response != null && response.error() != null)
+                        ? response.error().message() : "no response";
+                    logger.debug("Could not hold world '" + worldName + "' (" + msg
+                        + ") - it stays loaded but may be reclaimed by cleanup");
+                }
+            });
+        } catch (Exception e) {
+            logger.debug("Hold request failed for '" + worldName + "': " + e.getMessage());
+        }
+    }
+
+    /**
+     * Drops this plugin's hold on a world.
+     *
+     * <p>Called when a quest's declared worlds change on reload, so a world nobody declares any more
+     * becomes cleanup-eligible again rather than being pinned in memory forever.</p>
+     *
+     * @param worldName World to release
+     */
+    public void release(String worldName) {
+        IRVNKWorldsApiService worlds = resolve();
+        if (worlds == null || worldName == null || worldName.isBlank()) return;
+        try {
+            worlds.releaseWorld(worldName, HOLDER_ID);
+        } catch (Exception e) {
+            logger.debug("Release request failed for '" + worldName + "': " + e.getMessage());
+        }
     }
 
     /**
