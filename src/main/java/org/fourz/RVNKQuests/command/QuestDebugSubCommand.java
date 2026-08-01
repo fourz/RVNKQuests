@@ -28,11 +28,12 @@ import java.util.logging.Level;
 public class QuestDebugSubCommand extends BaseSubCommand {
 
     private static final List<String> SUB_COMMANDS = Arrays.asList(
-        "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup"
+        "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup", "preflight"
     );
 
     private SeedSubCommand seedSubCommand;
     private QuestSetStateSubCommand setStateSubCommand;
+    private QuestPreflightSubCommand preflightSubCommand;
 
     private static final List<String> LOG_LEVELS = Arrays.asList("DEBUG", "INFO", "WARN", "OFF");
 
@@ -41,6 +42,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
               "/quest debug <subcommand>", "rvnkquests.admin", false);
         this.seedSubCommand = new SeedSubCommand(plugin);
         this.setStateSubCommand = new QuestSetStateSubCommand(plugin);
+        this.preflightSubCommand = new QuestPreflightSubCommand(plugin);
     }
 
     @Override
@@ -72,6 +74,9 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 return setStateSubCommand.execute(sender, subArgs);
             case "setup":
                 return executeSetup(sender);
+            case "preflight":
+            case "pf":
+                return preflightSubCommand.execute(sender, subArgs);
             default:
                 sendErrorMessage(sender, "Unknown debug command: " + subCommand);
                 showUsage(sender);
@@ -88,6 +93,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug seed <action> &8- Seed/cleanup test data");
         sendMessage(sender, "&7/quest debug setstate <quest> <state> [player] &8- Set quest state (bypasses validation)");
         sendMessage(sender, "&7/quest debug setup &8- Bootstrap LuckPerms permission defaults");
+        sendMessage(sender, "&7/quest debug preflight <quest> [--no-load] &8- Check worlds, blocks, states, rewards");
     }
 
     /**
