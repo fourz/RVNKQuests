@@ -68,9 +68,45 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
     private record Finding(Severity severity, String subject, String detail) {
     }
 
+    /**
+     * RVNKCore's identifier for the development tier.
+     *
+     * <p>Same value the chat mesh uses, so there is one source of server identity rather than a
+     * second one that can disagree with it. Dev is {@code test}; the other tiers are {@code event}
+     * and {@code nations}.</p>
+     */
+    private static final String DEV_SERVER_ID = "test";
+
     public QuestPreflightSubCommand(RVNKQuests plugin) {
         super(plugin, "preflight", "Check a quest's world/block/reward preconditions",
-                "/quest debug preflight <quest> [--no-load]", "rvnkquests.admin", false);
+                "/quest debug preflight <quest> [--no-load] [--force]", "rvnkquests.admin", false);
+    }
+
+    /**
+     * Resolves whether this server is the development tier.
+     *
+     * <p>Read from RVNKCore's {@code chat-relay.server-id} rather than a new RVNKQuests config key,
+     * for two reasons. Server identity already exists there and a second copy could disagree with
+     * it. And a newly shipped config key would not reach servers that already have a
+     * {@code config.yml} — {@code saveDefaultConfig()} writes only when the file is absent — so the
+     * key would be present in the jar, absent on every real server, and the gate would read as
+     * working while doing nothing (#1563).</p>
+     *
+     * <p><b>Unknown resolves to not-Dev.</b> If RVNKCore is missing or the id is unreadable, the
+     * safe reading of "I do not know which tier this is" is the cautious one.</p>
+     */
+    private boolean isDevTier() {
+        try {
+            org.bukkit.plugin.Plugin core = Bukkit.getPluginManager().getPlugin("RVNKCore");
+            if (core == null) return false;
+            java.io.File cfg = new java.io.File(core.getDataFolder(), "config.yml");
+            if (!cfg.isFile()) return false;
+            String id = org.bukkit.configuration.file.YamlConfiguration
+                    .loadConfiguration(cfg).getString("chat-relay.server-id", "");
+            return DEV_SERVER_ID.equalsIgnoreCase(id == null ? "" : id.trim());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
@@ -78,9 +114,20 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
         if (!validateArgs(sender, args, 1)) return true;
 
         String questId = args[0];
-        boolean allowLoad = true;
+
+        // Loading a chunk is a mutation, however brief. On Dev that is free; on a tier with players
+        // in it the operator decided it must be asked for explicitly (#1867).
+        boolean devTier = isDevTier();
+        boolean forced = false;
+        boolean suppressed = false;
         for (String arg : args) {
-            if (arg.equalsIgnoreCase("--no-load")) allowLoad = false;
+            if (arg.equalsIgnoreCase("--no-load")) suppressed = true;
+            if (arg.equalsIgnoreCase("--force")) forced = true;
+        }
+        boolean allowLoad = !suppressed && (devTier || forced);
+        if (!devTier && !forced && !suppressed) {
+            sendMessage(sender, "&7Tier is not Dev - reporting readiness without loading chunks."
+                + " Add &e--force&7 to load and release them.");
         }
 
         Optional<Quest> found = plugin.getQuestManager().getQuest(questId);
@@ -223,8 +270,10 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
         int chunkZ = z >> 4;
         boolean wasLoaded = world.isChunkLoaded(chunkX, chunkZ);
         if (!wasLoaded && !allowLoad) {
+            // Unverified, never blocker: an unread chunk says nothing about whether the block is
+            // right, and reporting "not readable" as "broken" condemns healthy content (#1859).
             findings.add(new Finding(Severity.UNVERIFIED, id,
-                    where + " - chunk not loaded, block unchecked (--no-load)"));
+                    where + " - chunk not loaded, block unchecked"));
             return;
         }
         if (!wasLoaded && !world.loadChunk(chunkX, chunkZ, false)) {
@@ -413,8 +462,10 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
             for (Quest quest : plugin.getQuestManager().getAllQuests()) {
                 if (quest.getId().toLowerCase(Locale.ROOT).startsWith(partial)) out.add(quest.getId());
             }
-        } else if (args.length == 2 && "--no-load".startsWith(args[1].toLowerCase(Locale.ROOT))) {
-            out.add("--no-load");
+        } else if (args.length == 2) {
+            String partial = args[1].toLowerCase(Locale.ROOT);
+            if ("--no-load".startsWith(partial)) out.add("--no-load");
+            if ("--force".startsWith(partial)) out.add("--force");
         }
         return out;
     }
