@@ -8,6 +8,9 @@ cooldown_minutes: 0
 prerequisites:
 - survey_trail
 metadata:
+  required_worlds:
+  - zeal
+  - world
   components:
     obj_wanderer:
       objective_type: REACH

@@ -4,6 +4,8 @@ description: A lectern stands in the ruins of Alpha Centauri. Read the Hat's tal
 repeatable: false
 cooldown_minutes: 0
 metadata:
+  required_worlds:
+  - alphac
   start_trigger: The Quiet World
   chain: tfah_chapter1
   chapter: 1

@@ -8,6 +8,10 @@ cooldown_minutes: 0
 prerequisites:
 - survey_choice
 metadata:
+  required_worlds:
+  - alphac
+  - zeal
+  - world
   components:
     obj_ledger:
       type: LECTERN_BOOK_ON

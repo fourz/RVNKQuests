@@ -4,6 +4,8 @@ description: You stepped through into the dead city. Find the old center.
 repeatable: false
 cooldown_minutes: 0
 metadata:
+  required_worlds:
+  - zeal
   components:
     arr_trigger:
       type: LOCATION_PROXIMITY

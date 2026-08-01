@@ -6,6 +6,8 @@ cooldown_minutes: 0
 prerequisites:
 - tfah_ch1_journey
 metadata:
+  required_worlds:
+  - alphac
   start_trigger: The Knights of the Darkness
   chain: tfah_chapter1
   chapter: 1

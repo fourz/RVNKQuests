@@ -7,6 +7,9 @@ cooldown_minutes: 0
 prerequisites:
 - tfah_zeal_tower
 metadata:
+  required_worlds:
+  - alphac
+  - world
   components:
     sanctum_trigger:
       type: LOCATION_PROXIMITY
