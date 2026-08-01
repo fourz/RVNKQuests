@@ -1,0 +1,86 @@
+quest_id: tfah_sky_ascent
+name: The Kingdom Looked Up
+description: A wither skeleton stands watch north of the Kingdom's gate, carrying a book it did not want you to read. Zeal did not fall -- Zeal left, and took the good part of the kingdom into the sky. Climb, fly or build your way up to the islands and find the hold they left stocked behind them.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  # Both worlds are held for the duration. koz_sky_2 is the Skylands instance
+  # (gen:rvnkworlds:skylands) and 'world' IS the Kingdom of Zeal -- KOZ is not a
+  # separate world, which is easy to get wrong from the name alone.
+  required_worlds:
+  - world
+  - koz_sky_2
+  start_trigger: The Sky-Watcher
+  chain: tfah_skylands
+  chapter: 3
+  components:
+    # Beat 1 -- kill the named guardian 200 blocks north of KOZ spawn.
+    #
+    # No `world` key: GenericKillObjective does not read one. It parses only
+    # entity_type, custom_name, required_kills and quest_mob_only, so a world
+    # would be silently ignored -- the same trap as #1894. The custom name is
+    # the scope instead, and it is unique.
+    #
+    # quest_mob_only is false because the Sky-Watcher is placed by hand and
+    # persists, rather than being spawned by an ENCOUNTER component.
+    slay_watcher:
+      objective_type: KILL
+      entity_type: WITHER_SKELETON
+      custom_name: The Sky-Watcher
+      required_kills: 1
+      quest_mob_only: false
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+
+    # Beat 2 -- arrive in the Skylands.
+    #
+    # Deliberately method-agnostic. The player may build up, fly, or arrive any
+    # other way; a REACH objective cannot tell the difference and should not
+    # try. Radius is generous because there is no single correct approach and
+    # the islands are scattered.
+    reach_skylands:
+      objective_type: REACH
+      world: koz_sky_2
+      x: -256.0
+      y: 105.0
+      z: 85.0
+      radius: 120.0
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+
+    # Beat 3 -- the lectern in the ruined Mendoza church near origin.
+    #
+    # Sited, not world-wide. Before #1894 this would have fired on ANY lectern
+    # in koz_sky_2; it now honours x/y/z within `radius`, so only the lectern in
+    # the ruins completes the quest.
+    ruins_lectern:
+      type: STRUCTURE_INTERACT
+      block_type: LECTERN
+      world: koz_sky_2
+      x: 29
+      y: 101
+      z: 80
+      radius: 3
+      required_state: QUEST_ACTIVE
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - slay_watcher
+    TRIGGER_FOUND:
+    - reach_skylands
+    QUEST_ACTIVE:
+    - ruins_lectern
+rewards:
+  ascent_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 500
+  # Given by NAME, never by id. A freshly minted item is unreachable by id
+  # (#1887) and the name is stable across tiers where the ids are not --
+  # ONE TRUE THING is 50 on Event and 32 on Dev.
+  ascent_book:
+    type: COMMAND
+    value: 'lore item give "ONE TRUE THING" %player%'
+  ascent_say:
+    type: COMMAND
+    value: 'say [The Hat] They went up, and it did not save them. Ask what is still under Zeal.'
