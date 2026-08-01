@@ -52,7 +52,7 @@ metadata:
     OBJECTIVE_FOUND:
     - obj_report
 rewards:
-  survey_sanctum_experience_989:
+  survey_sanctum_experience_2916:
     type: EXPERIENCE
     value: points
     amount: 800
