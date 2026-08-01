@@ -40,8 +40,14 @@ catalog should live here.
 
 ## Known engine caveats (see board:rvnkquests)
 
-- **Co-located triggers race (#1853):** if a quest's proximity trigger and its reach objective sit
-  at nearly the same point, a player *arriving by teleport/portal* can fire both in one tick and the
-  resulting state is non-deterministic. Author trigger and reach points far enough apart that a
-  single arrival cannot satisfy both (see `tfah_zeal_tower` — its `tower_trigger` was moved off the
-  breach for exactly this reason, #1855).
+- **Co-located triggers (#1853, fixed in 1.1.14):** if a quest's proximity trigger and its reach
+  objective sit at nearly the same point, a player *arriving by teleport/portal* fires both in one
+  tick. State changes are now serialized per player and may only move forward, so the outcome is
+  deterministic — the higher state wins instead of last-write-wins. Co-locating them is still worth
+  avoiding: both components run, and the intermediate state is skipped rather than observed.
+
+  `tfah_zeal_tower` is no longer an example of the workaround. It was redesigned to a **single
+  `tower_reach`** at the tower base (#1855) after the earlier point-radius trigger proved *missable*
+  — a player who climbed rather than walked the path never crossed the sphere and the quest never
+  armed. The lesson there is about missability, not the race: for a destination, use one `REACH` at
+  the destination rather than a trigger plus a reach.

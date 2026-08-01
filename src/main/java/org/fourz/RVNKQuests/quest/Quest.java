@@ -108,11 +108,19 @@ public interface Quest {
     CompletableFuture<Void> advanceStateForPlayer(UUID playerUuid, QuestState newState);
 
     /**
-     * Sets the quest's state for a specific player without the forward-progress guard.
+     * Sets the quest's state for a specific player, skipping the forward-progress guard.
      *
      * <p>For explicit operations — admin state overrides, reset, abandon, pause and
-     * resume — which legitimately move a quest backwards. Still serialized per player
-     * alongside {@link #advanceStateForPlayer(UUID, QuestState)}.</p>
+     * resume — which legitimately move a quest backwards.</p>
+     *
+     * @implSpec The default implementation <b>delegates to
+     * {@link #advanceStateForPlayer(UUID, QuestState)} and therefore does NOT skip any guard</b>.
+     * It exists only so that adding this method did not break existing implementors; it is a
+     * compatibility shim, not working behaviour. Any implementation that enforces a
+     * forward-progress rule <b>must override this method</b> to be correct —
+     * {@code AbstractQuest} does, routing both through one serialized path with the guard
+     * disabled. Relying on the default will silently apply the guard and make a reset or an
+     * admin state override a no-op.
      *
      * @param playerUuid The player's UUID
      * @param newState The state to set

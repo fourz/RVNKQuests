@@ -54,5 +54,5 @@ metadata:
 rewards:
   survey_sanctum_experience_989:
     type: EXPERIENCE
-    value: '800'
-    amount: 1
+    value: points
+    amount: 800
