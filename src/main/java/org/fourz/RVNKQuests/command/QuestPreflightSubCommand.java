@@ -71,11 +71,13 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
     /**
      * RVNKCore's identifier for the development tier.
      *
-     * <p>Same value the chat mesh uses, so there is one source of server identity rather than a
-     * second one that can disagree with it. Dev is {@code test}; the other tiers are {@code event}
-     * and {@code nations}.</p>
+     * <p><b>This is the server id, not the chat room name.</b> The two are easy to confuse and do
+     * not match: RVNK Dev's chat room is {@code test} while its {@code server-id} is {@code dev}.
+     * Guessing {@code test} here made the gate report Dev as a production tier and refuse to load
+     * chunks on the one server where loading is free. The other ids are {@code event} and
+     * {@code nations}.</p>
      */
-    private static final String DEV_SERVER_ID = "test";
+    private static final String DEV_SERVER_ID = "dev";
 
     public QuestPreflightSubCommand(RVNKQuests plugin) {
         super(plugin, "preflight", "Check a quest's world/block/reward preconditions",
@@ -83,30 +85,37 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
     }
 
     /**
-     * Resolves whether this server is the development tier.
+     * Resolves this server's tier identifier, or {@code null} when it cannot be determined.
      *
-     * <p>Read from RVNKCore's {@code chat-relay.server-id} rather than a new RVNKQuests config key,
-     * for two reasons. Server identity already exists there and a second copy could disagree with
-     * it. And a newly shipped config key would not reach servers that already have a
-     * {@code config.yml} — {@code saveDefaultConfig()} writes only when the file is absent — so the
-     * key would be present in the jar, absent on every real server, and the gate would read as
-     * working while doing nothing (#1563).</p>
+     * <p>Delegates to RVNKCore's own {@code ConfigLoader.getServerId()} rather than re-reading the
+     * config here. Server identity already exists there, it is the same value the chat mesh uses,
+     * and it carries a fallback chain ({@code chat-relay.server-id} then {@code webhook.server-id})
+     * that a copy would silently drift from — an earlier attempt read only the first key and
+     * misidentified Dev as a production tier.</p>
      *
-     * <p><b>Unknown resolves to not-Dev.</b> If RVNKCore is missing or the id is unreadable, the
-     * safe reading of "I do not know which tier this is" is the cautious one.</p>
+     * <p>A new RVNKQuests config key was rejected for the same reason it usually is: it would not
+     * reach servers that already have a {@code config.yml}, since {@code saveDefaultConfig()}
+     * writes only when the file is absent. The key would be in the jar, absent everywhere real,
+     * and the gate would read as working while doing nothing (#1563).</p>
      */
-    private boolean isDevTier() {
+    private String resolveTier() {
         try {
             org.bukkit.plugin.Plugin core = Bukkit.getPluginManager().getPlugin("RVNKCore");
-            if (core == null) return false;
-            java.io.File cfg = new java.io.File(core.getDataFolder(), "config.yml");
-            if (!cfg.isFile()) return false;
-            String id = org.bukkit.configuration.file.YamlConfiguration
-                    .loadConfiguration(cfg).getString("chat-relay.server-id", "");
-            return DEV_SERVER_ID.equalsIgnoreCase(id == null ? "" : id.trim());
+            if (core == null) return null;
+            String id = org.fourz.rvnkcore.config.ConfigLoader.getInstance(core).getServerId();
+            return (id == null || id.isBlank()) ? null : id.trim();
         } catch (Exception e) {
-            return false;
+            return null;
         }
+    }
+
+    /**
+     * @return true when this is the development tier.
+     *     <p><b>Unknown resolves to not-Dev.</b> If RVNKCore is missing or the id is unreadable,
+     *     the safe reading of "I do not know which tier this is" is the cautious one.</p>
+     */
+    private boolean isDevTier(String tier) {
+        return tier != null && DEV_SERVER_ID.equalsIgnoreCase(tier);
     }
 
     @Override
@@ -117,7 +126,8 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
 
         // Loading a chunk is a mutation, however brief. On Dev that is free; on a tier with players
         // in it the operator decided it must be asked for explicitly (#1867).
-        boolean devTier = isDevTier();
+        String tier = resolveTier();
+        boolean devTier = isDevTier(tier);
         boolean forced = false;
         boolean suppressed = false;
         for (String arg : args) {
@@ -126,7 +136,10 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
         }
         boolean allowLoad = !suppressed && (devTier || forced);
         if (!devTier && !forced && !suppressed) {
-            sendMessage(sender, "&7Tier is not Dev - reporting readiness without loading chunks."
+            // Name the tier. "Not Dev" alone leaves an operator unable to tell a correctly-gated
+            // production run from a Dev box whose identity failed to resolve.
+            sendMessage(sender, "&7Tier is &e" + (tier == null ? "unknown" : tier)
+                + "&7 (not Dev) - reporting readiness without loading chunks."
                 + " Add &e--force&7 to load and release them.");
         }
 
