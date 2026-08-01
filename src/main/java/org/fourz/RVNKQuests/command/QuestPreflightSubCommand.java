@@ -125,7 +125,19 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
 
     // ── Components ──────────────────────────────────────────────────────────────
 
+    /** Case-insensitive membership — world-name case varies across migrated worlds (#1627). */
+    private static boolean containsIgnoreCase(java.util.Set<String> set, String value) {
+        for (String item : set) {
+            if (item.equalsIgnoreCase(value)) return true;
+        }
+        return false;
+    }
+
     private void checkComponents(Map<String, Object> metadata, List<Finding> findings, boolean allowLoad) {
+        // Declared worlds (#1876) — needed to tell an authoring gap from a runtime failure below.
+        java.util.Set<String> declared =
+                org.fourz.RVNKQuests.quest.QuestWorldRequirements.declared(metadata);
+
         Object componentsObj = metadata.get("components");
         if (!(componentsObj instanceof Map<?, ?> components) || components.isEmpty()) {
             findings.add(new Finding(Severity.BLOCKER, "components",
@@ -139,11 +151,20 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
                 findings.add(new Finding(Severity.BLOCKER, id, "malformed component definition"));
                 continue;
             }
-            checkComponent(id, config, findings, allowLoad);
+            checkComponent(id, config, findings, allowLoad, declared);
+        }
+
+        // Declared-but-unused costs memory: a declared world is activated whether anything uses it.
+        java.util.Set<String> unused =
+                org.fourz.RVNKQuests.quest.QuestWorldRequirements.unusedDeclarations(metadata);
+        if (!unused.isEmpty()) {
+            findings.add(new Finding(Severity.WARNING, "required_worlds",
+                    "declared but never referenced (activated for nothing): " + String.join(", ", unused)));
         }
     }
 
-    private void checkComponent(String id, Map<?, ?> config, List<Finding> findings, boolean allowLoad) {
+    private void checkComponent(String id, Map<?, ?> config, List<Finding> findings, boolean allowLoad,
+                                java.util.Set<String> declaredWorlds) {
         String worldName = str(config.get("world"));
         if (worldName == null) {
             // Not every component is positional (item discovery, kill counts). Nothing to check.
@@ -152,8 +173,16 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
 
         World world = Bukkit.getWorld(worldName);
         if (world == null) {
-            findings.add(new Finding(Severity.BLOCKER, id,
-                    "world '" + worldName + "' is not active - run: /world load " + worldName));
+            // Three-way distinction (#1877). "Not active" alone made an authoring gap look like an
+            // ops problem: the TFAH Ch1 chain declared nothing at all, and the only hint was a
+            // suggestion to run /world load by hand after every restart (#1874).
+            boolean isDeclared = containsIgnoreCase(declaredWorlds, worldName);
+            String detail = isDeclared
+                    ? "world '" + worldName + "' is DECLARED but not active - activation failed, or "
+                      + "quests.preload-required-worlds is false. Try: /world load " + worldName
+                    : "world '" + worldName + "' is not active and NOT declared - add it to "
+                      + "required_worlds so it is activated on load, or run: /world load " + worldName;
+            findings.add(new Finding(Severity.BLOCKER, id, detail));
             return;
         }
 

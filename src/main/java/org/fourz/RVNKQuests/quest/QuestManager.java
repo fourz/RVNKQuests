@@ -145,6 +145,11 @@ public class QuestManager implements IQuestService {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     try {
                         int loaded = 0;
+                        // Only quests that actually register can be played, so only these are worth
+                        // preloading worlds for or reporting drift on. Scanning every definition in
+                        // the repository warned about disabled quests, which are unplayable for a
+                        // different reason entirely.
+                        List<QuestDTO> registered = new ArrayList<>();
 
                         for (QuestDTO definition : definitions) {
                             if (quests.containsKey(definition.questId())) {
@@ -159,11 +164,14 @@ public class QuestManager implements IQuestService {
 
                             DataDrivenQuest quest = new DataDrivenQuest(plugin, definition);
                             registerQuest(quest);
+                            registered.add(definition);
                             loaded++;
                         }
 
                         logger.info("Loaded " + loaded + " data-driven quest(s) from repository" +
                             (repository.isInFallbackMode() ? " (YAML fallback)" : " (database)"));
+
+                        activateDeclaredWorlds(registered);
 
                     } catch (Exception e) {
                         logger.error("Failed to register quests from repository", e);
@@ -714,6 +722,89 @@ public class QuestManager implements IQuestService {
     public void reloadQuests() {
         logger.info("Reloading all quests");
         resetQuests();
+    }
+
+    /**
+     * Activates every world declared via {@code required_worlds} across the loaded quests (#1877).
+     *
+     * <p>Runs at load/reload rather than lazily on quest start, because lazy cannot fix the case
+     * this exists for: a start trigger inside an unloaded world is unreachable, so no player can
+     * ever trigger the activation. The Tales From A Hat Chapter 1 chain (#1767) sat dormant on Event
+     * exactly that way — {@code alphac} left {@code IMPORTED} after every restart while
+     * {@code quest validate} reported the chain {@code [VALID]}.</p>
+     *
+     * <p>Declared worlds only. Activating everything a quest merely references would defeat the
+     * opt-in and pull every old world on Event into memory at boot.</p>
+     *
+     * <p>Undeclared references are logged, not activated — that gap is the actionable authoring
+     * error, and {@code /quest debug preflight} reports it per quest.</p>
+     *
+     * @param definitions The quest definitions just loaded
+     */
+    private void activateDeclaredWorlds(java.util.Collection<QuestDTO> definitions) {
+        if (!plugin.getConfigManager().isWorldPreloadEnabled()) {
+            logger.debug("World preload disabled (quests.preload-required-worlds=false)");
+            return;
+        }
+
+        org.fourz.RVNKQuests.integration.WorldActivationService worlds = plugin.getWorldActivation();
+        if (worlds == null) return;
+
+        java.util.Set<String> wanted = new java.util.LinkedHashSet<>();
+        // world -> quests referencing it without declaring it. Grouped by world, because the
+        // actionable unit is "this world needs declaring", not one line per quest: the first cut
+        // printed 35 quest-scoped entries as a single unreadable line.
+        java.util.Map<String, java.util.List<String>> undeclaredByWorld = new java.util.TreeMap<>();
+
+        for (QuestDTO definition : definitions) {
+            java.util.Map<String, Object> metadata = definition.metadata();
+            wanted.addAll(QuestWorldRequirements.toActivate(metadata));
+
+            for (String missing : QuestWorldRequirements.undeclared(metadata)) {
+                undeclaredByWorld
+                    .computeIfAbsent(missing, k -> new java.util.ArrayList<>())
+                    .add(definition.questId());
+            }
+        }
+
+        if (!undeclaredByWorld.isEmpty()) {
+            // Split by current state: an already-loaded world is a tidiness issue, an unloaded one
+            // means those quests are unplayable right now. Only the latter deserves a warning.
+            java.util.List<String> unplayable = new java.util.ArrayList<>();
+            java.util.List<String> cosmetic = new java.util.ArrayList<>();
+
+            for (java.util.Map.Entry<String, java.util.List<String>> e : undeclaredByWorld.entrySet()) {
+                String summary = e.getKey() + " (" + e.getValue().size() + " quest(s))";
+                if (worlds.isActive(e.getKey())) {
+                    cosmetic.add(summary);
+                } else {
+                    unplayable.add(summary);
+                }
+            }
+
+            if (!unplayable.isEmpty()) {
+                logger.warning("Quests target worlds that are NOT loaded and NOT declared in "
+                    + "required_worlds - those quests are unplayable until the world is loaded: "
+                    + String.join(", ", unplayable)
+                    + ". Use '/quest debug preflight <quest>' for the per-quest detail.");
+            }
+            if (!cosmetic.isEmpty()) {
+                logger.debug("Quests reference undeclared worlds that happen to be loaded: "
+                    + String.join(", ", cosmetic));
+            }
+        }
+
+        if (wanted.isEmpty()) return;
+
+        for (String worldName : wanted) {
+            if (worlds.isActive(worldName)) continue;
+            worlds.ensureActive(worldName).thenAccept(ok -> {
+                if (!ok) {
+                    logger.warning("Declared quest world '" + worldName + "' could not be activated");
+                }
+            });
+        }
+        logger.info("Quest world preload: " + wanted.size() + " declared world(s) checked");
     }
 
     @Override

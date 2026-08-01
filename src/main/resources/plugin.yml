@@ -6,7 +6,7 @@ authors: [Fourz]
 main: org.fourz.RVNKQuests.RVNKQuests
 api-version: '26.1'
 depend: [RVNKCore]
-softdepend: [RVNKLore]
+softdepend: [RVNKLore, RVNKWorlds]
 
 commands:
   quest:

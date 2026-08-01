@@ -89,6 +89,7 @@ public class RVNKQuests extends JavaPlugin {
     // Optional features
     private LoreDatabase loreDatabase;
     private ILoreIntegration loreIntegration;
+    private org.fourz.RVNKQuests.integration.WorldActivationService worldActivation;
 
     // RVNKCore integration
     private boolean rvnkCoreAvailable = false;
@@ -172,6 +173,9 @@ public class RVNKQuests extends JavaPlugin {
             logger.debug("About to seed quest chain definitions...");
             new QuestChainDefinitionSeeder(this).seedIfNeeded();
             logger.debug("Quest chain seeding complete");
+
+            // Softdepend bridge for activating worlds a quest declares (#1875).
+            worldActivation = new org.fourz.RVNKQuests.integration.WorldActivationService(this);
 
             // Initialize lore integration and pre-populate quest books from lore DB
             loreIntegration = new LoreIntegrationImpl(this);
@@ -312,6 +316,16 @@ public class RVNKQuests extends JavaPlugin {
      */
     public ILoreIntegration getLoreIntegration() {
         return loreIntegration;
+    }
+
+    /**
+     * Bridge for making a quest's declared worlds usable (#1875). Never null once enabled;
+     * degrades to a logged no-op when RVNKWorlds is absent.
+     *
+     * @return The world activation service
+     */
+    public org.fourz.RVNKQuests.integration.WorldActivationService getWorldActivation() {
+        return worldActivation;
     }
 
     /**

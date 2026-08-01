@@ -224,6 +224,18 @@ public class ConfigManager {
     public boolean isLoreDatabaseEnabled() {
         return config.getBoolean(KEY_LORE_DATABASE_ENABLED, true);
     }
+
+    /**
+     * Whether quests activate the worlds they declare in {@code required_worlds} (#1877).
+     *
+     * <p>Off means a quest whose world is IMPORTED stays unplayable until an operator runs
+     * {@code /world load} — which is the pre-1.1.17 behaviour, kept as an escape hatch.</p>
+     *
+     * @return true when declared worlds should be activated on quest load
+     */
+    public boolean isWorldPreloadEnabled() {
+        return config.getBoolean("quests.preload-required-worlds", true);
+    }
     
     /**
      * Gets the type of lore database to use
