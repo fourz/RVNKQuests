@@ -751,13 +751,18 @@ public class QuestManager implements IQuestService {
      * @param definitions The quest definitions just loaded
      */
     private void activateDeclaredWorlds(java.util.Collection<QuestDTO> definitions) {
+        org.fourz.RVNKQuests.integration.WorldActivationService worlds = plugin.getWorldActivation();
+        if (worlds == null) return;
+
         if (!plugin.getConfigManager().isWorldPreloadEnabled()) {
+            // Release before returning. An operator who turns the feature off and reloads expects
+            // this plugin to stop pinning worlds; returning first would leave every existing hold
+            // in place until restart, with no surface that mentions preload to explain why.
+            // (This early return skipping the cleanup step is the same shape as the #1883 bug.)
+            releaseUndeclaredWorlds(worlds, java.util.Set.of());
             logger.debug("World preload disabled (quests.preload-required-worlds=false)");
             return;
         }
-
-        org.fourz.RVNKQuests.integration.WorldActivationService worlds = plugin.getWorldActivation();
-        if (worlds == null) return;
 
         java.util.Set<String> wanted = new java.util.LinkedHashSet<>();
         // world -> quests referencing it without declaring it. Grouped by world, because the
