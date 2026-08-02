@@ -14,23 +14,41 @@ metadata:
   chain: tfah_skylands
   chapter: 3
   components:
-    # Beat 1 -- kill the named guardian 200 blocks north of KOZ spawn.
+    # Beat 1a -- the plugin places and maintains the guardian.
     #
-    # No `world` key: GenericKillObjective does not read one. It parses only
-    # entity_type, custom_name, required_kills and quest_mob_only, so a world
-    # would be silently ignored -- the same trap as #1894. The custom name is
-    # the scope instead, and it is unique.
+    # This is deliberately NOT a hand-summoned mob. A console summon dies once and stays dead, is
+    # not version-controlled, and needs an admin to re-place it after every kill or restart. The
+    # engine component spawns it, ground-snaps it, adopts an existing one instead of duplicating,
+    # and re-spawns it for the next player -- which is the respawn behaviour this quest needs.
     #
-    # quest_mob_only is false because the Sky-Watcher is placed by hand and
-    # persists, rather than being spawned by an ENCOUNTER component.
+    # x/y/z + trigger_radius are new in 1.1.26. Before that this component could only spawn near
+    # whoever entered the world, which cannot express "posted 200 blocks north of KOZ spawn".
+    watcher_post:
+      type: PROXIMITY_MOB_SPAWN
+      entity_type: WITHER_SKELETON
+      custom_name: The Sky-Watcher
+      world: world
+      x: -85.0
+      y: 97.0
+      z: 19995.0
+      trigger_radius: 48.0
+      detect_existing: true
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+
+    # Beat 1b -- kill it.
+    #
+    # No world key: GenericKillObjective does not read one. It parses only entity_type,
+    # custom_name, required_kills and quest_mob_only, so a world would be silently ignored --
+    # the same trap as #1894. The custom name is the scope, and it is unique.
     slay_watcher:
       objective_type: KILL
       entity_type: WITHER_SKELETON
       custom_name: The Sky-Watcher
       required_kills: 1
-      quest_mob_only: false
-      required_state: NOT_STARTED
-      advance_state: TRIGGER_FOUND
+      quest_mob_only: true
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
 
     # Beat 2 -- arrive in the Skylands.
     #
@@ -45,8 +63,8 @@ metadata:
       y: 105.0
       z: 85.0
       radius: 120.0
-      required_state: TRIGGER_FOUND
-      advance_state: QUEST_ACTIVE
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
 
     # Beat 3 -- the lectern in the ruined Mendoza church near origin.
     #
@@ -61,14 +79,16 @@ metadata:
       y: 101
       z: 80
       radius: 3
-      required_state: QUEST_ACTIVE
+      required_state: OBJECTIVE_FOUND
       advance_state: COMPLETED
   state_mapping:
     NOT_STARTED:
-    - slay_watcher
+    - watcher_post
     TRIGGER_FOUND:
-    - reach_skylands
+    - slay_watcher
     QUEST_ACTIVE:
+    - reach_skylands
+    OBJECTIVE_FOUND:
     - ruins_lectern
 rewards:
   ascent_xp:

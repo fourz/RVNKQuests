@@ -41,7 +41,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code entity_type} — EntityType name (e.g., "PIGLIN")</li>
  *   <li>{@code custom_name} — Display name for spawned entity</li>
  *   <li>{@code world} — World name (default: "world")</li>
- *   <li>{@code radius} — Trigger radius in blocks (default: 50)</li>
+ *   <li>{@code x} / {@code y} / {@code z} — where the mob is posted (optional; omit to spawn near the player)</li>
+ *   <li>{@code trigger_radius} — how close a player must get to a sited post before it spawns (default: 48)</li>
+ *   <li>{@code radius} — <b>adoption scan</b> radius in blocks (default: 50). NOT a trigger gate —
+ *       it only bounds the search for an existing mob to adopt. The trigger's only other gate is
+ *       the world name, so an unsited spawn fires anywhere in that world.</li>
  *   <li>{@code advance_state} — State to advance to (default: "TRIGGER_FOUND")</li>
  *   <li>{@code context_key} — Runtime context key to store spawned entity (default: "spawned_entity")</li>
  *   <li>{@code context_location_key} — Runtime context key to store spawn Location (optional; used by REACH/ENCOUNTER)</li>
@@ -73,6 +77,23 @@ public class GenericMobSpawnTrigger implements Listener {
     private final String begMessage;
     private final int begCount;
 
+    /**
+     * Where the mob belongs, or null when the trigger is world-wide.
+     *
+     * <p>Without this the mob spawns a few blocks from whoever walked into the world, which cannot
+     * express "a guardian posted 200 blocks north of spawn" — the placement <i>is</i> the content.
+     * Same gap {@code STRUCTURE_INTERACT} had before #1894: a component that reads as sitable and
+     * silently is not.</p>
+     *
+     * <p>Optional, so quests that genuinely want "spawn near whoever shows up" keep working.</p>
+     */
+    private final Double siteX;
+    private final Double siteY;
+    private final Double siteZ;
+
+    /** How close a player must get to a sited spawn before it fires. */
+    private final double triggerRadius;
+
     private final boolean detectExisting;
     private final long scanIntervalMs;
     private final Map<UUID, Long> lastScanTime = new ConcurrentHashMap<>();
@@ -103,12 +124,25 @@ public class GenericMobSpawnTrigger implements Listener {
         this.begMessage = QuestComponentFactory.getStringConfig(config, "beg_message", "Please don't hurt me!");
         this.begCount = QuestComponentFactory.getIntConfig(config, "beg_count", 1);
 
+        // All three or none — a partial coordinate is a typo, not a half-sited spawn.
+        boolean sited = config.containsKey("x") && config.containsKey("y") && config.containsKey("z");
+        if (!sited && (config.containsKey("x") || config.containsKey("y") || config.containsKey("z"))) {
+            logger.warning("Quest '" + quest.getId() + "': PROXIMITY_MOB_SPAWN has a partial"
+                + " coordinate (needs x, y AND z) — falling back to spawning near the player");
+        }
+        this.siteX = sited ? QuestComponentFactory.getDoubleConfig(config, "x", 0.0) : null;
+        this.siteY = sited ? QuestComponentFactory.getDoubleConfig(config, "y", 0.0) : null;
+        this.siteZ = sited ? QuestComponentFactory.getDoubleConfig(config, "z", 0.0) : null;
+        this.triggerRadius = QuestComponentFactory.getDoubleConfig(config, "trigger_radius", 48.0);
+
         boolean globalDetect = plugin.getConfigManager().isMobNameTypeMatchingEnabled();
         this.detectExisting = QuestComponentFactory.getBoolConfig(config, "detect_existing", globalDetect);
         this.scanIntervalMs = plugin.getConfigManager().getMobScanIntervalMs();
 
         logger.debug("Trigger created for quest " + quest.getId() +
-            ": type=" + entityType + " world=" + worldName + " radius=" + radius +
+            ": type=" + entityType + " world=" + worldName + " scan_radius=" + radius +
+            (sited ? " site=" + siteX + "," + siteY + "," + siteZ + " trigger_radius=" + triggerRadius
+                   : " (unsited — spawns near the player)") +
             (interactBook != null ? " book=" + interactBook : "") +
             (begOnAttack ? " beg=" + begCount : "") +
             (detectExisting ? " detect=on" : ""));
@@ -144,7 +178,9 @@ public class GenericMobSpawnTrigger implements Listener {
                 if (detectExisting && customName != null
                         && player.getWorld().getName().equalsIgnoreCase(worldName)
                         && shouldScan(player.getUniqueId())) {
-                    Entity found = findMatchingEntity(player);
+                    // Recovery scans the post too, so a mid-quest player who wandered off still
+                    // re-acquires the mob standing where it was left.
+                    Entity found = findMatchingEntity(player, siteLocation(player.getWorld()));
                     if (found != null) {
                         adoptEntity(found);
                         logger.debug("Recovered quest mob " + customName + " for quest " +
@@ -169,9 +205,16 @@ public class GenericMobSpawnTrigger implements Listener {
         // Check if entity already spawned
         if (spawnedEntity != null && !spawnedEntity.isDead()) return;
 
+        // A sited spawn only fires once the player is actually near its post. Without this the
+        // trigger fires anywhere in the world, because the world-name check above is its only gate.
+        Location site = siteLocation(world);
+        if (site != null && player.getLocation().distanceSquared(site) > triggerRadius * triggerRadius) {
+            return;
+        }
+
         // Path 2 — NOT_STARTED: scan for existing mob before spawning
         if (detectExisting && customName != null && shouldScan(player.getUniqueId())) {
-            Entity found = findMatchingEntity(player);
+            Entity found = findMatchingEntity(player, site);
             if (found != null) {
                 adoptEntity(found);
                 quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
@@ -181,10 +224,12 @@ public class GenericMobSpawnTrigger implements Listener {
             }
         }
 
-        // Spawn the entity at a safe ground location near the player
-        Location spawnLoc = player.getLocation().add(
-            (Math.random() - 0.5) * 10, 0, (Math.random() - 0.5) * 10
-        );
+        // Spawn at the sited post when one is configured, otherwise near the player as before.
+        Location spawnLoc = (site != null)
+            ? site.clone()
+            : player.getLocation().add((Math.random() - 0.5) * 10, 0, (Math.random() - 0.5) * 10);
+        // Ground-snap either way: a configured Y can be stale after terraforming, and a mob spawned
+        // inside rock suffocates while one spawned in air falls somewhere unhelpful.
         spawnLoc.setY(world.getHighestBlockYAt(spawnLoc) + 1);
         Entity newEntity = world.spawnEntity(spawnLoc, entityType);
 
@@ -231,23 +276,35 @@ public class GenericMobSpawnTrigger implements Listener {
         }
     }
 
+    /** @return the configured post as a Location in {@code world}, or null when unsited. */
+    private Location siteLocation(World world) {
+        return (siteX == null) ? null : new Location(world, siteX, siteY, siteZ);
+    }
+
     /**
-     * Scans nearby entities for one matching entity_type + custom_name + world.
-     * Returns the nearest match, or null if none found.
+     * Scans for an existing mob matching entity_type + custom_name + world.
+     *
+     * <p>Searches around the <b>site</b> when one is configured, not the player. Anchoring the scan
+     * to the player means a guardian that drifted, or a player approaching from an odd angle, reads
+     * as "no mob here" and a duplicate gets spawned — which is exactly how two Sky-Watchers ended
+     * up standing in the same field.</p>
+     *
+     * @return the nearest match, or null if none found
      */
-    private Entity findMatchingEntity(Player player) {
+    private Entity findMatchingEntity(Player player, Location site) {
         if (!detectExisting || customName == null) return null;
         if (!player.getWorld().getName().equalsIgnoreCase(worldName)) return null;
 
+        Location origin = (site != null) ? site : player.getLocation();
         Entity nearest = null;
         double nearestDistSq = Double.MAX_VALUE;
 
-        for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
+        for (Entity entity : player.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
             if (entity.getType() != entityType) continue;
             if (!(entity instanceof LivingEntity living)) continue;
             if (!customName.equals(living.getCustomName())) continue;
 
-            double distSq = entity.getLocation().distanceSquared(player.getLocation());
+            double distSq = entity.getLocation().distanceSquared(origin);
             if (distSq < nearestDistSq) {
                 nearest = entity;
                 nearestDistSq = distSq;
