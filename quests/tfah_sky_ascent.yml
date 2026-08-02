@@ -35,6 +35,16 @@ metadata:
       detect_existing: true
       required_state: NOT_STARTED
       advance_state: TRIGGER_FOUND
+      # The book the description promises it is carrying. New in 1.1.27: the mob wears it in its
+      # off-hand at a 1.0 drop chance, so the kill yields it the ordinary vanilla way.
+      #
+      # Given by NAME for the same reason the rewards below are -- ids differ per tier (#1887).
+      # The name must match `lore item list` EXACTLY: it is "THE KINGDOM LOOKED UP", with the
+      # article. 1.1.28 resolves this through the lore ITEM path; before that a near-miss name
+      # would have quietly minted a blank one-page book with the right title and dropped that
+      # instead (#1343).
+      death_drop_book: THE KINGDOM LOOKED UP
+      death_drop_recovery_message: '&e⚠ &fThe Sky-Watcher''s book nearly fell with it — you caught it.'
 
     # Beat 1b -- kill it.
     #

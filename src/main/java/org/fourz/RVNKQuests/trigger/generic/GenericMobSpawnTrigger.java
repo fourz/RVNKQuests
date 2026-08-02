@@ -29,6 +29,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestItem;
@@ -127,6 +128,9 @@ public class GenericMobSpawnTrigger implements Listener {
 
     private Entity spawnedEntity;
     private boolean firstMoveLogged = false;
+
+    /** Resolved death-drop item, cached so the death handler does not hit the DB on the main thread. */
+    private volatile ItemStack deathDropItem;
 
     /** The dropped item entity the watchdog is following, or null when nothing is in flight. */
     private volatile UUID watchedDropId;
@@ -344,13 +348,64 @@ public class GenericMobSpawnTrigger implements Listener {
             return; // already carrying it (re-adoption after a restart)
         }
 
-        ItemStack book = QuestItem.getQuestItem(deathDropBook);
-        if (book == null) {
-            logger.warning("Quest '" + quest.getId() + "': death_drop_book '" + deathDropBook
-                + "' not found — mob will drop nothing");
+        ItemStack cached = deathDropItem;
+        if (cached != null) {
+            applyDeathDrop(living, equipment, cached.clone());
             return;
         }
 
+        resolveDeathDropItem().thenAccept(resolved -> {
+            if (resolved == null) {
+                logger.warning("Quest '" + quest.getId() + "': death_drop_book '" + deathDropBook
+                    + "' not found — mob will drop nothing");
+                return;
+            }
+            deathDropItem = resolved;
+            // Equipment is a world write; it must land on the main thread.
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!living.isValid()) return;
+                EntityEquipment eq = living.getEquipment();
+                if (eq == null) return;
+                ItemStack now = eq.getItemInOffHand();
+                if (now != null && now.getType() != Material.AIR) return;
+                applyDeathDrop(living, eq, resolved.clone());
+            });
+        });
+    }
+
+    /**
+     * Resolves the death-drop item, <b>preferring the lore ITEM path</b>.
+     *
+     * <p>{@link QuestItem#getQuestItem} falls through to {@code getOrCreateQuestBook}, which
+     * <i>creates</i> a one-page stub when the name does not match an existing quest book. For a
+     * minted lore item that is silently the wrong answer: the mob would carry an empty book with
+     * the right title while the real item sat untouched in the lore DB, and nothing would report a
+     * failure (#1343). {@code spawnItemByName} is the same path {@code /lore item give} uses, so a
+     * name that works there works here.</p>
+     *
+     * <p>Falls back to {@link QuestItem} so hardcoded, non-lore quest items still resolve.</p>
+     */
+    private java.util.concurrent.CompletableFuture<ItemStack> resolveDeathDropItem() {
+        ILoreIntegration lore = plugin.getLoreIntegration();
+        if (lore != null && lore.isLoreAvailable()) {
+            return lore.spawnItemByName(deathDropBook)
+                .thenApply(opt -> opt.orElseGet(() -> {
+                    logger.debug("Death drop '" + deathDropBook + "' is not a lore item —"
+                        + " falling back to the quest-item registry");
+                    return QuestItem.getQuestItem(deathDropBook);
+                }))
+                .exceptionally(ex -> {
+                    logger.warning("Lore lookup failed for death drop '" + deathDropBook
+                        + "': " + ex.getMessage());
+                    return null;
+                });
+        }
+        return java.util.concurrent.CompletableFuture
+            .completedFuture(QuestItem.getQuestItem(deathDropBook));
+    }
+
+    /** Puts the resolved item in the mob's off-hand and verifies the write took. */
+    private void applyDeathDrop(LivingEntity living, EntityEquipment equipment, ItemStack book) {
         equipment.setItemInOffHand(book);
         equipment.setItemInOffHandDropChance(1.0f);
 
@@ -384,12 +439,16 @@ public class GenericMobSpawnTrigger implements Listener {
         if (spawnedEntity == null) return;
         if (!event.getEntity().getUniqueId().equals(spawnedEntity.getUniqueId())) return;
 
-        ItemStack expected = QuestItem.getQuestItem(deathDropBook);
-        if (expected == null) {
+        // The cached copy from equip time — never re-resolve here. A lookup on the death tick
+        // would block the main thread, and the fallback path would mint a stub book that does not
+        // match what the mob was actually carrying.
+        ItemStack cached = deathDropItem;
+        if (cached == null) {
             logger.warning("Quest '" + quest.getId() + "': death_drop_book '" + deathDropBook
-                + "' unresolvable at death — nothing to recover");
+                + "' was never resolved — nothing to recover");
             return;
         }
+        final ItemStack expected = cached.clone();
 
         Location deathLoc = event.getEntity().getLocation();
         Player killer = event.getEntity().getKiller();
