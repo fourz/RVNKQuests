@@ -54,6 +54,15 @@ public class QuestManager implements IQuestService {
     // Prevents double-reward from concurrent events firing before the first write completes.
     private final Set<String> completionsInProgress = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Worlds this plugin currently holds against RVNKWorlds' inactivity sweep (#1883), lowercased.
+     *
+     * <p>Kept so a reload can release what is no longer declared. Without it a world dropped from
+     * {@code required_worlds} stays pinned in memory until the next restart, which quietly turns
+     * the hold mechanism into a leak.</p>
+     */
+    private final Set<String> heldWorlds = ConcurrentHashMap.newKeySet();
+
     public QuestManager(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
@@ -794,21 +803,93 @@ public class QuestManager implements IQuestService {
             }
         }
 
+        releaseUndeclaredWorlds(worlds, wanted);
+
         if (wanted.isEmpty()) return;
 
+        // No `if (isActive) continue` here, deliberately. Activating is only half the job: the world
+        // must also be HELD, or RVNKWorlds' inactivity sweep reclaims it and writes it back to
+        // IMPORTED while the quest is mid-session (#1883). Skipping already-active worlds skipped
+        // the hold with them — and an already-active world is the COMMON case, because RVNKWorlds
+        // auto-loads previously-active worlds at boot. That is exactly how alphac was swept out from
+        // under two players running tfah_ch1_journey on 2026-08-02, despite the quest declaring it.
+        // ensureActive() short-circuits on a loaded world itself, so this costs nothing extra.
         for (String worldName : wanted) {
-            if (worlds.isActive(worldName)) continue;
             worlds.ensureActive(worldName).thenAccept(ok -> {
-                if (!ok) {
+                if (ok) {
+                    heldWorlds.add(worldName.toLowerCase(java.util.Locale.ROOT));
+                } else {
                     logger.warning("Declared quest world '" + worldName + "' could not be activated");
                 }
             });
         }
-        logger.info("Quest world preload: " + wanted.size() + " declared world(s) checked");
+        logger.info("Quest world preload: " + wanted.size() + " declared world(s) checked and held");
+    }
+
+    /**
+     * Drops holds on worlds no quest declares any more (#1883).
+     *
+     * <p>A hold outlives the declaration that justified it, so without this a world removed from
+     * {@code required_worlds} — or belonging to a quest that was deleted — stays pinned against
+     * cleanup for the rest of the server's uptime. Reload is the only moment the declared set can
+     * change, so it is the only moment this needs to run.</p>
+     *
+     * @param worlds The activation bridge
+     * @param wanted Worlds declared by the definitions just loaded
+     */
+    private void releaseUndeclaredWorlds(
+            org.fourz.RVNKQuests.integration.WorldActivationService worlds,
+            java.util.Set<String> wanted) {
+
+        if (heldWorlds.isEmpty()) return;
+
+        java.util.Set<String> stillWanted = new java.util.HashSet<>();
+        for (String name : wanted) {
+            stillWanted.add(name.toLowerCase(java.util.Locale.ROOT));
+        }
+
+        java.util.List<String> released = new java.util.ArrayList<>();
+        for (java.util.Iterator<String> it = heldWorlds.iterator(); it.hasNext(); ) {
+            String held = it.next();
+            if (stillWanted.contains(held)) continue;
+            worlds.release(held);
+            it.remove();
+            released.add(held);
+        }
+
+        if (!released.isEmpty()) {
+            logger.info("Released quest world hold on " + released.size()
+                + " world(s) no longer declared: " + String.join(", ", released));
+        }
     }
 
     @Override
     public void shutdown() {
+        releaseAllWorldHolds();
         cleanupQuests();
+    }
+
+    /**
+     * Drops every world hold this plugin placed (#1883).
+     *
+     * <p>A full server stop does not need this — RVNKWorlds' registry is in-memory and dies with
+     * it. A PlugMan reload of RVNKQuests alone does: RVNKWorlds keeps running, and the holds placed
+     * by the old classloader would pin those worlds with nothing left alive to release them.</p>
+     */
+    private void releaseAllWorldHolds() {
+        if (heldWorlds.isEmpty()) return;
+
+        org.fourz.RVNKQuests.integration.WorldActivationService worlds = plugin.getWorldActivation();
+        if (worlds == null) {
+            heldWorlds.clear();
+            return;
+        }
+
+        int count = heldWorlds.size();
+        for (String held : heldWorlds) {
+            worlds.release(held);
+        }
+        heldWorlds.clear();
+        logger.info("Released " + count + " quest world hold(s) on shutdown");
     }
 }

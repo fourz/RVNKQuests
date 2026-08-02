@@ -47,6 +47,9 @@ public class GenericInteractObjective implements Listener {
 
     private final Map<UUID, Integer> interactCounts = new ConcurrentHashMap<>();
 
+    /** Explains an interaction with the right target at the wrong beat. */
+    private final org.fourz.RVNKQuests.util.OutOfOrderFeedback feedback;
+
     public GenericInteractObjective(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.quest = quest;
         this.logger = LogManager.getInstance(plugin, "GenericInteractObjective");
@@ -59,13 +62,16 @@ public class GenericInteractObjective implements Listener {
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "OBJECTIVE_FOUND"));
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
+        this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
     }
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
-        if (quest.getStateForPlayer(player) != requiredState) return;
 
+        // Path restriction stays ahead of the state gate: a player on the other branch of the quest
+        // is not out of order, they are somewhere else entirely, and telling them otherwise would
+        // leak the existence of the branch they did not take.
         // Check path restriction
         if (requiresPath != null) {
             String playerPath = quest.getPathChoiceCached(player);
@@ -92,6 +98,12 @@ public class GenericInteractObjective implements Listener {
         }
 
         if (!matched) return;
+
+        QuestState currentState = quest.getStateForPlayer(player);
+        if (currentState != requiredState) {
+            feedback.notifyWrongBeat(player, currentState, requiredState);
+            return;
+        }
 
         UUID playerId = player.getUniqueId();
         int count = interactCounts.merge(playerId, 1, Integer::sum);

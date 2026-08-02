@@ -51,8 +51,14 @@ public class GenericStructureInteractTrigger implements Listener {
     private static final double DEFAULT_RADIUS = 3.0;
 
     /** Config keys this component actually reads. Anything else is a typo or a wrong assumption. */
-    private static final Set<String> KNOWN_KEYS = Set.of(
-        "type", "block_type", "world", "x", "y", "z", "radius", "required_state", "advance_state");
+    private static final Set<String> KNOWN_KEYS = buildKnownKeys();
+
+    private static Set<String> buildKnownKeys() {
+        Set<String> keys = new java.util.HashSet<>(Set.of(
+            "type", "block_type", "world", "x", "y", "z", "radius", "required_state", "advance_state"));
+        keys.addAll(org.fourz.RVNKQuests.util.OutOfOrderFeedback.configKeys());
+        return Set.copyOf(keys);
+    }
 
     private final RVNKQuests plugin;
     private final DataDrivenQuest quest;
@@ -68,6 +74,9 @@ public class GenericStructureInteractTrigger implements Listener {
     private final Double y;
     private final Double z;
     private final double radiusSquared;
+
+    /** Explains a right-click that hit the right block at the wrong beat. */
+    private final org.fourz.RVNKQuests.util.OutOfOrderFeedback feedback;
 
     public GenericStructureInteractTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.plugin = plugin;
@@ -100,6 +109,7 @@ public class GenericStructureInteractTrigger implements Listener {
         }
         double radius = QuestComponentFactory.getDoubleConfig(config, "radius", DEFAULT_RADIUS);
         this.radiusSquared = radius * radius;
+        this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
 
         warnUnknownKeys(config);
 
@@ -133,13 +143,20 @@ public class GenericStructureInteractTrigger implements Listener {
 
         Player player = event.getPlayer();
 
-        if (quest.getStateForPlayer(player) != requiredState) return;
-
+        // Cheapest gates first, and the state check last of the three: reaching it means the player
+        // is on the right block in the right place, so a mismatch there is worth explaining rather
+        // than swallowing (see OutOfOrderFeedback).
         if (worldName != null && !player.getWorld().getName().equalsIgnoreCase(worldName)) return;
 
         if (block.getType() != blockType) return;
 
         if (!onSite(block)) return;
+
+        QuestState currentState = quest.getStateForPlayer(player);
+        if (currentState != requiredState) {
+            feedback.notifyWrongBeat(player, currentState, requiredState);
+            return;
+        }
 
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
         logger.debug("Structure interact trigger fired for " + player.getName() + " on " + blockType

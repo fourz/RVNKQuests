@@ -4,6 +4,11 @@ description: ''
 repeatable: false
 cooldown_minutes: 0
 metadata:
+  # Declared so RVNKWorlds keeps alphac loaded AND held against the inactivity sweep (#1883).
+  # This is the first quest a new player finishes; without the declaration it sits behind an
+  # IMPORTED world after every restart while `quest validate` reports it [VALID].
+  required_worlds:
+  - alphac
   components:
     # World-scoped, not sited: the book is matched by name anywhere in alphac, so the lectern can
     # be moved without touching the quest. LECTERN_BOOK_REMOVED fires on taking the book OUT.

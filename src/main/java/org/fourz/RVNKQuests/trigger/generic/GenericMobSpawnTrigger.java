@@ -67,6 +67,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code beg_message} — Message the mob says when hit (default: "Please don't hurt me!")</li>
  *   <li>{@code beg_count} — Number of beg attempts before the mob can be killed (default: 1)</li>
  *   <li>{@code detect_existing} — Scan for existing mobs matching name+type+world before spawning (default: global config)</li>
+ *   <li>{@code respawn_if_lost} — Re-post the mob for a player stuck at {@code advance_state} with
+ *       no mob left in the world (default: true). See {@link #respawnIfStranded}</li>
+ *   <li>{@code respawn_delay_ms} — How long that player must be stranded first
+ *       (default: {@value #DEFAULT_RESPAWN_DELAY_MS})</li>
+ *   <li>{@code respawn_cooldown_ms} — Minimum gap between re-posts
+ *       (default: {@value #DEFAULT_RESPAWN_COOLDOWN_MS})</li>
  * </ul>
  */
 public class GenericMobSpawnTrigger implements Listener {
@@ -80,6 +86,17 @@ public class GenericMobSpawnTrigger implements Listener {
     /** How far from the death point to look for the item entity, and for a player to grant it to. */
     private static final double DROP_SEARCH_RADIUS = 8.0;
     private static final double RECOVERY_PLAYER_RADIUS = 64.0;
+
+    /**
+     * How long a player sits at {@code advance_state} with no quest mob before one is re-posted.
+     *
+     * <p>Five minutes, because the window this must not fire in is "killed the mob, walking back
+     * with the drop" — seconds to a minute. Anything shorter risks handing out a second mob, and a
+     * second {@code death_drop_book}, after a completely normal kill.</p>
+     */
+    private static final long DEFAULT_RESPAWN_DELAY_MS = 300_000L;
+    /** Minimum gap between re-posts, so several stranded players yield one mob, not several. */
+    private static final long DEFAULT_RESPAWN_COOLDOWN_MS = 120_000L;
 
     private final RVNKQuests plugin;
     private final DataDrivenQuest quest;
@@ -120,6 +137,18 @@ public class GenericMobSpawnTrigger implements Listener {
     private final boolean detectExisting;
     private final long scanIntervalMs;
     private final Map<UUID, Long> lastScanTime = new ConcurrentHashMap<>();
+
+    /** Whether a lost quest mob is re-posted for a player stuck at {@code advance_state}. */
+    private final boolean respawnIfLost;
+    /** How long a player must be stranded before the mob is re-posted. */
+    private final long respawnDelayMs;
+    /** Minimum gap between two re-posts, across all players. */
+    private final long respawnCooldownMs;
+
+    /** player -> first tick we saw them at {@code advance_state} with no mob in the world. */
+    private final Map<UUID, Long> strandedSince = new ConcurrentHashMap<>();
+    /** When the mob was last re-posted, so two stranded players do not produce two mobs. */
+    private volatile long lastRespawnAt = 0L;
 
     /** Tracks how many times each player has hit the mob (beg mechanic). */
     private final Map<UUID, Integer> hitCounts = new ConcurrentHashMap<>();
@@ -170,6 +199,12 @@ public class GenericMobSpawnTrigger implements Listener {
         this.siteZ = sited ? QuestComponentFactory.getDoubleConfig(config, "z", 0.0) : null;
         this.triggerRadius = QuestComponentFactory.getDoubleConfig(config, "trigger_radius", 48.0);
 
+        this.respawnIfLost = QuestComponentFactory.getBoolConfig(config, "respawn_if_lost", true);
+        this.respawnDelayMs = (long) QuestComponentFactory.getDoubleConfig(
+            config, "respawn_delay_ms", DEFAULT_RESPAWN_DELAY_MS);
+        this.respawnCooldownMs = (long) QuestComponentFactory.getDoubleConfig(
+            config, "respawn_cooldown_ms", DEFAULT_RESPAWN_COOLDOWN_MS);
+
         boolean globalDetect = plugin.getConfigManager().isMobNameTypeMatchingEnabled();
         this.detectExisting = QuestComponentFactory.getBoolConfig(config, "detect_existing", globalDetect);
         this.scanIntervalMs = plugin.getConfigManager().getMobScanIntervalMs();
@@ -210,17 +245,26 @@ public class GenericMobSpawnTrigger implements Listener {
         // Path 1 — Recovery: player past NOT_STARTED but lost entity reference
         if (currentState == advanceState || currentState == QuestState.TRIGGER_FOUND
                 || currentState == QuestState.QUEST_ACTIVE) {
-            if (spawnedEntity == null || !spawnedEntity.isValid()) {
+            if (spawnedEntity != null && spawnedEntity.isValid()) {
+                // The mob is standing right there — whatever this player is waiting on, it is not
+                // a missing mob.
+                strandedSince.remove(player.getUniqueId());
+            } else {
                 if (detectExisting && customName != null
                         && player.getWorld().getName().equalsIgnoreCase(worldName)
                         && shouldScan(player.getUniqueId())) {
                     // Recovery scans the post too, so a mid-quest player who wandered off still
                     // re-acquires the mob standing where it was left.
-                    Entity found = findMatchingEntity(player, siteLocation(player.getWorld()));
+                    World playerWorld = player.getWorld();
+                    Location post = siteLocation(playerWorld);
+                    Entity found = findMatchingEntity(player, post);
                     if (found != null) {
                         adoptEntity(found);
+                        strandedSince.remove(player.getUniqueId());
                         logger.debug("Recovered quest mob " + customName + " for quest " +
                             quest.getId() + " near " + player.getName());
+                    } else {
+                        respawnIfStranded(player, currentState, playerWorld, post);
                     }
                 }
             }
@@ -275,6 +319,72 @@ public class GenericMobSpawnTrigger implements Listener {
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
 
         logger.debug("Spawned " + entityType + " for quest " + quest.getId() + " near " + player.getName());
+    }
+
+    /**
+     * Re-posts the quest mob for a player who is stranded without one.
+     *
+     * <p>The spawn path only runs at {@code NOT_STARTED} and recovery only <i>adopts</i> a mob that
+     * still exists. So a mob that dies without its kill registering — killed by the environment, by
+     * another player, or with the objective's {@code required_state} not yet reached — leaves the
+     * player parked at {@code advanceState} with nothing in the world to interact with and no way
+     * out short of an admin {@code /quest reset}. That reset then breaks every quest downstream in
+     * the chain, so the cheap fix costs more than the bug.</p>
+     *
+     * <h3>Why the conditions are this narrow</h3>
+     * <ul>
+     *   <li><b>Only at {@code advanceState}</b> — the state this trigger itself sets. Past it the
+     *       player has progressed, so the mob's absence is expected rather than a dead end.</li>
+     *   <li><b>Only after {@code respawn_delay_ms}</b> — a player who just killed the mob and is
+     *       walking back with the drop in hand is momentarily indistinguishable from a stranded
+     *       one. Waiting keeps the trigger from handing out a second mob, and a second copy of its
+     *       {@code death_drop_book}, seconds after a perfectly normal kill.</li>
+     *   <li><b>Only when the adoption scan came back empty</b> — the caller has already searched
+     *       the post, so this cannot duplicate a mob that merely drifted out of reference.</li>
+     * </ul>
+     *
+     * @param player       The player who may be stranded
+     * @param currentState That player's state, already read by the caller
+     * @param world        The player's world (matched against {@code world} by the caller)
+     * @param post         The configured site, or null when the trigger is unsited
+     */
+    private void respawnIfStranded(Player player, QuestState currentState, World world, Location post) {
+        if (!respawnIfLost) return;
+        if (currentState != advanceState) return;
+
+        // A sited post has to be approached, exactly as the first spawn did — otherwise the mob
+        // re-appears the moment a stranded player logs in anywhere in the world.
+        if (post != null && player.getLocation().distanceSquared(post) > triggerRadius * triggerRadius) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        Long since = strandedSince.putIfAbsent(player.getUniqueId(), now);
+        if (since == null) {
+            logger.debug("Quest '" + quest.getId() + "': " + player.getName()
+                + " is at " + currentState + " with no quest mob — watching for "
+                + (respawnDelayMs / 1000) + "s before re-posting");
+            return;
+        }
+        if (now - since < respawnDelayMs) return;
+
+        // One re-post per cooldown across all players: the mob is shared world state, so two
+        // stranded players crossing the post must not produce two mobs.
+        if (now - lastRespawnAt < respawnCooldownMs) return;
+        lastRespawnAt = now;
+        strandedSince.remove(player.getUniqueId());
+
+        Location spawnLoc = (post != null)
+            ? post.clone()
+            : player.getLocation().add((Math.random() - 0.5) * 10, 0, (Math.random() - 0.5) * 10);
+        spawnLoc.setY(world.getHighestBlockYAt(spawnLoc) + 1);
+
+        adoptEntity(world.spawnEntity(spawnLoc, entityType));
+
+        logger.info("Quest '" + quest.getId() + "': re-posted " + entityType
+            + (customName != null ? " (" + customName + ")" : "")
+            + " for stranded player " + player.getName() + " at "
+            + spawnLoc.getBlockX() + "," + spawnLoc.getBlockY() + "," + spawnLoc.getBlockZ());
     }
 
     /**
@@ -658,6 +768,10 @@ public class GenericMobSpawnTrigger implements Listener {
         for (Entity entity : player.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
             if (entity.getType() != entityType) continue;
             if (!(entity instanceof LivingEntity living)) continue;
+            // A mob is still returned by getNearbyEntities on the tick it dies. Adopting one puts
+            // the quest's entity reference — and a freshly re-equipped death drop — onto a corpse
+            // that is removed a tick later, so the quest reads as having a mob when it has none.
+            if (living.isDead() || !living.isValid()) continue;
             if (!customName.equals(living.getCustomName())) continue;
 
             double distSq = entity.getLocation().distanceSquared(origin);
