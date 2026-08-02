@@ -10,6 +10,10 @@ metadata:
   chain: tfah_chapter1
   chapter: 1
   components:
+    # KNOWN STALE (2026-08-02): this exact block is AIR -- preflight reports a BLOCKER for it. The
+    # trigger still fires because STRUCTURE_INTERACT defaults to a 3.0 radius and the real lectern
+    # is ~2.24 blocks away, so it works on 0.76 blocks of margin. -315,116,447 was tried and is
+    # DIRT. Do not "fix" this by guessing: read the lectern's real block first, then set it here.
     lectern_trigger:
       type: STRUCTURE_INTERACT
       block_type: LECTERN
