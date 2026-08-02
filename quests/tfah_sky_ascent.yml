@@ -66,12 +66,19 @@ metadata:
     # other way; a REACH objective cannot tell the difference and should not
     # try. Radius is generous because there is no single correct approach and
     # the islands are scattered.
+    #
+    # Sited on the PORTAL EXIT, not on a landmark. The ascent lands the player above KOZ at
+    # z~19800 -- it translates X/Z, so you arrive over where you left. The portal then carries
+    # them to -27,106,328, and from there the ruins are ~250 north. The old siting (-256,105,85)
+    # was ~285 blocks WEST of the ruins, so the natural portal->ruins route never entered it:
+    # beat 2 never advanced, and the lectern -- which requires OBJECTIVE_FOUND -- stayed inert.
+    # Arriving IS the beat, so the arrival point is where it belongs.
     reach_skylands:
       objective_type: REACH
       world: koz_sky_2
-      x: -256.0
-      y: 105.0
-      z: 85.0
+      x: -27.0
+      y: 106.0
+      z: 328.0
       radius: 120.0
       required_state: QUEST_ACTIVE
       advance_state: OBJECTIVE_FOUND
