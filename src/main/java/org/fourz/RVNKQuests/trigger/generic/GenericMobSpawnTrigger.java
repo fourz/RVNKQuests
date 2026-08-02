@@ -352,6 +352,15 @@ public class GenericMobSpawnTrigger implements Listener {
         if (!respawnIfLost) return;
         if (currentState != advanceState) return;
 
+        // A trigger configured with advance_state: COMPLETED (or any terminal state) would
+        // otherwise satisfy the check above forever, re-posting the mob for a player who has
+        // finished the quest. Nobody is stranded at the end of the track.
+        if (currentState == QuestState.COMPLETED
+            || currentState == QuestState.ABANDONED
+            || currentState == QuestState.PAUSED) {
+            return;
+        }
+
         // A sited post has to be approached, exactly as the first spawn did — otherwise the mob
         // re-appears the moment a stranded player logs in anywhere in the world.
         if (post != null && player.getLocation().distanceSquared(post) > triggerRadius * triggerRadius) {
