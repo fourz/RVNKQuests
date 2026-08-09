@@ -177,9 +177,8 @@ public class GenericEncounterObjective implements Listener {
         Random rng = new Random();
         try {
             for (int i = 0; i < spawnCount; i++) {
-                double offsetX = (rng.nextDouble() - 0.5) * spawnRadius * 2;
-                double offsetZ = (rng.nextDouble() - 0.5) * spawnRadius * 2;
-                Location mobLoc = spawnLoc.clone().add(offsetX, 0, offsetZ);
+                double[] offset = discOffset(rng, spawnRadius);
+                Location mobLoc = spawnLoc.clone().add(offset[0], 0, offset[1]);
 
                 Entity mob = world.spawnEntity(mobLoc, entityType);
                 if (mob instanceof LivingEntity living) {
@@ -222,52 +221,111 @@ public class GenericEncounterObjective implements Listener {
         if (!entity.hasMetadata(QUEST_MOB_METADATA)) return;
         if (entity.getType() != entityType) return;
 
+        // #1904: credit is driven by OWNERSHIP, not by who landed the blow. The mob was spawned for
+        // one player's encounter and it is now dead; a knight that falls off the arena should not cost
+        // the player the four they already killed. Resolve the owner from the spawn registry first,
+        // because an environmental death has no killer at all.
+        UUID playerId = findOwner(entity);
         Player killer = entity.getKiller();
+        if (playerId == null && killer != null) {
+            playerId = killer.getUniqueId();
+        }
+        if (playerId == null) return;
 
-        if (killer != null) {
-            UUID playerId = killer.getUniqueId();
-            if (quest.getStateForPlayer(killer) != requiredState) return;
+        List<Entity> mobs = spawnedMobs.get(playerId);
+        if (mobs == null) return;
+        mobs.removeIf(m -> m.getUniqueId().equals(entity.getUniqueId()));
 
-            List<Entity> mobs = spawnedMobs.get(playerId);
-            if (mobs == null) return;
+        Player owner = plugin.getServer().getPlayer(playerId);
+        if (owner == null || quest.getStateForPlayer(owner) != requiredState) return;
 
-            mobs.removeIf(m -> m.getUniqueId().equals(entity.getUniqueId()));
+        // The exploit this guards: spawn a wave, walk away, let the terrain clear it. A player kill
+        // always counts — they were demonstrably there. An environmental death only counts while the
+        // owner is still engaged.
+        boolean credited = killer != null || isOwnerEngaged(owner);
 
-            int count = killCounts.merge(playerId, 1, Integer::sum);
-            logger.debug(killer.getName() + " killed encounter mob (" + count + "/" + requiredKills + ")");
-
-            if (count >= requiredKills) {
-                // Add loot drops to the last mob's death
-                if (!lootDrops.isEmpty()) {
-                    for (Map.Entry<Material, Integer> loot : lootDrops.entrySet()) {
-                        event.getDrops().add(new ItemStack(loot.getKey(), loot.getValue()));
-                    }
-                }
+        if (!credited) {
+            // Not credited, but NOT discarded either — the kills already banked stay banked.
+            logger.debug("Encounter mob died with " + owner.getName() + " away from the arena on quest "
+                + quest.getId() + " — no credit, existing progress kept");
+            if (mobs.isEmpty()) {
+                announceReset(owner);
                 cleanupEncounter(playerId, mobs);
-                if (setsPath != null) quest.setPathChoice(killer, setsPath);
-                quest.advanceStateForPlayer(playerId, advanceState);
-                logger.debug(killer.getName() + " completed encounter objective for quest " + quest.getId());
-            } else if (mobs.isEmpty()) {
-                // Player got some kills but remaining mobs died by other means — reset so encounter can re-fire
-                cleanupEncounter(playerId, mobs);
-                logger.debug("All encounter mobs gone for " + killer.getName() + " before required kills — resetting encounter");
             }
-        } else {
-            // No player killer (burned, suffocated, etc.) — find owning player and reset if all their mobs are gone
-            UUID ownerUuid = null;
-            for (Map.Entry<UUID, List<Entity>> entry : spawnedMobs.entrySet()) {
-                if (entry.getValue().removeIf(m -> m.getUniqueId().equals(entity.getUniqueId()))) {
-                    ownerUuid = entry.getKey();
-                    break;
+            return;
+        }
+
+        int count = killCounts.merge(playerId, 1, Integer::sum);
+        logger.debug(owner.getName() + (killer != null ? " killed" : " was credited for")
+            + " encounter mob (" + count + "/" + requiredKills + ") on quest " + quest.getId());
+
+        if (count >= requiredKills) {
+            // Loot rides on the last mob's death. An environmental death still drops it — the
+            // objective is complete either way, and withholding it would punish the terrain.
+            if (!lootDrops.isEmpty()) {
+                for (Map.Entry<Material, Integer> loot : lootDrops.entrySet()) {
+                    event.getDrops().add(new ItemStack(loot.getKey(), loot.getValue()));
                 }
             }
-            if (ownerUuid != null) {
-                List<Entity> remaining = spawnedMobs.get(ownerUuid);
-                if (remaining != null && remaining.isEmpty()) {
-                    cleanupEncounter(ownerUuid, remaining);
-                    logger.debug("All encounter mobs died naturally for player " + ownerUuid + " on quest " + quest.getId() + " — resetting encounter");
+            cleanupEncounter(playerId, mobs);
+            if (setsPath != null) quest.setPathChoice(owner, setsPath);
+            quest.advanceStateForPlayer(playerId, advanceState);
+            logger.debug(owner.getName() + " completed encounter objective for quest " + quest.getId());
+        } else if (mobs.isEmpty()) {
+            // Every mob is gone but the bar was not met — only reachable when required_kills exceeds
+            // the number actually spawned. Say so: a wave vanishing in silence is indistinguishable
+            // from the quest being broken, which is how #1904 was first reported.
+            announceReset(owner);
+            cleanupEncounter(playerId, mobs);
+            logger.warning("Encounter '" + quest.getId() + "': wave exhausted for " + owner.getName()
+                + " at " + count + "/" + requiredKills + " — required_kills may exceed spawn_count ("
+                + requiredKills + " > " + spawnCount + "). Encounter reset.");
+        }
+    }
+
+    /**
+     * A random horizontal offset lying inside a disc of {@code radius} (#1904).
+     *
+     * <p>The previous form offset each axis by {@code ±radius} independently, which is a
+     * <em>square</em>: its corners sit at {@code radius * sqrt(2)}, so a configured
+     * {@code spawn_radius: 8} could place a mob 11.3 blocks out. {@code spawn_radius} was
+     * therefore never the bound it advertises. Polar sampling honours it exactly, and the
+     * {@code sqrt} on the radius keeps the distribution uniform over the disc rather than
+     * bunching mobs at the centre.</p>
+     *
+     * @return {@code [offsetX, offsetZ]}, with {@code hypot(offsetX, offsetZ) <= radius}
+     */
+    static double[] discOffset(Random rng, double radius) {
+        double angle = rng.nextDouble() * Math.PI * 2;
+        double dist = Math.sqrt(rng.nextDouble()) * radius;
+        return new double[] { Math.cos(angle) * dist, Math.sin(angle) * dist };
+    }
+
+    /** @return the player whose encounter spawned this entity, or null if it belongs to no live wave. */
+    private UUID findOwner(LivingEntity entity) {
+        for (Map.Entry<UUID, List<Entity>> entry : spawnedMobs.entrySet()) {
+            for (Entity m : entry.getValue()) {
+                if (m.getUniqueId().equals(entity.getUniqueId())) {
+                    return entry.getKey();
                 }
             }
+        }
+        return null;
+    }
+
+    /** True when the owner is still fighting: online, in the encounter world, inside the trigger radius. */
+    private boolean isOwnerEngaged(Player owner) {
+        if (!owner.isOnline()) return false;
+        Location spawnLoc = getSpawnLocation(owner);
+        if (spawnLoc == null || spawnLoc.getWorld() == null) return false;
+        if (!owner.getWorld().equals(spawnLoc.getWorld())) return false;
+        return owner.getLocation().distanceSquared(spawnLoc) <= triggerRadius * triggerRadius;
+    }
+
+    /** Tell the player the wave is gone. Silence here reads as a broken quest (#1904). */
+    private void announceReset(Player owner) {
+        if (owner != null && owner.isOnline()) {
+            owner.sendMessage("§eThe encounter has reset — approach again to face them anew.");
         }
     }
 
