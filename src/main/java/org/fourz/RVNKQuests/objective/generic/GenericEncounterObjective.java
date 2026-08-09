@@ -284,7 +284,12 @@ public class GenericEncounterObjective implements Listener {
             logger.debug("Encounter mob died with " + owner.getName() + " away from the fight on quest "
                 + quest.getId() + " — no credit, existing progress kept");
             if (mobs.isEmpty()) {
-                announceReset(owner);
+                // No player-facing message here: the owner walked away from this wave, so telling
+                // them to "approach again" is noise about something they chose to leave. The
+                // silent-reset complaint in #1904 was about killing 4 of 5 and losing the lot —
+                // that case now credits and completes, so it cannot reach this branch.
+                logger.debug("Encounter wave for " + owner.getName() + " on quest " + quest.getId()
+                    + " expired with the owner away — encounter reset, no message sent");
                 cleanupEncounter(playerId, mobs);
             }
             return;
@@ -307,10 +312,10 @@ public class GenericEncounterObjective implements Listener {
             quest.advanceStateForPlayer(playerId, advanceState);
             logger.debug(owner.getName() + " completed encounter objective for quest " + quest.getId());
         } else if (mobs.isEmpty()) {
-            // Every mob is gone but the bar was not met — only reachable when required_kills exceeds
-            // the number actually spawned. Say so: a wave vanishing in silence is indistinguishable
-            // from the quest being broken, which is how #1904 was first reported.
-            announceReset(owner);
+            // Every mob is gone but the bar was not met. With ownership-based credit this is only
+            // reachable when required_kills exceeds the number actually spawned — an authoring
+            // error, not something the player did or can act on, so it goes to the log and not to
+            // their chat. The WARN names both numbers so the misconfiguration is obvious.
             cleanupEncounter(playerId, mobs);
             logger.warning("Encounter '" + quest.getId() + "': wave exhausted for " + owner.getName()
                 + " at " + count + "/" + requiredKills + " — required_kills may exceed spawn_count ("
@@ -369,12 +374,6 @@ public class GenericEncounterObjective implements Listener {
         return owner.getLocation().distanceSquared(deathLoc) <= creditRadius * creditRadius;
     }
 
-    /** Tell the player the wave is gone. Silence here reads as a broken quest (#1904). */
-    private void announceReset(Player owner) {
-        if (owner != null && owner.isOnline()) {
-            owner.sendMessage("§eThe encounter has reset — approach again to face them anew.");
-        }
-    }
 
     private void cleanupEncounter(UUID playerId, List<Entity> mobs) {
         for (Entity mob : mobs) {
