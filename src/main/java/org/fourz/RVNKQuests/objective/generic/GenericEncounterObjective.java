@@ -17,6 +17,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.fourz.RVNKQuests.RVNKQuests;
@@ -133,8 +134,28 @@ public class GenericEncounterObjective implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (event.getTo() == null) return;
+        checkEncounter(event.getPlayer(), event.getTo());
+    }
 
-        Player player = event.getPlayer();
+    /**
+     * Arrival by teleport or portal counts as arrival (#1932).
+     *
+     * <p>{@link PlayerTeleportEvent} extends {@link PlayerMoveEvent} but declares its own
+     * {@code HandlerList}, so the move handler above never sees a teleport. Without this, a player
+     * who portals into the arena stands inside {@code trigger_radius} with no wave until they
+     * physically take a step — everything looks right and nothing happens. Tales From A Hat moves
+     * players between scenarios by portal, so that is the normal path, not an edge case.
+     * {@code GenericReachObjective} and four other components already do this; the encounter was
+     * the outlier.</p>
+     */
+    @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (event.getTo() == null) return;
+        checkEncounter(event.getPlayer(), event.getTo());
+    }
+
+    /** Shared arrival check. {@code arrival} is the destination, which on a teleport is not yet the player's location. */
+    private void checkEncounter(Player player, Location arrival) {
         if (quest.getStateForPlayer(player) != requiredState) return;
 
         // Check path restriction
@@ -149,9 +170,11 @@ public class GenericEncounterObjective implements Listener {
         Location spawnLoc = getSpawnLocation(player);
         if (spawnLoc == null) return;
 
-        // Check if player is close enough to trigger the encounter
-        if (spawnLoc.getWorld() != null && !player.getWorld().equals(spawnLoc.getWorld())) return;
-        if (player.getLocation().distanceSquared(spawnLoc) > triggerRadius * triggerRadius) return;
+        // Check if player is close enough to trigger the encounter. Measured against the arrival
+        // location: on a teleport the player has not been moved yet, so getLocation() is still the
+        // origin and would fail this check for the very case #1932 exists to fix.
+        if (spawnLoc.getWorld() != null && !arrival.getWorld().equals(spawnLoc.getWorld())) return;
+        if (arrival.distanceSquared(spawnLoc) > triggerRadius * triggerRadius) return;
 
         // #1765 Bug 1: a monster cannot spawn at PEACEFUL — spawnEntity throws IllegalStateException,
         // and (unhandled) it re-throws on every PlayerMoveEvent while the player sits in the trigger →
