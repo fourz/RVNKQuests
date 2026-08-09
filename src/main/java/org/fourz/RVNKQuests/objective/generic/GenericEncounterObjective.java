@@ -40,6 +40,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code required_kills} — Number of kills to complete (default: same as spawn_count)</li>
  *   <li>{@code spawn_radius} — Radius around spawn point to spread mobs (default: 5.0)</li>
  *   <li>{@code trigger_radius} — Distance from location to trigger spawn (default: 20.0)</li>
+ *   <li>{@code credit_radius} — How close the player must be to a mob that died with no player
+ *       killer for it to count (default: 64.0). Measured from the mob, not the spawn point, so
+ *       terrain kills set up away from the arena still count (#1904)</li>
  *   <li>{@code context_location_key} — Runtime context key for spawn location (optional)</li>
  *   <li>{@code world} — World name for fixed coordinates (default: "world")</li>
  *   <li>{@code x}, {@code y}, {@code z} — Fixed spawn coordinates (if no context key)</li>
@@ -57,6 +60,13 @@ public class GenericEncounterObjective implements Listener {
 
     private static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
 
+    /**
+     * How close the owner must be to a mob that died without a player killer for it to count
+     * (#1904). Generous on purpose: this guards against abandoning a wave, not against winning the
+     * fight with the terrain.
+     */
+    private static final double DEFAULT_CREDIT_RADIUS = 64.0;
+
     private final RVNKQuests plugin;
     private final DataDrivenQuest quest;
     private final LogManager logger;
@@ -66,6 +76,7 @@ public class GenericEncounterObjective implements Listener {
     private final int requiredKills;
     private final double spawnRadius;
     private final double triggerRadius;
+    private final double creditRadius;
     private final String contextLocationKey;
     private final String worldName;
     private final double spawnX;
@@ -99,6 +110,7 @@ public class GenericEncounterObjective implements Listener {
         this.requiredKills = QuestComponentFactory.getIntConfig(config, "required_kills", spawnCount);
         this.spawnRadius = QuestComponentFactory.getDoubleConfig(config, "spawn_radius", 5.0);
         this.triggerRadius = QuestComponentFactory.getDoubleConfig(config, "trigger_radius", 20.0);
+        this.creditRadius = QuestComponentFactory.getDoubleConfig(config, "credit_radius", DEFAULT_CREDIT_RADIUS);
         this.contextLocationKey = QuestComponentFactory.getStringConfig(config, "context_location_key", null);
         this.worldName = QuestComponentFactory.getStringConfig(config, "world", "world");
         this.spawnX = QuestComponentFactory.getDoubleConfig(config, "x", 0);
@@ -265,11 +277,11 @@ public class GenericEncounterObjective implements Listener {
         // The exploit this guards: spawn a wave, walk away, let the terrain clear it. A player kill
         // always counts — they were demonstrably there. An environmental death only counts while the
         // owner is still engaged.
-        boolean credited = killer != null || isOwnerEngaged(owner);
+        boolean credited = killer != null || isOwnerEngaged(owner, entity.getLocation());
 
         if (!credited) {
             // Not credited, but NOT discarded either — the kills already banked stay banked.
-            logger.debug("Encounter mob died with " + owner.getName() + " away from the arena on quest "
+            logger.debug("Encounter mob died with " + owner.getName() + " away from the fight on quest "
                 + quest.getId() + " — no credit, existing progress kept");
             if (mobs.isEmpty()) {
                 announceReset(owner);
@@ -336,13 +348,25 @@ public class GenericEncounterObjective implements Listener {
         return null;
     }
 
-    /** True when the owner is still fighting: online, in the encounter world, inside the trigger radius. */
-    private boolean isOwnerEngaged(Player owner) {
+    /**
+     * True when the owner was fighting <em>this mob</em> when it died.
+     *
+     * <p>Measured against the <b>mob's death location</b>, not the spawn post. Killing quest mobs
+     * with the terrain is a legitimate tactic — kite a knight off a ledge, into lava, onto a golem —
+     * and a running fight naturally leaves the arena. Judging engagement by distance from the post
+     * would refuse credit for exactly those plays: with {@code trigger_radius: 25}, luring a mob 30
+     * blocks to a drop puts the player out of bounds at the moment it lands, and the kill they set
+     * up would not count. The player is near what they killed; that is the thing worth testing.</p>
+     *
+     * <p>{@code credit_radius} is deliberately generous (default {@value #DEFAULT_CREDIT_RADIUS})
+     * because it is only guarding against spawn-a-wave-and-abandon-it, not policing how the fight is
+     * won. Same world and still online carry most of that weight already.</p>
+     */
+    private boolean isOwnerEngaged(Player owner, Location deathLoc) {
         if (!owner.isOnline()) return false;
-        Location spawnLoc = getSpawnLocation(owner);
-        if (spawnLoc == null || spawnLoc.getWorld() == null) return false;
-        if (!owner.getWorld().equals(spawnLoc.getWorld())) return false;
-        return owner.getLocation().distanceSquared(spawnLoc) <= triggerRadius * triggerRadius;
+        if (deathLoc == null || deathLoc.getWorld() == null) return false;
+        if (!owner.getWorld().equals(deathLoc.getWorld())) return false;
+        return owner.getLocation().distanceSquared(deathLoc) <= creditRadius * creditRadius;
     }
 
     /** Tell the player the wave is gone. Silence here reads as a broken quest (#1904). */
