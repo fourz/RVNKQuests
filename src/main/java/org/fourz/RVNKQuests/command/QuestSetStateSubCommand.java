@@ -115,7 +115,23 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
                         sendSuccessMessage(sender, "Set quest '" + quest.getName() + "' state for " + playerName);
                         sendMessage(sender, "&7   Previous state: &e" + previousState);
                         sendMessage(sender, "&7   New state: &a" + targetState);
-                        sendMessage(sender, "&7   &oJournal entry recorded (no rewards triggered)");
+                        // #1884: this used to claim "no rewards triggered" unconditionally, which is
+                        // false for COMPLETED. AbstractQuest.performAdvance fires every completion
+                        // side-effect — onComplete() rewards, notifications, broadcast,
+                        // QuestCompleteEvent — "regardless of how COMPLETED is reached (trigger
+                        // component, admin command, or direct complete() call)". That is deliberate,
+                        // so trigger-driven completions still pay out; the message was simply lying.
+                        //
+                        // It is not cosmetic. On Event this handed a player a SECOND Ravenforge Shard
+                        // and fired a duplicate server-wide [Chapter I] broadcast for a quest he had
+                        // already completed two minutes earlier — item duplication and a false public
+                        // announcement, from a command an operator reasonably believed was inert.
+                        if (targetState == QuestState.COMPLETED) {
+                            sendMessage(sender, "&e   ⚠ COMPLETED fires rewards, notifications and the");
+                            sendMessage(sender, "&e     completion broadcast - same as finishing it normally.");
+                        } else {
+                            sendMessage(sender, "&7   &oJournal entry recorded (no rewards triggered)");
+                        }
 
                         if (!sender.equals(targetPlayer)) {
                             sendInfoMessage(targetPlayer, "Quest '" + quest.getName() + "' state changed to " + targetState + " (debug)");

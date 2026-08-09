@@ -54,6 +54,15 @@ public class QuestManager implements IQuestService {
     // Prevents double-reward from concurrent events firing before the first write completes.
     private final Set<String> completionsInProgress = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Worlds this plugin currently holds against RVNKWorlds' inactivity sweep (#1883), lowercased.
+     *
+     * <p>Kept so a reload can release what is no longer declared. Without it a world dropped from
+     * {@code required_worlds} stays pinned in memory until the next restart, which quietly turns
+     * the hold mechanism into a leak.</p>
+     */
+    private final Set<String> heldWorlds = ConcurrentHashMap.newKeySet();
+
     public QuestManager(RVNKQuests plugin) {
         this.plugin = plugin;
         this.logger = LogManager.getInstance(plugin, getClass());
@@ -145,6 +154,11 @@ public class QuestManager implements IQuestService {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     try {
                         int loaded = 0;
+                        // Only quests that actually register can be played, so only these are worth
+                        // preloading worlds for or reporting drift on. Scanning every definition in
+                        // the repository warned about disabled quests, which are unplayable for a
+                        // different reason entirely.
+                        List<QuestDTO> registered = new ArrayList<>();
 
                         for (QuestDTO definition : definitions) {
                             if (quests.containsKey(definition.questId())) {
@@ -159,11 +173,14 @@ public class QuestManager implements IQuestService {
 
                             DataDrivenQuest quest = new DataDrivenQuest(plugin, definition);
                             registerQuest(quest);
+                            registered.add(definition);
                             loaded++;
                         }
 
                         logger.info("Loaded " + loaded + " data-driven quest(s) from repository" +
                             (repository.isInFallbackMode() ? " (YAML fallback)" : " (database)"));
+
+                        activateDeclaredWorlds(registered);
 
                     } catch (Exception e) {
                         logger.error("Failed to register quests from repository", e);
@@ -716,8 +733,168 @@ public class QuestManager implements IQuestService {
         resetQuests();
     }
 
+    /**
+     * Activates every world declared via {@code required_worlds} across the loaded quests (#1877).
+     *
+     * <p>Runs at load/reload rather than lazily on quest start, because lazy cannot fix the case
+     * this exists for: a start trigger inside an unloaded world is unreachable, so no player can
+     * ever trigger the activation. The Tales From A Hat Chapter 1 chain (#1767) sat dormant on Event
+     * exactly that way — {@code alphac} left {@code IMPORTED} after every restart while
+     * {@code quest validate} reported the chain {@code [VALID]}.</p>
+     *
+     * <p>Declared worlds only. Activating everything a quest merely references would defeat the
+     * opt-in and pull every old world on Event into memory at boot.</p>
+     *
+     * <p>Undeclared references are logged, not activated — that gap is the actionable authoring
+     * error, and {@code /quest debug preflight} reports it per quest.</p>
+     *
+     * @param definitions The quest definitions just loaded
+     */
+    private void activateDeclaredWorlds(java.util.Collection<QuestDTO> definitions) {
+        org.fourz.RVNKQuests.integration.WorldActivationService worlds = plugin.getWorldActivation();
+        if (worlds == null) return;
+
+        if (!plugin.getConfigManager().isWorldPreloadEnabled()) {
+            // Release before returning. An operator who turns the feature off and reloads expects
+            // this plugin to stop pinning worlds; returning first would leave every existing hold
+            // in place until restart, with no surface that mentions preload to explain why.
+            // (This early return skipping the cleanup step is the same shape as the #1883 bug.)
+            releaseUndeclaredWorlds(worlds, java.util.Set.of());
+            logger.debug("World preload disabled (quests.preload-required-worlds=false)");
+            return;
+        }
+
+        java.util.Set<String> wanted = new java.util.LinkedHashSet<>();
+        // world -> quests referencing it without declaring it. Grouped by world, because the
+        // actionable unit is "this world needs declaring", not one line per quest: the first cut
+        // printed 35 quest-scoped entries as a single unreadable line.
+        java.util.Map<String, java.util.List<String>> undeclaredByWorld = new java.util.TreeMap<>();
+
+        for (QuestDTO definition : definitions) {
+            java.util.Map<String, Object> metadata = definition.metadata();
+            wanted.addAll(QuestWorldRequirements.toActivate(metadata));
+
+            for (String missing : QuestWorldRequirements.undeclared(metadata)) {
+                undeclaredByWorld
+                    .computeIfAbsent(missing, k -> new java.util.ArrayList<>())
+                    .add(definition.questId());
+            }
+        }
+
+        if (!undeclaredByWorld.isEmpty()) {
+            // Split by current state: an already-loaded world is a tidiness issue, an unloaded one
+            // means those quests are unplayable right now. Only the latter deserves a warning.
+            java.util.List<String> unplayable = new java.util.ArrayList<>();
+            java.util.List<String> cosmetic = new java.util.ArrayList<>();
+
+            for (java.util.Map.Entry<String, java.util.List<String>> e : undeclaredByWorld.entrySet()) {
+                String summary = e.getKey() + " (" + e.getValue().size() + " quest(s))";
+                if (worlds.isActive(e.getKey())) {
+                    cosmetic.add(summary);
+                } else {
+                    unplayable.add(summary);
+                }
+            }
+
+            if (!unplayable.isEmpty()) {
+                logger.warning("Quests target worlds that are NOT loaded and NOT declared in "
+                    + "required_worlds - those quests are unplayable until the world is loaded: "
+                    + String.join(", ", unplayable)
+                    + ". Use '/quest debug preflight <quest>' for the per-quest detail.");
+            }
+            if (!cosmetic.isEmpty()) {
+                logger.debug("Quests reference undeclared worlds that happen to be loaded: "
+                    + String.join(", ", cosmetic));
+            }
+        }
+
+        releaseUndeclaredWorlds(worlds, wanted);
+
+        if (wanted.isEmpty()) return;
+
+        // No `if (isActive) continue` here, deliberately. Activating is only half the job: the world
+        // must also be HELD, or RVNKWorlds' inactivity sweep reclaims it and writes it back to
+        // IMPORTED while the quest is mid-session (#1883). Skipping already-active worlds skipped
+        // the hold with them — and an already-active world is the COMMON case, because RVNKWorlds
+        // auto-loads previously-active worlds at boot. That is exactly how alphac was swept out from
+        // under two players running tfah_ch1_journey on 2026-08-02, despite the quest declaring it.
+        // ensureActive() short-circuits on a loaded world itself, so this costs nothing extra.
+        for (String worldName : wanted) {
+            worlds.ensureActive(worldName).thenAccept(ok -> {
+                if (ok) {
+                    heldWorlds.add(worldName.toLowerCase(java.util.Locale.ROOT));
+                } else {
+                    logger.warning("Declared quest world '" + worldName + "' could not be activated");
+                }
+            });
+        }
+        logger.info("Quest world preload: " + wanted.size() + " declared world(s) checked and held");
+    }
+
+    /**
+     * Drops holds on worlds no quest declares any more (#1883).
+     *
+     * <p>A hold outlives the declaration that justified it, so without this a world removed from
+     * {@code required_worlds} — or belonging to a quest that was deleted — stays pinned against
+     * cleanup for the rest of the server's uptime. Reload is the only moment the declared set can
+     * change, so it is the only moment this needs to run.</p>
+     *
+     * @param worlds The activation bridge
+     * @param wanted Worlds declared by the definitions just loaded
+     */
+    private void releaseUndeclaredWorlds(
+            org.fourz.RVNKQuests.integration.WorldActivationService worlds,
+            java.util.Set<String> wanted) {
+
+        if (heldWorlds.isEmpty()) return;
+
+        java.util.Set<String> stillWanted = new java.util.HashSet<>();
+        for (String name : wanted) {
+            stillWanted.add(name.toLowerCase(java.util.Locale.ROOT));
+        }
+
+        java.util.List<String> released = new java.util.ArrayList<>();
+        for (java.util.Iterator<String> it = heldWorlds.iterator(); it.hasNext(); ) {
+            String held = it.next();
+            if (stillWanted.contains(held)) continue;
+            worlds.release(held);
+            it.remove();
+            released.add(held);
+        }
+
+        if (!released.isEmpty()) {
+            logger.info("Released quest world hold on " + released.size()
+                + " world(s) no longer declared: " + String.join(", ", released));
+        }
+    }
+
     @Override
     public void shutdown() {
+        releaseAllWorldHolds();
         cleanupQuests();
+    }
+
+    /**
+     * Drops every world hold this plugin placed (#1883).
+     *
+     * <p>A full server stop does not need this — RVNKWorlds' registry is in-memory and dies with
+     * it. A PlugMan reload of RVNKQuests alone does: RVNKWorlds keeps running, and the holds placed
+     * by the old classloader would pin those worlds with nothing left alive to release them.</p>
+     */
+    private void releaseAllWorldHolds() {
+        if (heldWorlds.isEmpty()) return;
+
+        org.fourz.RVNKQuests.integration.WorldActivationService worlds = plugin.getWorldActivation();
+        if (worlds == null) {
+            heldWorlds.clear();
+            return;
+        }
+
+        int count = heldWorlds.size();
+        for (String held : heldWorlds) {
+            worlds.release(held);
+        }
+        heldWorlds.clear();
+        logger.info("Released " + count + " quest world hold(s) on shutdown");
     }
 }

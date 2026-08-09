@@ -6,6 +6,8 @@ cooldown_minutes: 0
 prerequisites:
 - tfah_zeal_arrival
 metadata:
+  required_worlds:
+  - zeal
   state_mapping:
     NOT_STARTED:
     - tower_reach

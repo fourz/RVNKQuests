@@ -6,6 +6,9 @@ description: A surveyor's mark glows by the Zeal portal in the plaza. Cross to t
 repeatable: false
 cooldown_minutes: 0
 metadata:
+  required_worlds:
+  - zeal
+  - world
   components:
     obj_dome:
       objective_type: REACH

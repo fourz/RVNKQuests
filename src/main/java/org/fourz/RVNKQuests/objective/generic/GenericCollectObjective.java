@@ -102,8 +102,25 @@ public class GenericCollectObjective implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (event.getTo() == null) return;
+        checkCollect(event.getPlayer(), event.getTo());
+    }
 
-        Player player = event.getPlayer();
+    /**
+     * Arrival by teleport or portal counts as arrival (#1932).
+     *
+     * <p>{@link org.bukkit.event.player.PlayerTeleportEvent} extends {@link PlayerMoveEvent} but
+     * declares its own {@code HandlerList}, so the move handler never sees a teleport. A sited
+     * COLLECT objective would therefore not complete for a player who portals in holding the
+     * items, until they took a step.</p>
+     */
+    @EventHandler
+    public void onPlayerTeleport(org.bukkit.event.player.PlayerTeleportEvent event) {
+        if (event.getTo() == null) return;
+        checkCollect(event.getPlayer(), event.getTo());
+    }
+
+    /** Shared arrival check. {@code arrival} is the destination — on a teleport the player has not moved yet. */
+    private void checkCollect(Player player, org.bukkit.Location arrival) {
         if (quest.getStateForPlayer(player) != requiredState) return;
 
         // Check path restriction
@@ -113,14 +130,14 @@ public class GenericCollectObjective implements Listener {
         }
 
         // World check
-        if (worldName != null && !player.getWorld().getName().equalsIgnoreCase(worldName)) return;
+        if (worldName != null && !arrival.getWorld().getName().equalsIgnoreCase(worldName)) return;
 
         // Location/radius check (if configured)
         if (radius > 0) {
             org.bukkit.Location targetLoc = getTargetLocation(player);
             if (targetLoc == null) return;
-            if (targetLoc.getWorld() != null && !player.getWorld().equals(targetLoc.getWorld())) return;
-            if (player.getLocation().distanceSquared(targetLoc) > radius * radius) return;
+            if (targetLoc.getWorld() != null && !arrival.getWorld().equals(targetLoc.getWorld())) return;
+            if (arrival.distanceSquared(targetLoc) > radius * radius) return;
         }
 
         // Check inventory for required items

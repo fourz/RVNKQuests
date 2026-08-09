@@ -41,6 +41,9 @@ public class GenericItemDiscoveryTrigger implements Listener {
     private final QuestState requiredState;
     private final QuestState advanceState;
 
+    /** Explains a right-click on the right item at the wrong beat. */
+    private final org.fourz.RVNKQuests.util.OutOfOrderFeedback feedback;
+
     public GenericItemDiscoveryTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.quest = quest;
         this.logger = LogManager.getInstance(plugin, "GenericItemDiscoveryTrigger");
@@ -52,6 +55,7 @@ public class GenericItemDiscoveryTrigger implements Listener {
         this.worldName = QuestComponentFactory.getStringConfig(config, "world", null);
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "NOT_STARTED"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
+        this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
     }
 
     @EventHandler
@@ -62,12 +66,10 @@ public class GenericItemDiscoveryTrigger implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         Player player = event.getPlayer();
-        QuestState currentState = quest.getStateForPlayer(player);
-        if (currentState != requiredState) {
-            logger.debug("Item discovery: " + player.getName() + " state " + currentState + " != required " + requiredState + " — skipping");
-            return;
-        }
 
+        // The state gate moved below the item match (#1904 follow-up). Identifying the item first
+        // means a mismatch here is "the right book at the wrong beat" — worth telling the player,
+        // rather than the silence that reads as a broken trigger.
         if (worldName != null && !player.getWorld().getName().equalsIgnoreCase(worldName)) return;
 
         // Paper 1.21+ may return null from event.getItem() for book interactions — fall back to main hand
@@ -89,6 +91,16 @@ public class GenericItemDiscoveryTrigger implements Listener {
                 logger.debug("Item discovery: " + player.getName() + " name mismatch: '" + displayName + "' vs '" + itemName + "'");
                 return;
             }
+        }
+
+        QuestState currentState = quest.getStateForPlayer(player);
+        if (currentState != requiredState) {
+            // #1930: name what the feedback decided, not just that we skipped — the message is
+            // player-only and otherwise unobservable from the server.
+            var outcome = feedback.notifyWrongBeat(player, currentState, requiredState);
+            logger.debug("Out-of-order item discovery: " + player.getName() + " quest=" + quest.getId()
+                + " current=" + currentState + " required=" + requiredState + " -> " + outcome);
+            return;
         }
 
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState);

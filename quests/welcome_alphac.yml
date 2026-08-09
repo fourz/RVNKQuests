@@ -1,0 +1,30 @@
+quest_id: welcome_alphac
+name: Welcome to Alpha Centauri
+description: ''
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  # Declared so RVNKWorlds keeps alphac loaded AND held against the inactivity sweep (#1883).
+  # This is the first quest a new player finishes; without the declaration it sits behind an
+  # IMPORTED world after every restart while `quest validate` reports it [VALID].
+  required_worlds:
+  - alphac
+  components:
+    # World-scoped, not sited: the book is matched by name anywhere in alphac, so the lectern can
+    # be moved without touching the quest. LECTERN_BOOK_REMOVED fires on taking the book OUT.
+    trigger_welcome_book:
+      type: LECTERN_BOOK_REMOVED
+      world: alphac
+      book_name: Welcome to Alpha Centauri
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - trigger_welcome_book
+rewards:
+  # EXPERIENCE takes the MODE in `value` (points|levels) and the QUANTITY in `amount`. This was
+  # value:'30' / amount:1, which preflight caught as "grants 1 xp, not 30" -- the 30 was being
+  # read as the mode, failing to parse, and the amount of 1 was what actually paid out.
+  welcome_alphac_experience_3166:
+    type: EXPERIENCE
+    value: points
+    amount: 30

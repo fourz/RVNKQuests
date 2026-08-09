@@ -2,9 +2,11 @@ package org.fourz.RVNKQuests.trigger.generic;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.PiglinAbstract;
 import org.bukkit.entity.Player;
@@ -12,15 +14,22 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.factory.QuestComponentFactory;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.RVNKQuests.quest.QuestState;
 import org.fourz.RVNKQuests.reward.QuestItem;
@@ -41,20 +50,53 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@code entity_type} — EntityType name (e.g., "PIGLIN")</li>
  *   <li>{@code custom_name} — Display name for spawned entity</li>
  *   <li>{@code world} — World name (default: "world")</li>
- *   <li>{@code radius} — Trigger radius in blocks (default: 50)</li>
+ *   <li>{@code x} / {@code y} / {@code z} — where the mob is posted (optional; omit to spawn near the player)</li>
+ *   <li>{@code trigger_radius} — how close a player must get to a sited post before it spawns (default: 48)</li>
+ *   <li>{@code radius} — <b>adoption scan</b> radius in blocks (default: 50). NOT a trigger gate —
+ *       it only bounds the search for an existing mob to adopt. The trigger's only other gate is
+ *       the world name, so an unsited spawn fires anywhere in that world.</li>
  *   <li>{@code advance_state} — State to advance to (default: "TRIGGER_FOUND")</li>
  *   <li>{@code context_key} — Runtime context key to store spawned entity (default: "spawned_entity")</li>
  *   <li>{@code context_location_key} — Runtime context key to store spawn Location (optional; used by REACH/ENCOUNTER)</li>
  *   <li>{@code interact_book} — QuestItem key for the book given on right-click (optional)</li>
+ *   <li>{@code death_drop_book} — QuestItem key the mob carries in its off-hand and drops on death
+ *       (optional). Vanilla does the drop; a watchdog recovers the item if it is destroyed —
+ *       see {@link #onEntityDeath}</li>
+ *   <li>{@code death_drop_recovery_message} — message shown when the watchdog recovers a lost drop</li>
  *   <li>{@code beg_on_attack} — If true, mob begs before becoming killable (default: false)</li>
  *   <li>{@code beg_message} — Message the mob says when hit (default: "Please don't hurt me!")</li>
  *   <li>{@code beg_count} — Number of beg attempts before the mob can be killed (default: 1)</li>
  *   <li>{@code detect_existing} — Scan for existing mobs matching name+type+world before spawning (default: global config)</li>
+ *   <li>{@code respawn_if_lost} — Re-post the mob for a player stuck at {@code advance_state} with
+ *       no mob left in the world (default: true). See {@link #respawnIfStranded}</li>
+ *   <li>{@code respawn_delay_ms} — How long that player must be stranded first
+ *       (default: {@value #DEFAULT_RESPAWN_DELAY_MS})</li>
+ *   <li>{@code respawn_cooldown_ms} — Minimum gap between re-posts
+ *       (default: {@value #DEFAULT_RESPAWN_COOLDOWN_MS})</li>
  * </ul>
  */
 public class GenericMobSpawnTrigger implements Listener {
 
     private static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
+
+    /** How long the drop watchdog follows the dropped item before declaring it safely landed. */
+    private static final long DROP_WATCH_TICKS = 200L;
+    /** How often the watchdog re-checks the dropped item. */
+    private static final long DROP_WATCH_INTERVAL_TICKS = 10L;
+    /** How far from the death point to look for the item entity, and for a player to grant it to. */
+    private static final double DROP_SEARCH_RADIUS = 8.0;
+    private static final double RECOVERY_PLAYER_RADIUS = 64.0;
+
+    /**
+     * How long a player sits at {@code advance_state} with no quest mob before one is re-posted.
+     *
+     * <p>Five minutes, because the window this must not fire in is "killed the mob, walking back
+     * with the drop" — seconds to a minute. Anything shorter risks handing out a second mob, and a
+     * second {@code death_drop_book}, after a completely normal kill.</p>
+     */
+    private static final long DEFAULT_RESPAWN_DELAY_MS = 300_000L;
+    /** Minimum gap between re-posts, so several stranded players yield one mob, not several. */
+    private static final long DEFAULT_RESPAWN_COOLDOWN_MS = 120_000L;
 
     private final RVNKQuests plugin;
     private final DataDrivenQuest quest;
@@ -69,13 +111,44 @@ public class GenericMobSpawnTrigger implements Listener {
     private final String contextKey;
     private final String contextLocationKey;
     private final String interactBook;
+    private final String deathDropBook;
+    private final String deathDropRecoveryMessage;
     private final boolean begOnAttack;
     private final String begMessage;
     private final int begCount;
 
+    /**
+     * Where the mob belongs, or null when the trigger is world-wide.
+     *
+     * <p>Without this the mob spawns a few blocks from whoever walked into the world, which cannot
+     * express "a guardian posted 200 blocks north of spawn" — the placement <i>is</i> the content.
+     * Same gap {@code STRUCTURE_INTERACT} had before #1894: a component that reads as sitable and
+     * silently is not.</p>
+     *
+     * <p>Optional, so quests that genuinely want "spawn near whoever shows up" keep working.</p>
+     */
+    private final Double siteX;
+    private final Double siteY;
+    private final Double siteZ;
+
+    /** How close a player must get to a sited spawn before it fires. */
+    private final double triggerRadius;
+
     private final boolean detectExisting;
     private final long scanIntervalMs;
     private final Map<UUID, Long> lastScanTime = new ConcurrentHashMap<>();
+
+    /** Whether a lost quest mob is re-posted for a player stuck at {@code advance_state}. */
+    private final boolean respawnIfLost;
+    /** How long a player must be stranded before the mob is re-posted. */
+    private final long respawnDelayMs;
+    /** Minimum gap between two re-posts, across all players. */
+    private final long respawnCooldownMs;
+
+    /** player -> first tick we saw them at {@code advance_state} with no mob in the world. */
+    private final Map<UUID, Long> strandedSince = new ConcurrentHashMap<>();
+    /** When the mob was last re-posted, so two stranded players do not produce two mobs. */
+    private volatile long lastRespawnAt = 0L;
 
     /** Tracks how many times each player has hit the mob (beg mechanic). */
     private final Map<UUID, Integer> hitCounts = new ConcurrentHashMap<>();
@@ -84,6 +157,14 @@ public class GenericMobSpawnTrigger implements Listener {
 
     private Entity spawnedEntity;
     private boolean firstMoveLogged = false;
+
+    /** Resolved death-drop item, cached so the death handler does not hit the DB on the main thread. */
+    private volatile ItemStack deathDropItem;
+
+    /** The dropped item entity the watchdog is following, or null when nothing is in flight. */
+    private volatile UUID watchedDropId;
+    /** Set when the watched drop is picked up, so the watchdog stops treating its removal as loss. */
+    private volatile boolean watchedDropPickedUp;
 
     public GenericMobSpawnTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.plugin = plugin;
@@ -99,17 +180,41 @@ public class GenericMobSpawnTrigger implements Listener {
         this.contextKey = QuestComponentFactory.getStringConfig(config, "context_key", "spawned_entity");
         this.contextLocationKey = QuestComponentFactory.getStringConfig(config, "context_location_key", null);
         this.interactBook = QuestComponentFactory.getStringConfig(config, "interact_book", null);
+        this.deathDropBook = QuestComponentFactory.getStringConfig(config, "death_drop_book", null);
+        this.deathDropRecoveryMessage = QuestComponentFactory.getStringConfig(config,
+            "death_drop_recovery_message",
+            "&e⚠ &fWhat it carried nearly fell out of the world — you caught it in time.");
         this.begOnAttack = QuestComponentFactory.getBoolConfig(config, "beg_on_attack", false);
         this.begMessage = QuestComponentFactory.getStringConfig(config, "beg_message", "Please don't hurt me!");
         this.begCount = QuestComponentFactory.getIntConfig(config, "beg_count", 1);
+
+        // All three or none — a partial coordinate is a typo, not a half-sited spawn.
+        boolean sited = config.containsKey("x") && config.containsKey("y") && config.containsKey("z");
+        if (!sited && (config.containsKey("x") || config.containsKey("y") || config.containsKey("z"))) {
+            logger.warning("Quest '" + quest.getId() + "': PROXIMITY_MOB_SPAWN has a partial"
+                + " coordinate (needs x, y AND z) — falling back to spawning near the player");
+        }
+        this.siteX = sited ? QuestComponentFactory.getDoubleConfig(config, "x", 0.0) : null;
+        this.siteY = sited ? QuestComponentFactory.getDoubleConfig(config, "y", 0.0) : null;
+        this.siteZ = sited ? QuestComponentFactory.getDoubleConfig(config, "z", 0.0) : null;
+        this.triggerRadius = QuestComponentFactory.getDoubleConfig(config, "trigger_radius", 48.0);
+
+        this.respawnIfLost = QuestComponentFactory.getBoolConfig(config, "respawn_if_lost", true);
+        this.respawnDelayMs = (long) QuestComponentFactory.getDoubleConfig(
+            config, "respawn_delay_ms", DEFAULT_RESPAWN_DELAY_MS);
+        this.respawnCooldownMs = (long) QuestComponentFactory.getDoubleConfig(
+            config, "respawn_cooldown_ms", DEFAULT_RESPAWN_COOLDOWN_MS);
 
         boolean globalDetect = plugin.getConfigManager().isMobNameTypeMatchingEnabled();
         this.detectExisting = QuestComponentFactory.getBoolConfig(config, "detect_existing", globalDetect);
         this.scanIntervalMs = plugin.getConfigManager().getMobScanIntervalMs();
 
         logger.debug("Trigger created for quest " + quest.getId() +
-            ": type=" + entityType + " world=" + worldName + " radius=" + radius +
+            ": type=" + entityType + " world=" + worldName + " scan_radius=" + radius +
+            (sited ? " site=" + siteX + "," + siteY + "," + siteZ + " trigger_radius=" + triggerRadius
+                   : " (unsited — spawns near the player)") +
             (interactBook != null ? " book=" + interactBook : "") +
+            (deathDropBook != null ? " death_drop=" + deathDropBook : "") +
             (begOnAttack ? " beg=" + begCount : "") +
             (detectExisting ? " detect=on" : ""));
     }
@@ -140,15 +245,26 @@ public class GenericMobSpawnTrigger implements Listener {
         // Path 1 — Recovery: player past NOT_STARTED but lost entity reference
         if (currentState == advanceState || currentState == QuestState.TRIGGER_FOUND
                 || currentState == QuestState.QUEST_ACTIVE) {
-            if (spawnedEntity == null || !spawnedEntity.isValid()) {
+            if (spawnedEntity != null && spawnedEntity.isValid()) {
+                // The mob is standing right there — whatever this player is waiting on, it is not
+                // a missing mob.
+                strandedSince.remove(player.getUniqueId());
+            } else {
                 if (detectExisting && customName != null
                         && player.getWorld().getName().equalsIgnoreCase(worldName)
                         && shouldScan(player.getUniqueId())) {
-                    Entity found = findMatchingEntity(player);
+                    // Recovery scans the post too, so a mid-quest player who wandered off still
+                    // re-acquires the mob standing where it was left.
+                    World playerWorld = player.getWorld();
+                    Location post = siteLocation(playerWorld);
+                    Entity found = findMatchingEntity(player, post);
                     if (found != null) {
                         adoptEntity(found);
+                        strandedSince.remove(player.getUniqueId());
                         logger.debug("Recovered quest mob " + customName + " for quest " +
                             quest.getId() + " near " + player.getName());
+                    } else {
+                        respawnIfStranded(player, currentState, playerWorld, post);
                     }
                 }
             }
@@ -169,9 +285,16 @@ public class GenericMobSpawnTrigger implements Listener {
         // Check if entity already spawned
         if (spawnedEntity != null && !spawnedEntity.isDead()) return;
 
+        // A sited spawn only fires once the player is actually near its post. Without this the
+        // trigger fires anywhere in the world, because the world-name check above is its only gate.
+        Location site = siteLocation(world);
+        if (site != null && player.getLocation().distanceSquared(site) > triggerRadius * triggerRadius) {
+            return;
+        }
+
         // Path 2 — NOT_STARTED: scan for existing mob before spawning
         if (detectExisting && customName != null && shouldScan(player.getUniqueId())) {
-            Entity found = findMatchingEntity(player);
+            Entity found = findMatchingEntity(player, site);
             if (found != null) {
                 adoptEntity(found);
                 quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
@@ -181,10 +304,12 @@ public class GenericMobSpawnTrigger implements Listener {
             }
         }
 
-        // Spawn the entity at a safe ground location near the player
-        Location spawnLoc = player.getLocation().add(
-            (Math.random() - 0.5) * 10, 0, (Math.random() - 0.5) * 10
-        );
+        // Spawn at the sited post when one is configured, otherwise near the player as before.
+        Location spawnLoc = (site != null)
+            ? site.clone()
+            : player.getLocation().add((Math.random() - 0.5) * 10, 0, (Math.random() - 0.5) * 10);
+        // Ground-snap either way: a configured Y can be stale after terraforming, and a mob spawned
+        // inside rock suffocates while one spawned in air falls somewhere unhelpful.
         spawnLoc.setY(world.getHighestBlockYAt(spawnLoc) + 1);
         Entity newEntity = world.spawnEntity(spawnLoc, entityType);
 
@@ -194,6 +319,81 @@ public class GenericMobSpawnTrigger implements Listener {
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
 
         logger.debug("Spawned " + entityType + " for quest " + quest.getId() + " near " + player.getName());
+    }
+
+    /**
+     * Re-posts the quest mob for a player who is stranded without one.
+     *
+     * <p>The spawn path only runs at {@code NOT_STARTED} and recovery only <i>adopts</i> a mob that
+     * still exists. So a mob that dies without its kill registering — killed by the environment, by
+     * another player, or with the objective's {@code required_state} not yet reached — leaves the
+     * player parked at {@code advanceState} with nothing in the world to interact with and no way
+     * out short of an admin {@code /quest reset}. That reset then breaks every quest downstream in
+     * the chain, so the cheap fix costs more than the bug.</p>
+     *
+     * <h3>Why the conditions are this narrow</h3>
+     * <ul>
+     *   <li><b>Only at {@code advanceState}</b> — the state this trigger itself sets. Past it the
+     *       player has progressed, so the mob's absence is expected rather than a dead end.</li>
+     *   <li><b>Only after {@code respawn_delay_ms}</b> — a player who just killed the mob and is
+     *       walking back with the drop in hand is momentarily indistinguishable from a stranded
+     *       one. Waiting keeps the trigger from handing out a second mob, and a second copy of its
+     *       {@code death_drop_book}, seconds after a perfectly normal kill.</li>
+     *   <li><b>Only when the adoption scan came back empty</b> — the caller has already searched
+     *       the post, so this cannot duplicate a mob that merely drifted out of reference.</li>
+     * </ul>
+     *
+     * @param player       The player who may be stranded
+     * @param currentState That player's state, already read by the caller
+     * @param world        The player's world (matched against {@code world} by the caller)
+     * @param post         The configured site, or null when the trigger is unsited
+     */
+    private void respawnIfStranded(Player player, QuestState currentState, World world, Location post) {
+        if (!respawnIfLost) return;
+        if (currentState != advanceState) return;
+
+        // A trigger configured with advance_state: COMPLETED (or any terminal state) would
+        // otherwise satisfy the check above forever, re-posting the mob for a player who has
+        // finished the quest. Nobody is stranded at the end of the track.
+        if (currentState == QuestState.COMPLETED
+            || currentState == QuestState.ABANDONED
+            || currentState == QuestState.PAUSED) {
+            return;
+        }
+
+        // A sited post has to be approached, exactly as the first spawn did — otherwise the mob
+        // re-appears the moment a stranded player logs in anywhere in the world.
+        if (post != null && player.getLocation().distanceSquared(post) > triggerRadius * triggerRadius) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        Long since = strandedSince.putIfAbsent(player.getUniqueId(), now);
+        if (since == null) {
+            logger.debug("Quest '" + quest.getId() + "': " + player.getName()
+                + " is at " + currentState + " with no quest mob — watching for "
+                + (respawnDelayMs / 1000) + "s before re-posting");
+            return;
+        }
+        if (now - since < respawnDelayMs) return;
+
+        // One re-post per cooldown across all players: the mob is shared world state, so two
+        // stranded players crossing the post must not produce two mobs.
+        if (now - lastRespawnAt < respawnCooldownMs) return;
+        lastRespawnAt = now;
+        strandedSince.remove(player.getUniqueId());
+
+        Location spawnLoc = (post != null)
+            ? post.clone()
+            : player.getLocation().add((Math.random() - 0.5) * 10, 0, (Math.random() - 0.5) * 10);
+        spawnLoc.setY(world.getHighestBlockYAt(spawnLoc) + 1);
+
+        adoptEntity(world.spawnEntity(spawnLoc, entityType));
+
+        logger.info("Quest '" + quest.getId() + "': re-posted " + entityType
+            + (customName != null ? " (" + customName + ")" : "")
+            + " for stranded player " + player.getName() + " at "
+            + spawnLoc.getBlockX() + "," + spawnLoc.getBlockY() + "," + spawnLoc.getBlockZ());
     }
 
     /**
@@ -212,6 +412,8 @@ public class GenericMobSpawnTrigger implements Listener {
             if (living instanceof PiglinAbstract piglin) {
                 piglin.setImmuneToZombification(true);
             }
+
+            equipDeathDrop(living);
         }
 
         if (!entity.hasMetadata(QUEST_MOB_METADATA)) {
@@ -231,23 +433,357 @@ public class GenericMobSpawnTrigger implements Listener {
         }
     }
 
+    // ── Death drop ─────────────────────────────────────────────────────────
+    //
+    // The drop itself is vanilla: the mob carries the book in its off-hand with a 1.0 drop
+    // chance, so the server queues the item exactly the way a player expects a kill to yield
+    // loot. Everything below is the safety net for the window vanilla does not cover — the
+    // item exists but is then destroyed before anyone can reach it.
+    //
+    // This is the Bukkit EntityEquipment API, not raw NBT. The Paper 26.x trap where
+    // HandItems/HandDropChances are silently discarded applies to NBT written by data
+    // commands; setItemInOffHand + setItemInOffHandDropChance go through the API and are
+    // unaffected. Do not "fix" this by switching to an NBT string.
+
     /**
-     * Scans nearby entities for one matching entity_type + custom_name + world.
-     * Returns the nearest match, or null if none found.
+     * Gives the quest mob its death-drop item, if configured.
+     *
+     * <p>Idempotent, and called from {@link #adoptEntity} so it covers <b>adopted</b> mobs as
+     * well as spawned ones. An admin-placed watcher that the trigger adopts would otherwise
+     * carry nothing and the kill would silently yield no book.</p>
      */
-    private Entity findMatchingEntity(Player player) {
+    private void equipDeathDrop(LivingEntity living) {
+        if (deathDropBook == null) return;
+
+        EntityEquipment equipment = living.getEquipment();
+        if (equipment == null) {
+            logger.warning("Quest '" + quest.getId() + "': " + entityType
+                + " has no equipment slots — cannot carry death_drop_book '" + deathDropBook + "'");
+            return;
+        }
+
+        ItemStack existing = equipment.getItemInOffHand();
+        if (existing != null && existing.getType() != Material.AIR) {
+            return; // already carrying it (re-adoption after a restart)
+        }
+
+        ItemStack cached = deathDropItem;
+        if (cached != null) {
+            applyDeathDrop(living, equipment, cached.clone());
+            return;
+        }
+
+        resolveDeathDropItem().thenAccept(resolved -> {
+            if (resolved == null) {
+                logger.warning("Quest '" + quest.getId() + "': death_drop_book '" + deathDropBook
+                    + "' not found — mob will drop nothing");
+                return;
+            }
+            deathDropItem = resolved;
+            // Equipment is a world write; it must land on the main thread.
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!living.isValid()) return;
+                EntityEquipment eq = living.getEquipment();
+                if (eq == null) return;
+                ItemStack now = eq.getItemInOffHand();
+                if (now != null && now.getType() != Material.AIR) return;
+                applyDeathDrop(living, eq, resolved.clone());
+            });
+        });
+    }
+
+    /**
+     * Resolves the death-drop item, <b>preferring the lore ITEM path</b>.
+     *
+     * <p>{@link QuestItem#getQuestItem} falls through to {@code getOrCreateQuestBook}, which
+     * <i>creates</i> a one-page stub when the name does not match an existing quest book. For a
+     * minted lore item that is silently the wrong answer: the mob would carry an empty book with
+     * the right title while the real item sat untouched in the lore DB, and nothing would report a
+     * failure (#1343). {@code spawnItemByName} is the same path {@code /lore item give} uses, so a
+     * name that works there works here.</p>
+     *
+     * <p>Falls back to {@link QuestItem} so hardcoded, non-lore quest items still resolve.</p>
+     */
+    private java.util.concurrent.CompletableFuture<ItemStack> resolveDeathDropItem() {
+        ILoreIntegration lore = plugin.getLoreIntegration();
+        if (lore != null && lore.isLoreAvailable()) {
+            return lore.spawnItemByName(deathDropBook)
+                .thenApply(opt -> opt.orElseGet(() -> {
+                    logger.debug("Death drop '" + deathDropBook + "' is not a lore item —"
+                        + " falling back to the quest-item registry");
+                    return QuestItem.getQuestItem(deathDropBook);
+                }))
+                .exceptionally(ex -> {
+                    logger.warning("Lore lookup failed for death drop '" + deathDropBook
+                        + "': " + ex.getMessage());
+                    return null;
+                });
+        }
+        return java.util.concurrent.CompletableFuture
+            .completedFuture(QuestItem.getQuestItem(deathDropBook));
+    }
+
+    /** Puts the resolved item in the mob's off-hand and verifies the write took. */
+    private void applyDeathDrop(LivingEntity living, EntityEquipment equipment, ItemStack book) {
+        equipment.setItemInOffHand(book);
+        equipment.setItemInOffHandDropChance(1.0f);
+
+        // Read it back — an equipment write that silently did nothing is the exact failure this
+        // whole mechanic exists to survive, and it must not be discovered at kill time.
+        ItemStack readBack = equipment.getItemInOffHand();
+        if (readBack == null || readBack.getType() != book.getType()) {
+            logger.warning("Quest '" + quest.getId() + "': off-hand write did not take on "
+                + entityType + " — death drop will rely on the recovery path");
+            return;
+        }
+        logger.debug("Equipped death drop '" + deathDropBook + "' on quest mob for " + quest.getId());
+    }
+
+    /**
+     * Death of the quest mob: let vanilla drop the item, then make sure it survived.
+     *
+     * <p>Vanilla queues the off-hand item into {@link EntityDeathEvent#getDrops()} and spawns it
+     * next tick. That covers the drop but not what happens to it afterwards — on a sky island the
+     * item can fall into the void, and it can equally burn, or be destroyed by lava or an
+     * explosion. Any of those loses the book permanently and dead-ends the quest with no way for
+     * the player to recover it.</p>
+     *
+     * <p>So the item is tracked from the tick it spawns until it is either picked up or has
+     * settled. If it vanishes without being picked up, it is granted directly to the nearest
+     * player with a message. The player never has to know the difference.</p>
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onEntityDeath(EntityDeathEvent event) {
+        if (deathDropBook == null) return;
+        if (spawnedEntity == null) return;
+        if (!event.getEntity().getUniqueId().equals(spawnedEntity.getUniqueId())) return;
+
+        // The cached copy from equip time — never re-resolve here. A lookup on the death tick
+        // would block the main thread, and the fallback path would mint a stub book that does not
+        // match what the mob was actually carrying.
+        ItemStack cached = deathDropItem;
+        if (cached == null) {
+            logger.warning("Quest '" + quest.getId() + "': death_drop_book '" + deathDropBook
+                + "' was never resolved — nothing to recover");
+            return;
+        }
+        final ItemStack expected = cached.clone();
+
+        Location deathLoc = event.getEntity().getLocation();
+        Player killer = event.getEntity().getKiller();
+
+        boolean queued = event.getDrops().stream().anyMatch(drop -> matchesBook(drop, expected));
+        if (!queued) {
+            // The equipment never made it onto the mob, or the drop chance did not hold. There is
+            // no item to watch — go straight to recovery rather than waiting for a drop that is
+            // never coming.
+            logger.warning("Quest '" + quest.getId() + "': death drop was not queued by vanilla —"
+                + " granting '" + deathDropBook + "' directly");
+            grantRecovery(deathLoc, killer, expected);
+            return;
+        }
+
+        watchedDropId = null;
+        watchedDropPickedUp = false;
+        logger.debug("Quest mob died for " + quest.getId() + " — watching death drop '"
+            + deathDropBook + "'");
+
+        // The item entity does not exist until after this event resolves, so acquire it next tick.
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                Item dropped = findDroppedItem(deathLoc, expected);
+                if (dropped == null) {
+                    // Spawned and gone inside one tick, or never spawned at all. Either way the
+                    // player has nothing to pick up.
+                    logger.warning("Quest '" + quest.getId() + "': death drop never materialised —"
+                        + " granting '" + deathDropBook + "' directly");
+                    grantRecovery(deathLoc, killer, expected);
+                    return;
+                }
+                watchedDropId = dropped.getUniqueId();
+                watchDroppedItem(deathLoc, killer, expected);
+            }
+        }.runTaskLater(plugin, 1L);
+    }
+
+    /**
+     * Follows the dropped item until it is picked up, destroyed, or the watch window expires.
+     * Only a removal that is <i>not</i> a pickup counts as loss.
+     */
+    private void watchDroppedItem(Location deathLoc, Player killer, ItemStack expected) {
+        new BukkitRunnable() {
+            long elapsed = 0L;
+
+            @Override
+            public void run() {
+                UUID dropId = watchedDropId;
+                if (dropId == null || watchedDropPickedUp) {
+                    cancel();
+                    return;
+                }
+
+                Entity tracked = Bukkit.getEntity(dropId);
+                if (tracked != null && tracked.isValid()) {
+                    elapsed += DROP_WATCH_INTERVAL_TICKS;
+                    if (elapsed >= DROP_WATCH_TICKS) {
+                        // Still lying there after the window — it is the player's to collect.
+                        logger.debug("Death drop for " + quest.getId() + " settled safely");
+                        watchedDropId = null;
+                        cancel();
+                    }
+                    return;
+                }
+
+                // Gone, and no pickup event fired for it.
+                cancel();
+                watchedDropId = null;
+                logger.warning("Quest '" + quest.getId() + "': death drop '" + deathDropBook
+                    + "' was destroyed before pickup — granting directly");
+                grantRecovery(deathLoc, killer, expected);
+            }
+        }.runTaskTimer(plugin, DROP_WATCH_INTERVAL_TICKS, DROP_WATCH_INTERVAL_TICKS);
+    }
+
+    /**
+     * Marks the watched drop as collected so the watchdog does not treat the pickup as a loss and
+     * hand out a duplicate book.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityPickupItem(EntityPickupItemEvent event) {
+        UUID dropId = watchedDropId;
+        if (dropId == null) return;
+        if (!event.getItem().getUniqueId().equals(dropId)) return;
+
+        watchedDropPickedUp = true;
+        watchedDropId = null;
+        logger.debug("Death drop for " + quest.getId() + " picked up by "
+            + event.getEntity().getName());
+    }
+
+    /**
+     * Puts the book in the nearest player's hands when the world ate the drop.
+     *
+     * <p>Prefers the killer, then the closest player in the same world. Falls back to dropping at
+     * the player's feet when their inventory is full, which is recoverable in a way that the void
+     * is not.</p>
+     */
+    private void grantRecovery(Location deathLoc, Player killer, ItemStack book) {
+        Player recipient = (killer != null && killer.isOnline()
+            && killer.getWorld().equals(deathLoc.getWorld()))
+            ? killer
+            : findNearestPlayer(deathLoc);
+
+        if (recipient == null) {
+            // Environmental death with nobody around (#1904). Dropping it here would just feed it
+            // back to whatever destroyed it, so the mob is left to respawn and carry it again.
+            logger.warning("Quest '" + quest.getId() + "': death drop lost with no player in range"
+                + " — nothing granted");
+            return;
+        }
+
+        Map<Integer, ItemStack> leftover = recipient.getInventory().addItem(book);
+        if (!leftover.isEmpty()) {
+            leftover.values().forEach(stack ->
+                recipient.getWorld().dropItemNaturally(recipient.getLocation(), stack));
+            logger.debug("Recovery drop for " + recipient.getName() + " went to the ground (full inventory)");
+        }
+
+        recipient.sendMessage(deathDropRecoveryMessage.replace('&', '§'));
+        logger.debug("Recovered death drop '" + deathDropBook + "' to " + recipient.getName());
+    }
+
+    /** @return the closest online player to {@code loc} in the same world, or null. */
+    private Player findNearestPlayer(Location loc) {
+        World world = loc.getWorld();
+        if (world == null) return null;
+
+        Player nearest = null;
+        double nearestDistSq = RECOVERY_PLAYER_RADIUS * RECOVERY_PLAYER_RADIUS;
+        for (Player candidate : world.getPlayers()) {
+            double distSq = candidate.getLocation().distanceSquared(loc);
+            if (distSq <= nearestDistSq) {
+                nearest = candidate;
+                nearestDistSq = distSq;
+            }
+        }
+        return nearest;
+    }
+
+    /** @return the dropped item entity matching {@code expected} near {@code deathLoc}, or null. */
+    private Item findDroppedItem(Location deathLoc, ItemStack expected) {
+        World world = deathLoc.getWorld();
+        if (world == null) return null;
+
+        for (Entity entity : world.getNearbyEntities(deathLoc,
+                DROP_SEARCH_RADIUS, DROP_SEARCH_RADIUS, DROP_SEARCH_RADIUS)) {
+            if (entity instanceof Item item && matchesBook(item.getItemStack(), expected)) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Matches on type plus identity rather than {@code isSimilar}, because a written book's meta
+     * is rebuilt on every {@link QuestItem#getQuestItem} call and will not compare equal.
+     *
+     * <p>Identity is the book title for a {@code WRITTEN_BOOK} (which usually carries no display
+     * name) and the display name otherwise. When neither side is identifiable, type alone decides
+     * — over-matching here costs a duplicate book, while under-matching loses the quest item.</p>
+     */
+    private boolean matchesBook(ItemStack candidate, ItemStack expected) {
+        if (candidate == null || candidate.getType() != expected.getType()) return false;
+        if (!candidate.hasItemMeta() || !expected.hasItemMeta()) return true;
+
+        ItemMeta candidateMeta = candidate.getItemMeta();
+        ItemMeta expectedMeta = expected.getItemMeta();
+
+        if (expectedMeta instanceof BookMeta expectedBook && candidateMeta instanceof BookMeta candidateBook) {
+            String expectedTitle = expectedBook.getTitle();
+            if (expectedTitle != null && !expectedTitle.isEmpty()) {
+                return expectedTitle.equals(candidateBook.getTitle());
+            }
+        }
+
+        String expectedName = expectedMeta.getDisplayName();
+        if (expectedName == null || expectedName.isEmpty()) return true;
+        return expectedName.equals(candidateMeta.getDisplayName());
+    }
+
+    /** @return the configured post as a Location in {@code world}, or null when unsited. */
+    private Location siteLocation(World world) {
+        return (siteX == null) ? null : new Location(world, siteX, siteY, siteZ);
+    }
+
+    /**
+     * Scans for an existing mob matching entity_type + custom_name + world.
+     *
+     * <p>Searches around the <b>site</b> when one is configured, not the player. Anchoring the scan
+     * to the player means a guardian that drifted, or a player approaching from an odd angle, reads
+     * as "no mob here" and a duplicate gets spawned — which is exactly how two Sky-Watchers ended
+     * up standing in the same field.</p>
+     *
+     * @return the nearest match, or null if none found
+     */
+    private Entity findMatchingEntity(Player player, Location site) {
         if (!detectExisting || customName == null) return null;
         if (!player.getWorld().getName().equalsIgnoreCase(worldName)) return null;
 
+        Location origin = (site != null) ? site : player.getLocation();
         Entity nearest = null;
         double nearestDistSq = Double.MAX_VALUE;
 
-        for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
+        for (Entity entity : player.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
             if (entity.getType() != entityType) continue;
             if (!(entity instanceof LivingEntity living)) continue;
+            // A mob is still returned by getNearbyEntities on the tick it dies. Adopting one puts
+            // the quest's entity reference — and a freshly re-equipped death drop — onto a corpse
+            // that is removed a tick later, so the quest reads as having a mob when it has none.
+            if (living.isDead() || !living.isValid()) continue;
             if (!customName.equals(living.getCustomName())) continue;
 
-            double distSq = entity.getLocation().distanceSquared(player.getLocation());
+            double distSq = entity.getLocation().distanceSquared(origin);
             if (distSq < nearestDistSq) {
                 nearest = entity;
                 nearestDistSq = distSq;

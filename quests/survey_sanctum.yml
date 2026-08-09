@@ -8,6 +8,10 @@ cooldown_minutes: 0
 prerequisites:
 - survey_choice
 metadata:
+  required_worlds:
+  - alphac
+  - zeal
+  - world
   components:
     obj_ledger:
       type: LECTERN_BOOK_ON
@@ -52,7 +56,7 @@ metadata:
     OBJECTIVE_FOUND:
     - obj_report
 rewards:
-  survey_sanctum_experience_989:
+  survey_sanctum_experience_2916:
     type: EXPERIENCE
-    value: '800'
-    amount: 1
+    value: points
+    amount: 800
