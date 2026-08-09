@@ -175,4 +175,55 @@ class OutOfOrderFeedbackTest {
             "out_of_order_feedback", "out_of_order_message",
             "already_past_message", "out_of_order_cooldown_ms")));
     }
+
+    // ---- #1930: the returned Outcome is the only server-side evidence of what happened ----
+
+    @Test
+    @DisplayName("outcome names each decision, including the silences")
+    void outcomeNamesEachDecision() {
+        OutOfOrderFeedback feedback = OutOfOrderFeedback.from(config());
+        // The whole point: a silence must be distinguishable from "nothing was clicked".
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_NOT_STARTED,
+            feedback.notifyWrongBeat(player, QuestState.NOT_STARTED, QuestState.QUEST_ACTIVE),
+            "an undiscovered quest must report the leak guard, not just stay quiet");
+
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_OFF_TRACK,
+            feedback.notifyWrongBeat(player, QuestState.ABANDONED, QuestState.QUEST_ACTIVE));
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_OFF_TRACK,
+            feedback.notifyWrongBeat(player, QuestState.PAUSED, QuestState.QUEST_ACTIVE));
+
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_SAME_STATE,
+            feedback.notifyWrongBeat(player, QuestState.QUEST_ACTIVE, QuestState.QUEST_ACTIVE));
+
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_DISABLED,
+            feedback.notifyWrongBeat(null, QuestState.TRIGGER_FOUND, QuestState.COMPLETED));
+    }
+
+    @Test
+    @DisplayName("outcome distinguishes the two directions and the throttle")
+    void outcomeDistinguishesDirectionsAndThrottle() {
+        OutOfOrderFeedback feedback = OutOfOrderFeedback.from(config());
+        assertEquals(OutOfOrderFeedback.Outcome.SENT_TOO_EARLY,
+            feedback.notifyWrongBeat(player, QuestState.TRIGGER_FOUND, QuestState.COMPLETED));
+
+        // Immediately again: same player, inside the cooldown.
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_THROTTLED,
+            feedback.notifyWrongBeat(player, QuestState.TRIGGER_FOUND, QuestState.COMPLETED),
+            "a held right-click must report the throttle rather than looking like a fresh send");
+
+        Player fresh = mock(Player.class);
+        when(fresh.getUniqueId()).thenReturn(UUID.randomUUID());
+        assertEquals(OutOfOrderFeedback.Outcome.SENT_ALREADY_PAST,
+            feedback.notifyWrongBeat(fresh, QuestState.COMPLETED, QuestState.TRIGGER_FOUND));
+    }
+
+    @Test
+    @DisplayName("a blank configured message reports itself rather than passing as sent")
+    void blankMessageReportsSuppression() {
+        OutOfOrderFeedback blank = OutOfOrderFeedback.from(config("out_of_order_message", ""));
+
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_BLANK_MESSAGE,
+            blank.notifyWrongBeat(player, QuestState.TRIGGER_FOUND, QuestState.COMPLETED));
+        verify(player, never()).sendMessage(anyString());
+    }
 }

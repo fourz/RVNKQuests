@@ -105,26 +105,63 @@ public final class OutOfOrderFeedback {
      * @param current  Their current state for this quest
      * @param required The state this component needs
      */
-    public void notifyWrongBeat(Player player, QuestState current, QuestState required) {
-        if (!enabled || player == null || current == null || required == null) return;
-        if (current == required) return;
+    public Outcome notifyWrongBeat(Player player, QuestState current, QuestState required) {
+        if (!enabled || player == null || current == null || required == null) {
+            return Outcome.SUPPRESSED_DISABLED;
+        }
+        if (current == required) return Outcome.SUPPRESSED_SAME_STATE;
 
-        // Undiscovered, abandoned or admin-paused: not this mechanism's business.
-        if (current == QuestState.NOT_STARTED
-            || current == QuestState.ABANDONED
-            || current == QuestState.PAUSED) {
-            return;
+        // Undiscovered: the leak guard. Reported separately from the other suppressions because
+        // "stayed silent for a player who has not found this quest" is the behaviour most worth
+        // being able to confirm, and it is indistinguishable from "nothing happened" without it.
+        if (current == QuestState.NOT_STARTED) return Outcome.SUPPRESSED_NOT_STARTED;
+
+        // Abandoned or admin-paused: off the track, not this mechanism's business.
+        if (current == QuestState.ABANDONED || current == QuestState.PAUSED) {
+            return Outcome.SUPPRESSED_OFF_TRACK;
         }
 
-        String message = isBefore(current, required) ? tooEarlyMessage : alreadyPastMessage;
-        if (message == null || message.isBlank()) return;
+        boolean tooEarly = isBefore(current, required);
+        String message = tooEarly ? tooEarlyMessage : alreadyPastMessage;
+        if (message == null || message.isBlank()) return Outcome.SUPPRESSED_BLANK_MESSAGE;
 
         long now = System.currentTimeMillis();
         Long last = lastSpoken.get(player.getUniqueId());
-        if (last != null && (now - last) < cooldownMs) return;
+        if (last != null && (now - last) < cooldownMs) return Outcome.SUPPRESSED_THROTTLED;
         lastSpoken.put(player.getUniqueId(), now);
 
         player.sendMessage(message.replace('&', '§'));
+        return tooEarly ? Outcome.SENT_TOO_EARLY : Outcome.SENT_ALREADY_PAST;
+    }
+
+    /**
+     * What {@link #notifyWrongBeat} decided, so the calling component can log it (#1930).
+     *
+     * <p>The message itself is {@code player.sendMessage} — a direct server-to-player send. It is
+     * not an {@code AsyncPlayerChatEvent}, so the chat relay never sees it, it appears in no log,
+     * and nothing about it is observable from console. That made the correct behaviour
+     * unverifiable: a player at {@code NOT_STARTED} must be told <em>nothing</em>, and "no message"
+     * and "no click" produce identical evidence. Three separate live QA attempts failed on exactly
+     * that. Returning the decision lets the caller emit one debug line per interaction, which turns
+     * silence into something you can read.</p>
+     */
+    public enum Outcome {
+        /** Message sent: the player has not reached this beat. */
+        SENT_TOO_EARLY,
+        /** Message sent: the player is past this beat. */
+        SENT_ALREADY_PAST,
+        /** Feedback switched off, or a null argument. */
+        SUPPRESSED_DISABLED,
+        /** The player is exactly at the required state — the component itself should have fired. */
+        SUPPRESSED_SAME_STATE,
+        /** The leak guard: the player has not discovered this quest and is told nothing, ever. */
+        SUPPRESSED_NOT_STARTED,
+        /** Abandoned or paused — off the linear track. */
+        SUPPRESSED_OFF_TRACK,
+        /** The configured message for this direction is empty. */
+        SUPPRESSED_BLANK_MESSAGE,
+        /** Within the per-player cooldown; held right-click does not spam. */
+        SUPPRESSED_THROTTLED
     }
 
     /**

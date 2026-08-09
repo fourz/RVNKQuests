@@ -101,7 +101,11 @@ public class GenericInteractObjective implements Listener {
 
         QuestState currentState = quest.getStateForPlayer(player);
         if (currentState != requiredState) {
-            feedback.notifyWrongBeat(player, currentState, requiredState);
+            // #1930: the message is player-only, so log the decision to make the gate observable.
+            var outcome = feedback.notifyWrongBeat(player, currentState, requiredState);
+            logger.debug("Out-of-order interact objective: " + player.getName()
+                + " quest=" + quest.getId() + " current=" + currentState
+                + " required=" + requiredState + " -> " + outcome);
             return;
         }
 

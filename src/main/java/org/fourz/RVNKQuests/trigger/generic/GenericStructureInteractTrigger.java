@@ -154,7 +154,13 @@ public class GenericStructureInteractTrigger implements Listener {
 
         QuestState currentState = quest.getStateForPlayer(player);
         if (currentState != requiredState) {
-            feedback.notifyWrongBeat(player, currentState, requiredState);
+            // #1930: the feedback itself is player-only and invisible to console, logs and the chat
+            // relay, so without this line a correct silence and a click that never happened look
+            // identical. Naming the outcome makes the gate verifiable from the server.
+            var outcome = feedback.notifyWrongBeat(player, currentState, requiredState);
+            logger.debug("Out-of-order interact: " + player.getName() + " quest=" + quest.getId()
+                + " block=" + blockType + " current=" + currentState + " required=" + requiredState
+                + " -> " + outcome);
             return;
         }
 

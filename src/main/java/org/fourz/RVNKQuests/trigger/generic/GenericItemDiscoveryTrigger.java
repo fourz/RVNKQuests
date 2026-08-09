@@ -95,8 +95,11 @@ public class GenericItemDiscoveryTrigger implements Listener {
 
         QuestState currentState = quest.getStateForPlayer(player);
         if (currentState != requiredState) {
-            logger.debug("Item discovery: " + player.getName() + " state " + currentState + " != required " + requiredState + " — skipping");
-            feedback.notifyWrongBeat(player, currentState, requiredState);
+            // #1930: name what the feedback decided, not just that we skipped — the message is
+            // player-only and otherwise unobservable from the server.
+            var outcome = feedback.notifyWrongBeat(player, currentState, requiredState);
+            logger.debug("Out-of-order item discovery: " + player.getName() + " quest=" + quest.getId()
+                + " current=" + currentState + " required=" + requiredState + " -> " + outcome);
             return;
         }
 
