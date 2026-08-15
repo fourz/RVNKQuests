@@ -93,7 +93,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug seed <action> &8- Seed/cleanup test data");
         sendMessage(sender, "&7/quest debug setstate <quest> <state> [player] &8- Set quest state (bypasses validation)");
         sendMessage(sender, "&7/quest debug setup &8- Bootstrap LuckPerms permission defaults");
-        sendMessage(sender, "&7/quest debug preflight <quest> [--no-load] &8- Check worlds, blocks, states, rewards");
+        sendMessage(sender, "&7/quest debug preflight <quest> [--no-load] [--force] &8- Check worlds, blocks, states, rewards");
     }
 
     /**

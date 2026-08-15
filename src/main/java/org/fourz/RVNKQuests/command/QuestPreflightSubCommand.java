@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code /quest debug preflight <quest> [--no-load]} — checks every precondition a quest needs
- * before a player can complete it (#1867).
+ * {@code /quest debug preflight <quest> [--no-load] [--force]} — checks every precondition a quest
+ * needs before a player can complete it (#1867).
  *
  * <p>Replaces a manual console checklist. Preflighting one chain by hand took roughly a dozen
  * round-trips — world state, dimension key, chunk load, block identity, lore-item page count — and
