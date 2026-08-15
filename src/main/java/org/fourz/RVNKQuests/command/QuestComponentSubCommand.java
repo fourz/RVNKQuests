@@ -201,4 +201,18 @@ public class QuestComponentSubCommand extends BaseSubCommand {
         }
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help component} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest component list tfah_ch1_journey",
+                "/quest component add tfah_ch1_journey start_lectern {\"type\":\"STRUCTURE_INTERACT\"}",
+                "  the JSON is the component metadata, quoted as one argument",
+                "/quest component del tfah_ch1_journey start_lectern",
+                "Components are what QuestComponentFactory turns into trigger and objective",
+                "listeners. Adding one needs a /quest reload to take effect.");
+    }
 }

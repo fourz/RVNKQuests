@@ -144,4 +144,16 @@ public class QuestDefObjectiveSubCommand extends BaseSubCommand {
         }
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help defobjective} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest def-objective list tfah_ch1_journey",
+                "/quest def-objective add tfah_ch1_journey reach_nocturne REACH nocturne 1 Find the Nocturne",
+                "  <quest_id> <obj_id> <type> <target> <amount> [description]",
+                "/quest def-objective del tfah_ch1_journey reach_nocturne");
+    }
 }

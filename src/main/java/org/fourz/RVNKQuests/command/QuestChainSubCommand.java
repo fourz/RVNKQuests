@@ -348,4 +348,18 @@ public class QuestChainSubCommand extends BaseSubCommand {
 
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help chain} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest chain list",
+                "/quest chain list Shad0melt",
+                "/quest chain start tfah_main Shad0melt",
+                "/quest chain status tfah_main Shad0melt",
+                "/quest chain reset tfah_main Shad0melt",
+                "  reset needs the player - there is no chain-wide reset");
+    }
 }

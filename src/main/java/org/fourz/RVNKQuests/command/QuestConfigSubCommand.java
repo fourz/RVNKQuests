@@ -198,4 +198,17 @@ public class QuestConfigSubCommand extends BaseSubCommand {
     private boolean isQuestEnabled(String questId) {
         return plugin.getConfigManager().getConfig().getBoolean("quests." + questId + ".enable", true);
     }
+
+    /**
+     * Worked examples for {@code /quest help config} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest config list",
+                "/quest config enable tfah_ch1_journey",
+                "/quest config disable tfah_ch1_journey",
+                "/quest config enable all",
+                "Run /quest reload afterwards to apply the change.");
+    }
 }

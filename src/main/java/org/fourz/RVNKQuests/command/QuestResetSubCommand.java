@@ -141,4 +141,16 @@ public class QuestResetSubCommand extends BaseSubCommand {
         }
         return super.getTabCompletionOptions(sender, args);
     }
+
+    /**
+     * Worked examples for {@code /quest help reset} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest reset tfah_ch1_journey Shad0melt",
+                "  clears DB progress and evicts the per-player state cache immediately",
+                "Reset differs from abandon: abandon leaves an ABANDONED record the player can",
+                "restart from, reset removes the progress entirely.");
+    }
 }

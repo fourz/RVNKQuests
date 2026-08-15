@@ -214,4 +214,16 @@ public class QuestWorldSubCommand extends BaseSubCommand {
         }
         return List.of();
     }
+
+    /**
+     * Worked examples for {@code /quest help world} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest world list tfah_ch1_journey",
+                "  which worlds the quest's components need",
+                "/quest world ensure tfah_ch1_journey",
+                "  load any world the quest needs that is not active");
+    }
 }

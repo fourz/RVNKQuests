@@ -336,4 +336,21 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
 
         return completions;
     }
+
+    /**
+     * Worked examples for {@code /quest help prefs} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest prefs",
+                "  show your current notification preferences",
+                "/quest prefs enable quest_complete",
+                "/quest prefs disable objective_progress",
+                "/quest prefs quiet 22 7",
+                "  quiet hours, start and end",
+                "/quest prefs quiet disable",
+                "Types: quest_start quest_complete quest_failed objective_progress",
+                "objective_complete quest_available milestone chain_progress");
+    }
 }

@@ -45,4 +45,24 @@ public interface SubCommand extends ICommand {
      * @return The parent command, or null for standalone subcommands
      */
     ICommand getParent();
+
+    /**
+     * Worked examples for this subcommand, served by {@code /quest help &lt;verb&gt;}.
+     *
+     * <p>Return concrete, runnable lines with real-looking arguments — not a restatement of
+     * {@link ICommand#getUsage()}, which the help already prints above them. A line beginning with
+     * two spaces is rendered as a note under the example above it.</p>
+     *
+     * <p>Examples live here rather than in {@code docs/plugins/commands/} so that they ship with
+     * the build and cannot drift from it. The doc pages carry what no command can print: sequence
+     * diagrams, backend class references and changelogs. (#1981)</p>
+     *
+     * <p>Default is empty. A subcommand whose whole grammar fits in one usage line does not need
+     * examples, and {@code /quest help} marks which verbs have them.</p>
+     *
+     * @return example lines, or an empty list when the usage string says everything
+     */
+    default List<String> getExamples() {
+        return List.of();
+    }
 }

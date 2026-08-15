@@ -417,4 +417,25 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         return sender.hasPermission("rvnkquests.admin") || sender.isOp();
     }
 
+
+    /**
+     * Worked examples for {@code /quest help debug} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest debug diagnostics",
+                "/quest debug list",
+                "/quest debug player Shad0melt",
+                "/quest debug loglevel DEBUG",
+                "  persists to config.yml - set it back to WARNING when you are done",
+                "/quest debug preflight tfah_ch1_journey",
+                "  reports blockers before anyone plays it; 0 blockers means startable",
+                "/quest debug preflight tfah_ch1_journey --no-load --force",
+                "/quest debug setstate tfah_ch1_journey QUEST_ACTIVE Shad0melt",
+                "/quest debug seed minimal",
+                "  minimal 10 / standard 100 / stress 1000 / cleanup / status",
+                "DEBUG logging plus load is an availability risk - it once queued ~150k lines",
+                "and blocked shutdown for 11 minutes.");
+    }
 }

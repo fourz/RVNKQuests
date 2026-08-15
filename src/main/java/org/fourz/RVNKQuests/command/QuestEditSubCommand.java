@@ -264,4 +264,19 @@ public class QuestEditSubCommand extends BaseSubCommand {
         }
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help edit} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest edit tfah_ch1_journey description The long road to the Nocturne",
+                "/quest edit tfah_ch1_journey category exploration",
+                "/quest edit tfah_ch1_journey repeatable true",
+                "/quest edit tfah_ch1_journey cooldown 86400",
+                "  cooldown is in seconds",
+                "/quest edit tfah_ch1_journey prerequisite tfah_zeal_arrival",
+                "/quest edit tfah_ch1_journey metadata state_mapping {\"COMPLETED\":\"done\"}");
+    }
 }

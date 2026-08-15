@@ -404,4 +404,19 @@ public class QuestJournalSubCommand extends BaseSubCommand {
         }
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help journal} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest journal",
+                "/quest journal view tfah_ch1_journey",
+                "/quest journal view tfah_ch1_journey Shad0melt",
+                "  console must name the player",
+                "/quest journal remove tfah_ch1_journey Shad0melt",
+                "Actions recorded: STARTED COMPLETED ABANDONED OBJECTIVE_COMPLETE FAILED",
+                "PATH_CHOSEN REWARD_CLAIMED");
+    }
 }

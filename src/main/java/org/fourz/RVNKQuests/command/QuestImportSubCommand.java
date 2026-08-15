@@ -132,4 +132,16 @@ public class QuestImportSubCommand extends BaseSubCommand {
         }
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help import} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest import tfah_ch1_journey",
+                "/quest import all",
+                "SQL is primary. This is how a .yml or .json edit actually reaches the server -",
+                "/quest reload will not do it.");
+    }
 }

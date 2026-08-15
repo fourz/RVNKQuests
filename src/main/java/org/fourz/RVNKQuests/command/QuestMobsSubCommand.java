@@ -187,4 +187,16 @@ public class QuestMobsSubCommand extends BaseSubCommand {
             loc.getBlockY(),
             loc.getBlockZ());
     }
+
+    /**
+     * Worked examples for {@code /quest help mobs} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest mobs list",
+                "  every quest mob currently tracked, including GenericMobSpawnTrigger ones",
+                "/quest mobs kill",
+                "  remove them - use before re-testing a spawn trigger");
+    }
 }
