@@ -297,7 +297,14 @@ public class GenericMobSpawnTrigger implements Listener {
             Entity found = findMatchingEntity(player, site);
             if (found != null) {
                 adoptEntity(found);
-                quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+                // Party fan-out (#1982): checkpoint = the sited post when configured, else the
+                // player who found the mob. The mob itself is already shared world state. This
+                // path only runs for NOT_STARTED players (gated above), so that is the beat's
+                // expected starting state.
+                quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                        org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                                site != null ? site : player.getLocation(), triggerRadius,
+                                QuestState.NOT_STARTED));
                 logger.debug("Adopted existing " + entityType + " (" + customName +
                     ") for quest " + quest.getId() + " near " + player.getName());
                 return;
@@ -315,8 +322,11 @@ public class GenericMobSpawnTrigger implements Listener {
 
         adoptEntity(newEntity);
 
-        // Advance state
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+        // Advance state — party fan-out (#1982): checkpoint = the actual spawn location. Only
+        // NOT_STARTED players reach this path (gated above).
+        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                org.fourz.RVNKQuests.party.PartyBeatContext.of(spawnLoc, triggerRadius,
+                        QuestState.NOT_STARTED));
 
         logger.debug("Spawned " + entityType + " for quest " + quest.getId() + " near " + player.getName());
     }

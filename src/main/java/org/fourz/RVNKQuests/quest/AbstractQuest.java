@@ -8,6 +8,7 @@ import org.fourz.RVNKQuests.event.QuestCompleteEvent;
 import org.fourz.RVNKQuests.service.IJournalService;
 import org.fourz.RVNKQuests.service.INotificationService;
 import org.fourz.RVNKQuests.service.IQuestProgressService;
+import org.fourz.RVNKQuests.util.OutOfOrderFeedback;
 import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.util.UUID;
@@ -44,6 +45,13 @@ public abstract class AbstractQuest implements Quest {
      * Eagerly updated by advanceStateForPlayer(); lazily populated on first read.
      */
     private final Map<UUID, QuestState> stateCache = new ConcurrentHashMap<>();
+
+    /**
+     * Feedback for party members blocked by an unmet prerequisite (#1982). Per-quest instance so
+     * the 20s per-player cooldown is scoped per quest — a blocked member near a movement trigger
+     * re-fires the fan-out on every step, and only the throttle keeps this from spamming.
+     */
+    private final OutOfOrderFeedback prereqFeedback = OutOfOrderFeedback.from(null);
 
     /**
      * Stores the state that was active immediately before a pause, so resume can restore it.
@@ -168,12 +176,43 @@ public abstract class AbstractQuest implements Quest {
 
     @Override
     public CompletableFuture<Void> advanceStateForPlayer(UUID playerUuid, QuestState newState) {
-        return enqueueStateChange(playerUuid, newState, true);
+        return enqueueStateChange(playerUuid, newState, true, null);
+    }
+
+    /**
+     * Component-driven advance carrying the beat's checkpoint, so party members can share it
+     * (#1982).
+     *
+     * <p>The firer advances exactly as before. Each qualifying party member (presence rule:
+     * online, checkpoint's world, within the share radius — evaluated synchronously on the main
+     * thread at fire time) is enqueued onto their own write chain with
+     * {@code partyExpectedFrom = ctx.requiredState()}, so every member advance still passes the
+     * monotonic guard, the prerequisite gate, persistence, journal, and completion side-effects
+     * individually.</p>
+     *
+     * <p>Recursion is structurally impossible: member advances go through the context-less path,
+     * which never consults the party service.</p>
+     */
+    public CompletableFuture<Void> advanceStateForPlayer(UUID playerUuid, QuestState newState,
+                                                         org.fourz.RVNKQuests.party.PartyBeatContext ctx) {
+        CompletableFuture<Void> firer = advanceStateForPlayer(playerUuid, newState);
+        if (ctx == null) {
+            return firer;
+        }
+        // Fetched lazily at fire time — quests are constructed during registration, before the
+        // party service exists; a constructor-cached null would silently disable fan-out forever.
+        org.fourz.RVNKQuests.party.QuestPartyService parties = plugin.getQuestPartyService();
+        if (parties != null && parties.isEnabled()) {
+            for (UUID member : parties.qualifyingMembers(playerUuid, ctx)) {
+                enqueueStateChange(member, newState, true, ctx.requiredState());
+            }
+        }
+        return firer;
     }
 
     @Override
     public CompletableFuture<Void> setStateForPlayer(UUID playerUuid, QuestState newState) {
-        return enqueueStateChange(playerUuid, newState, false);
+        return enqueueStateChange(playerUuid, newState, false, null);
     }
 
     /**
@@ -187,8 +226,13 @@ public abstract class AbstractQuest implements Quest {
      * @param monotonic when true the change is rejected if it would move the quest
      *                  backwards along the linear progression — see
      *                  {@link #isForwardProgress(QuestState, QuestState)}
+     * @param partyExpectedFrom non-null only for a party fan-out (#1982): the beat's required
+     *                  starting state. A member whose current state differs is skipped — the
+     *                  in-step gate that turns "missed a beat" into "fall behind, catch up solo"
+     *                  and confines fan-out to the exact edge the prerequisite gate covers.
      */
-    private CompletableFuture<Void> enqueueStateChange(UUID playerUuid, QuestState newState, boolean monotonic) {
+    private CompletableFuture<Void> enqueueStateChange(UUID playerUuid, QuestState newState, boolean monotonic,
+                                                       QuestState partyExpectedFrom) {
         if (progressService == null) {
             logger.warning("QuestProgressService not available - cannot advance state");
             return CompletableFuture.completedFuture(null);
@@ -201,7 +245,7 @@ public abstract class AbstractQuest implements Quest {
             // handle() first so a failed predecessor cannot stall every later change.
             // *Async so applyStateChange never runs while compute() holds the bin lock.
             base.handle((v, ex) -> (Void) null)
-                .thenComposeAsync(ignored -> applyStateChange(uuid, newState, monotonic))
+                .thenComposeAsync(ignored -> applyStateChange(uuid, newState, monotonic, partyExpectedFrom))
                 .whenComplete((v, ex) -> {
                     if (ex != null) {
                         result.completeExceptionally(ex);
@@ -223,12 +267,25 @@ public abstract class AbstractQuest implements Quest {
      * Performs one state change. Runs inside the player's write chain, so the state read
      * here is still current when the write below lands — no other change can slip between.
      */
-    private CompletableFuture<Void> applyStateChange(UUID playerUuid, QuestState newState, boolean monotonic) {
+    private CompletableFuture<Void> applyStateChange(UUID playerUuid, QuestState newState, boolean monotonic,
+                                                     QuestState partyExpectedFrom) {
         return getStateForPlayer(playerUuid)
             .thenCompose(currentState -> {
                 // No-op: re-firing side effects (rewards, broadcast, QuestCompleteEvent)
                 // for a state the player already holds would double-deliver.
                 if (currentState == newState) {
+                    stateCache.put(playerUuid, currentState);
+                    return CompletableFuture.<Void>completedFuture(null);
+                }
+
+                // Party in-step gate (#1982): a fan-out only moves members who are exactly at the
+                // beat's starting state. Anyone behind falls behind (catches up solo at normal
+                // radius); anyone ahead is untouched. This also confines fan-out for NOT_STARTED
+                // members to the NOT_STARTED -> TRIGGER_FOUND edge — the one edge the prerequisite
+                // gate below covers — so party play can never leapfrog the chain.
+                if (partyExpectedFrom != null && currentState != partyExpectedFrom) {
+                    logger.debug("Party fan-out for quest " + questId + " skipped for " + playerUuid
+                        + " — member at " + currentState + ", beat expects " + partyExpectedFrom);
                     stateCache.put(playerUuid, currentState);
                     return CompletableFuture.<Void>completedFuture(null);
                 }
@@ -263,6 +320,23 @@ public abstract class AbstractQuest implements Quest {
                         if (!met) {
                             logger.debug("Quest " + questId + " trigger blocked for " + playerUuid
                                 + " — prerequisites not met");
+                            // Party members get told WHY (#1982). Solo blocks stay silent — the
+                            // OutOfOrderFeedback leak guard exists so undiscovered content is never
+                            // advertised, but a party member opted in, and the firer's own advance
+                            // already reveals the quest to the party. Main-thread hop: this runs on
+                            // the async write-chain pool, and sendMessage follows the same dispatch
+                            // convention as the side-effects in performAdvance.
+                            if (partyExpectedFrom != null) {
+                                Bukkit.getScheduler().runTask(plugin, () -> {
+                                    Player blocked = plugin.getServer().getPlayer(playerUuid);
+                                    if (blocked != null) {
+                                        OutOfOrderFeedback.Outcome outcome =
+                                            prereqFeedback.notifyPrerequisiteBlocked(blocked, name);
+                                        logger.debug("Prereq-block feedback for " + blocked.getName()
+                                            + " on " + questId + ": " + outcome);
+                                    }
+                                });
+                            }
                             stateCache.put(playerUuid, currentState);
                             return CompletableFuture.<Void>completedFuture(null);
                         }

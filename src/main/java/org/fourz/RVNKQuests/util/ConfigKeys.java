@@ -24,6 +24,14 @@ public final class ConfigKeys {
     public static final String QUESTS_ENABLED = QUESTS_PREFIX + "enabled";
     public static final String QUESTS_CLEAR_ON_DEATH = QUESTS_PREFIX + "clearOnDeath";
     
+    // Quest party settings (#1982)
+    public static final String PARTY_PREFIX = QUESTS_PREFIX + "party.";
+    public static final String PARTY_ENABLED = PARTY_PREFIX + "enabled";
+    public static final String PARTY_MAX_SIZE = PARTY_PREFIX + "max_size";
+    public static final String PARTY_INVITE_TIMEOUT_SECONDS = PARTY_PREFIX + "invite_timeout_seconds";
+    public static final String PARTY_SHARE_RADIUS_MULTIPLIER = PARTY_PREFIX + "share_radius_multiplier";
+    public static final String PARTY_MIN_SHARE_RADIUS = PARTY_PREFIX + "min_share_radius";
+
     // Lore database settings
     public static final String LORE_PREFIX = "lore_database.";
     public static final String LORE_ENABLED = LORE_PREFIX + "enabled";

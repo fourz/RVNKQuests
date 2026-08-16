@@ -66,6 +66,9 @@ public class QuestCommand extends BaseCommand {
         // Player preference commands (Phase 4 - with database persistence)
         registerSubCommand("prefs", new QuestPrefsSubCommand(plugin, plugin.getPreferenceRepository()));
 
+        // Quest party (#1982) — shared beat advancement
+        registerSubCommand("party", new QuestPartySubCommand(plugin));
+
         logger.debug("Core subcommands registered");
     }
 

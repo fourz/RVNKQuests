@@ -39,6 +39,7 @@ public class GenericLocationProximityTrigger implements Listener {
     private final double x;
     private final double y;
     private final double z;
+    private final double radius;
     private final double radiusSquared;
     private final QuestState requiredState;
     private final QuestState advanceState;
@@ -51,7 +52,7 @@ public class GenericLocationProximityTrigger implements Listener {
         this.x = QuestComponentFactory.getDoubleConfig(config, "x", 0.0);
         this.y = QuestComponentFactory.getDoubleConfig(config, "y", 64.0);
         this.z = QuestComponentFactory.getDoubleConfig(config, "z", 0.0);
-        double radius = QuestComponentFactory.getDoubleConfig(config, "radius", 20.0);
+        this.radius = QuestComponentFactory.getDoubleConfig(config, "radius", 20.0);
         this.radiusSquared = radius * radius;
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "NOT_STARTED"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
@@ -87,7 +88,9 @@ public class GenericLocationProximityTrigger implements Listener {
         double dz = destination.getZ() - z;
 
         if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+            // Party fan-out (#1982): carry the checkpoint so qualifying members share the beat.
+            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                    new org.fourz.RVNKQuests.party.PartyBeatContext(worldName, x, y, z, radius, requiredState));
             logger.debug("Location proximity trigger fired for " + player.getName()
                     + " at " + worldName + " " + (int) x + "," + (int) y + "," + (int) z
                     + " (quest: " + quest.getId() + ")");

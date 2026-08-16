@@ -91,6 +91,9 @@ public class RVNKQuests extends JavaPlugin {
     private ILoreIntegration loreIntegration;
     private org.fourz.RVNKQuests.integration.WorldActivationService worldActivation;
 
+    // Quest party (#1982) — shared beat advancement; in-memory, dissolved on restart
+    private org.fourz.RVNKQuests.party.QuestPartyService questPartyService;
+
     // RVNKCore integration
     private boolean rvnkCoreAvailable = false;
     private Object rvnkCoreInstance = null;
@@ -136,6 +139,7 @@ public class RVNKQuests extends JavaPlugin {
             preferenceRepository = new PreferenceRepositoryImpl(this, databaseManager);
 
             // Initialize managers in correct dependency order
+            questPartyService = new org.fourz.RVNKQuests.party.QuestPartyService(this);
             questManager = new QuestManager(this);
             commandManager = new CommandManager(this);
             commandManager.initialize();
@@ -217,6 +221,11 @@ public class RVNKQuests extends JavaPlugin {
                 questManager.cleanupQuests();
             }
 
+            // Dissolve quest parties (#1982) — in-memory only, nothing to persist
+            if (questPartyService != null) {
+                questPartyService.shutdown();
+            }
+
             // Flush chain progress to DB before shutting down the connection pool
             if (questChainService instanceof QuestChainServiceImpl chainServiceImpl) {
                 try {
@@ -270,6 +279,14 @@ public class RVNKQuests extends JavaPlugin {
 
     public ConfigManager getConfigManager() {
         return configManager;
+    }
+
+    /**
+     * Gets the quest party service (#1982), or null before onEnable completes.
+     * Callers fetch lazily at use time — quests are constructed during registration.
+     */
+    public org.fourz.RVNKQuests.party.QuestPartyService getQuestPartyService() {
+        return questPartyService;
     }
 
     public QuestManager getQuestManager() {

@@ -40,18 +40,23 @@ public final class OutOfOrderFeedback {
         "&7Nothing here answers you — not yet.";
     private static final String DEFAULT_ALREADY_PAST =
         "&7Whatever was here, you have already taken it.";
+    private static final String DEFAULT_PREREQ_BLOCKED =
+        "&7You are not yet ready for this path — a tale of yours remains unfinished.";
 
     private final boolean enabled;
     private final String tooEarlyMessage;
     private final String alreadyPastMessage;
+    private final String prereqBlockedMessage;
     private final long cooldownMs;
 
     private final Map<UUID, Long> lastSpoken = new ConcurrentHashMap<>();
 
-    private OutOfOrderFeedback(boolean enabled, String tooEarly, String alreadyPast, long cooldownMs) {
+    private OutOfOrderFeedback(boolean enabled, String tooEarly, String alreadyPast,
+                               String prereqBlocked, long cooldownMs) {
         this.enabled = enabled;
         this.tooEarlyMessage = tooEarly;
         this.alreadyPastMessage = alreadyPast;
+        this.prereqBlockedMessage = prereqBlocked;
         this.cooldownMs = cooldownMs;
     }
 
@@ -73,12 +78,13 @@ public final class OutOfOrderFeedback {
     public static OutOfOrderFeedback from(Map<String, Object> config) {
         if (config == null) {
             return new OutOfOrderFeedback(true, DEFAULT_TOO_EARLY, DEFAULT_ALREADY_PAST,
-                DEFAULT_COOLDOWN_MS);
+                DEFAULT_PREREQ_BLOCKED, DEFAULT_COOLDOWN_MS);
         }
         return new OutOfOrderFeedback(
             QuestComponentFactory.getBoolConfig(config, "out_of_order_feedback", true),
             QuestComponentFactory.getStringConfig(config, "out_of_order_message", DEFAULT_TOO_EARLY),
             QuestComponentFactory.getStringConfig(config, "already_past_message", DEFAULT_ALREADY_PAST),
+            QuestComponentFactory.getStringConfig(config, "prereq_blocked_message", DEFAULT_PREREQ_BLOCKED),
             (long) QuestComponentFactory.getDoubleConfig(config, "out_of_order_cooldown_ms",
                 DEFAULT_COOLDOWN_MS));
     }
@@ -91,7 +97,7 @@ public final class OutOfOrderFeedback {
      */
     public static java.util.Set<String> configKeys() {
         return java.util.Set.of("out_of_order_feedback", "out_of_order_message",
-            "already_past_message", "out_of_order_cooldown_ms");
+            "already_past_message", "prereq_blocked_message", "out_of_order_cooldown_ms");
     }
 
     /**
@@ -135,6 +141,40 @@ public final class OutOfOrderFeedback {
     }
 
     /**
+     * Party-only (#1982): tells a player their quest prerequisites block this beat.
+     *
+     * <p><b>Deliberately bypasses the {@code NOT_STARTED} leak guard.</b> The guard exists so
+     * undiscovered content is never advertised to a solo player wandering the world — but a party
+     * member opted into shared play, and the firing member's own advance already reveals the
+     * quest to the party. Staying silent here is what makes a working prerequisite gate read as
+     * "the quest is broken for me".</p>
+     *
+     * <p>Reuses the same per-player cooldown map as {@link #notifyWrongBeat} — essential, because
+     * a blocked member near a movement trigger re-fires on every step and only the throttle keeps
+     * this from being a message per tick.</p>
+     *
+     * @param player    the blocked party member
+     * @param questName display name of the gated quest (currently unused in the default message,
+     *                  kept in the signature so a configured message can substitute it later)
+     */
+    public Outcome notifyPrerequisiteBlocked(Player player, String questName) {
+        if (!enabled || player == null) {
+            return Outcome.SUPPRESSED_DISABLED;
+        }
+        if (prereqBlockedMessage == null || prereqBlockedMessage.isBlank()) {
+            return Outcome.SUPPRESSED_BLANK_MESSAGE;
+        }
+
+        long now = System.currentTimeMillis();
+        Long last = lastSpoken.get(player.getUniqueId());
+        if (last != null && (now - last) < cooldownMs) return Outcome.SUPPRESSED_THROTTLED;
+        lastSpoken.put(player.getUniqueId(), now);
+
+        player.sendMessage(prereqBlockedMessage.replace('&', '§'));
+        return Outcome.SENT_PREREQ_BLOCKED;
+    }
+
+    /**
      * What {@link #notifyWrongBeat} decided, so the calling component can log it (#1930).
      *
      * <p>The message itself is {@code player.sendMessage} — a direct server-to-player send. It is
@@ -150,6 +190,8 @@ public final class OutOfOrderFeedback {
         SENT_TOO_EARLY,
         /** Message sent: the player is past this beat. */
         SENT_ALREADY_PAST,
+        /** Message sent: a party member's prerequisites block this beat (#1982). */
+        SENT_PREREQ_BLOCKED,
         /** Feedback switched off, or a null argument. */
         SUPPRESSED_DISABLED,
         /** The player is exactly at the required state — the component itself should have fired. */

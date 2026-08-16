@@ -218,6 +218,34 @@ class OutOfOrderFeedbackTest {
     }
 
     @Test
+    @DisplayName("prereq-blocked speaks even at NOT_STARTED — the party path bypasses the leak guard")
+    void prereqBlockedBypassesLeakGuard() {
+        OutOfOrderFeedback feedback = OutOfOrderFeedback.from(
+            config("prereq_blocked_message", "&7not ready"));
+
+        // notifyWrongBeat would stay silent for this player; the party path must not.
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_NOT_STARTED,
+            feedback.notifyWrongBeat(player, QuestState.NOT_STARTED, QuestState.TRIGGER_FOUND));
+
+        assertEquals(OutOfOrderFeedback.Outcome.SENT_PREREQ_BLOCKED,
+            feedback.notifyPrerequisiteBlocked(player, "The Quiet World"));
+        assertEquals("§7not ready", captureMessage());
+    }
+
+    @Test
+    @DisplayName("prereq-blocked honours the same per-player throttle")
+    void prereqBlockedIsThrottled() {
+        OutOfOrderFeedback feedback = OutOfOrderFeedback.from(
+            config("prereq_blocked_message", "&7not ready"));
+
+        assertEquals(OutOfOrderFeedback.Outcome.SENT_PREREQ_BLOCKED,
+            feedback.notifyPrerequisiteBlocked(player, "q"));
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_THROTTLED,
+            feedback.notifyPrerequisiteBlocked(player, "q"),
+            "a member walking on a movement trigger must not get a message per step");
+    }
+
+    @Test
     @DisplayName("a blank configured message reports itself rather than passing as sent")
     void blankMessageReportsSuppression() {
         OutOfOrderFeedback blank = OutOfOrderFeedback.from(config("out_of_order_message", ""));
