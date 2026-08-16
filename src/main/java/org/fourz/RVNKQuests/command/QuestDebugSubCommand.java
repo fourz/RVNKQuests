@@ -431,6 +431,8 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 "  persists to config.yml - set it back to WARNING when you are done",
                 "/quest debug preflight tfah_ch1_journey",
                 "  reports blockers before anyone plays it; 0 blockers means startable",
+                "  off Dev it reports WITHOUT loading chunks and says so - add --force to",
+                "  load and release them, which is what verifies a block actually exists",
                 "/quest debug preflight tfah_ch1_journey --no-load --force",
                 "/quest debug setstate tfah_ch1_journey QUEST_ACTIVE Shad0melt",
                 "/quest debug seed minimal",

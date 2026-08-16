@@ -357,9 +357,11 @@ public class QuestChainSubCommand extends BaseSubCommand {
         return java.util.List.of(
                 "/quest chain list",
                 "/quest chain list Shad0melt",
-                "/quest chain start tfah_main Shad0melt",
-                "/quest chain status tfah_main Shad0melt",
-                "/quest chain reset tfah_main Shad0melt",
-                "  reset needs the player - there is no chain-wide reset");
+                "/quest chain start wanderers_path Shad0melt",
+                "/quest chain status wanderers_path Shad0melt",
+                "/quest chain reset wanderers_path Shad0melt",
+                "  reset needs the player - there is no chain-wide reset",
+                "wanderers_path is the only chain registered as of 2026-08-15. The TFAH quests",
+                "are standalone definitions, not a chain - run /quest chain list to confirm.");
     }
 }
