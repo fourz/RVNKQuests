@@ -392,21 +392,51 @@ public abstract class AbstractQuest implements Quest {
      * prerequisites resolve to {@code true}.
      */
     private CompletableFuture<Boolean> arePrerequisitesMet(UUID playerUuid) {
+        return getUnmetPrerequisites(playerUuid).thenApply(java.util.List::isEmpty);
+    }
+
+    /**
+     * Whether a state sits on the linear progression beyond {@code NOT_STARTED}.
+     *
+     * <p>{@code NOT_STARTED} is excluded deliberately: resetting a player back to the start is a
+     * teardown operation, and a QA pass that could set a state but not clear it would be worse than
+     * one that could do neither. {@code ABANDONED} and {@code PAUSED} are lifecycle rather than
+     * progress and rank {@code -1}.</p>
+     */
+    public static boolean isMidChainProgress(QuestState state) {
+        return progressRank(state) >= 1;
+    }
+
+    /**
+     * Prerequisite quest IDs that are <b>not</b> COMPLETED for this player, in declaration order.
+     * Empty means every prerequisite is satisfied (or there are none).
+     *
+     * <p>Returns the blockers rather than a boolean because the useful thing to tell an operator is
+     * <i>which</i> quest is in the way (#1884). {@code /quest state} refuses a mid-chain state and
+     * names these; {@code /quest debug setstate} proceeds anyway, which is what "bypasses
+     * validation" is supposed to mean.</p>
+     *
+     * <p>Evaluated sequentially rather than in parallel: the list is short, and a stable
+     * declaration-ordered answer reads better in a refusal message than a race-ordered one.</p>
+     */
+    @Override
+    public CompletableFuture<java.util.List<String>> getUnmetPrerequisites(UUID playerUuid) {
         java.util.List<String> prereqs = getPrerequisiteQuestIds();
         if (prereqs == null || prereqs.isEmpty()) {
-            return CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(java.util.List.of());
         }
-        CompletableFuture<Boolean> chain = CompletableFuture.completedFuture(true);
+        java.util.List<String> unmet = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
         for (String prereqId : prereqs) {
-            chain = chain.thenCompose(ok -> {
-                if (!ok) {
-                    return CompletableFuture.completedFuture(false);
-                }
-                return progressService.getQuestState(playerUuid, prereqId)
-                    .thenApply(state -> state == QuestState.COMPLETED);
-            });
+            chain = chain.thenCompose(ignored ->
+                progressService.getQuestState(playerUuid, prereqId)
+                    .thenAccept(state -> {
+                        if (state != QuestState.COMPLETED) {
+                            unmet.add(prereqId);
+                        }
+                    }));
         }
-        return chain;
+        return chain.thenApply(ignored -> java.util.List.copyOf(unmet));
     }
 
     private CompletableFuture<Void> performAdvance(UUID playerUuid, QuestState currentState, QuestState newState) {
