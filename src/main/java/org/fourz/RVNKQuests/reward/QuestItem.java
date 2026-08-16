@@ -122,26 +122,26 @@ public class QuestItem {
         
         meta.addPage(
             "One big an' dark. Two rattlin' bone-boyz. Two tusked beasts, gruntin' in da dark.\n\n" +
-            "Dey don’t know his name.\n\n" +
-            "Dey don’t care he’s stuck ‘ere.\n\n" +
-            "Dey just stand, watchin’, waitin’, makin’ sure no one gets through."
+            "Dey don't know his name.\n\n" +
+            "Dey don't care he's stuck 'ere.\n\n" +
+            "Dey just stand, watchin', waitin', makin' sure no one gets through."
         );
         
         meta.addPage(
             "'Dey fink dey got me beat.'\n\n" +
             "He grinned.\n\n" +
-            "'Well I ain’t stayin’ in dis zoggin’ place.'\n\n" +
-            "GrotSnout’s last stand.\n\n" +
-            "A stupid plan, da best kind. He’d krump ‘em. All of ‘em.\n\n" +
+            "'Well I ain't stayin' in dis zoggin' place.'\n\n" +
+            "GrotSnout's last stand.\n\n" +
+            "A stupid plan, da best kind. He'd krump 'em. All of 'em.\n\n" +
             "Break da gate. Let da fire come back."
         );
         
         meta.addPage(
-            "If it don’t work?\n\n" +
-            "At least he’d go down swingin’.\n\n" +
-            "Wind howlin’.\n\n" +
+            "If it don't work?\n\n" +
+            "At least he'd go down swingin'.\n\n" +
+            "Wind howlin'.\n\n" +
             "Blade drawn.\n\n" +
-            "'Let’s see who’s still standin’ when da sun comes up.'"
+            "'Let's see who's still standin' when da sun comes up.'"
         );
         
         book.setItemMeta(meta);
@@ -184,7 +184,7 @@ public class QuestItem {
             "Den I'z leggin' it back home!\n" +
             "GrotSnout ain't stayin' in dis zoggin' place!\n\n" +
             "If ya krump 'em, I'll owe ya...\n" +
-            "Uhhh... SEVEN—no, EIGHT whole gold coins!\n" +
+            "Uhhh... SEVEN-no, EIGHT whole gold coins!\n" +
             "(If I remember where I put 'em.)",
 
             "Now quit readin' dis!\n\n" +

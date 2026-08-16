@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -74,6 +75,10 @@ class StructureInteractGateTest {
         when(quest.getStateForPlayer(any(Player.class))).thenReturn(QuestState.NOT_STARTED);
         when(quest.advanceStateForPlayer(any(UUID.class), any(QuestState.class)))
             .thenReturn(CompletableFuture.completedFuture(null));
+        // #1986: the trigger now fires through the party-aware overload.
+        when(quest.advanceStateForPlayer(any(UUID.class), any(QuestState.class),
+                any(org.fourz.RVNKQuests.party.PartyBeatContext.class)))
+            .thenReturn(CompletableFuture.completedFuture(null));
     }
 
     /** The config {@code tfah_ch1_journey} actually ships, minus whatever a case overrides. */
@@ -100,6 +105,10 @@ class StructureInteractGateTest {
         when(block.getX()).thenReturn(x);
         when(block.getY()).thenReturn(y);
         when(block.getZ()).thenReturn(z);
+        // #1986 wired the party fan-out into this trigger, which reads the clicked block's
+        // Location to build the beat checkpoint. Without this the trigger NPEs on every fire —
+        // which is how these tests caught the wiring in the first place.
+        when(block.getLocation()).thenReturn(new org.bukkit.Location(alphac, x, y, z));
         return block;
     }
 
@@ -111,11 +120,23 @@ class StructureInteractGateTest {
     }
 
     private void assertAdvanced() {
-        verify(quest).advanceStateForPlayer(playerId, QuestState.TRIGGER_FOUND);
+        verify(quest).advanceStateForPlayer(eq(playerId), eq(QuestState.TRIGGER_FOUND),
+            any(org.fourz.RVNKQuests.party.PartyBeatContext.class));
     }
 
+    /** Covers both overloads — the gate must refuse regardless of which path a future edit uses. */
     private void assertNotAdvanced() {
         verify(quest, never()).advanceStateForPlayer(any(UUID.class), any(QuestState.class));
+        verify(quest, never()).advanceStateForPlayer(any(UUID.class), any(QuestState.class),
+            any(org.fourz.RVNKQuests.party.PartyBeatContext.class));
+    }
+
+    /** The party checkpoint the trigger published, for asserting where the beat was sited. */
+    private org.fourz.RVNKQuests.party.PartyBeatContext capturedContext() {
+        var captor = org.mockito.ArgumentCaptor.forClass(
+            org.fourz.RVNKQuests.party.PartyBeatContext.class);
+        verify(quest).advanceStateForPlayer(any(UUID.class), any(QuestState.class), captor.capture());
+        return captor.getValue();
     }
 
     @Nested
@@ -162,6 +183,22 @@ class StructureInteractGateTest {
                 .onPlayerInteract(clickOn(blockAt(Material.LECTERN, SITE_X + 4, SITE_Y, SITE_Z)));
 
             assertNotAdvanced();
+        }
+
+        @Test
+        @DisplayName("the party checkpoint is the CLICKED block, not the configured coordinate")
+        void partyCheckpointIsTheClickedBlock() {
+            // #1986: an unsited trigger has no configured coordinate at all, and even a sited one
+            // can be clicked up to `radius` away. Sharing from the clicked block measures member
+            // presence from where the beat actually happened.
+            trigger(sitedConfig())
+                .onPlayerInteract(clickOn(blockAt(Material.LECTERN, SITE_X + 2, SITE_Y, SITE_Z)));
+
+            var ctx = capturedContext();
+            assertEquals(SITE_X + 2, ctx.x(), 0.001, "checkpoint x is the clicked block, not config");
+            assertEquals("alphac", ctx.worldName());
+            assertEquals(QuestState.NOT_STARTED, ctx.requiredState(),
+                "the in-step gate must carry this trigger's own required_state");
         }
 
         @Test
@@ -269,7 +306,8 @@ class StructureInteractGateTest {
             trigger(config)
                 .onPlayerInteract(clickOn(blockAt(Material.LECTERN, SITE_X, SITE_Y, SITE_Z)));
 
-            verify(quest).advanceStateForPlayer(playerId, QuestState.QUEST_ACTIVE);
+            verify(quest).advanceStateForPlayer(eq(playerId), eq(QuestState.QUEST_ACTIVE),
+                any(org.fourz.RVNKQuests.party.PartyBeatContext.class));
         }
 
         @Test

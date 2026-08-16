@@ -57,7 +57,7 @@ public class RngItemRewardProcessor implements RewardProcessor {
 
             if (loreIntegration == null || !loreIntegration.isLoreAvailable()) {
                 return RewardDeliveryResult.failure(reward,
-                    "RVNKLore unavailable — cannot deliver RNG item", "LORE_UNAVAILABLE");
+                    "RVNKLore unavailable - cannot deliver RNG item", "LORE_UNAVAILABLE");
             }
 
             String poolId = reward.metadata().get("pool_id");
@@ -71,7 +71,7 @@ public class RngItemRewardProcessor implements RewardProcessor {
             Optional<ItemStack> rolled = loreIntegration.rollRngItem(poolId, rarityTier).join();
             if (rolled.isEmpty()) {
                 return RewardDeliveryResult.failure(reward,
-                    "RNG pool returned no item — pool '" + poolId + "' may be empty", "POOL_EMPTY");
+                    "RNG pool returned no item - pool '" + poolId + "' may be empty", "POOL_EMPTY");
             }
 
             ItemStack item = rolled.get();

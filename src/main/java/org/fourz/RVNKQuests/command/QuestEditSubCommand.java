@@ -216,7 +216,7 @@ public class QuestEditSubCommand extends BaseSubCommand {
                     sendSuccessMessage(sender, "Prerequisites for " + questId + " now: "
                         + (updated.isEmpty() ? "(none)" : String.join(", ", updated)));
                 } else {
-                    sendErrorMessage(sender, "Failed to save prerequisites (save returned false — check DB schema/fallback state).");
+                    sendErrorMessage(sender, "Failed to save prerequisites (save returned false - check DB schema/fallback state).");
                 }
             }).exceptionally(ex -> {
                 Throwable cur = ex;

@@ -74,6 +74,8 @@ public class GenericStructureInteractTrigger implements Listener {
     private final Double y;
     private final Double z;
     private final double radiusSquared;
+    /** Kept unsquared for the party fan-out, which needs the real radius to scale it (#1986). */
+    private final double radius;
 
     /** Explains a right-click that hit the right block at the wrong beat. */
     private final org.fourz.RVNKQuests.util.OutOfOrderFeedback feedback;
@@ -96,7 +98,7 @@ public class GenericStructureInteractTrigger implements Listener {
         boolean sited = config.containsKey("x") && config.containsKey("y") && config.containsKey("z");
         if (!sited && (config.containsKey("x") || config.containsKey("y") || config.containsKey("z"))) {
             logger.warning("Quest '" + quest.getId() + "': STRUCTURE_INTERACT has a partial"
-                + " coordinate (needs x, y AND z) — falling back to world-wide matching");
+                + " coordinate (needs x, y AND z) - falling back to world-wide matching");
         }
         if (sited) {
             this.x = QuestComponentFactory.getDoubleConfig(config, "x", 0.0);
@@ -107,7 +109,7 @@ public class GenericStructureInteractTrigger implements Listener {
             this.y = null;
             this.z = null;
         }
-        double radius = QuestComponentFactory.getDoubleConfig(config, "radius", DEFAULT_RADIUS);
+        this.radius = QuestComponentFactory.getDoubleConfig(config, "radius", DEFAULT_RADIUS);
         this.radiusSquared = radius * radius;
         this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
 
@@ -131,7 +133,7 @@ public class GenericStructureInteractTrigger implements Listener {
         for (String key : config.keySet()) {
             if (!KNOWN_KEYS.contains(key)) {
                 logger.warning("Quest '" + quest.getId() + "': STRUCTURE_INTERACT ignores"
-                    + " unknown config key '" + key + "' — it will have no effect");
+                    + " unknown config key '" + key + "' - it will have no effect");
             }
         }
     }
@@ -164,7 +166,13 @@ public class GenericStructureInteractTrigger implements Listener {
             return;
         }
 
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+        // Party fan-out (#1986): the checkpoint is the block that was actually clicked, not the
+        // configured coordinate. On an unsited trigger there is no configured coordinate at all,
+        // and even on a sited one the clicked block may be up to `radius` away — sharing from the
+        // real block keeps the member presence test measured from where the beat happened.
+        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+            org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                block.getLocation(), radius, requiredState));
         logger.debug("Structure interact trigger fired for " + player.getName() + " on " + blockType
             + " at " + block.getX() + "," + block.getY() + "," + block.getZ());
     }
@@ -192,7 +200,7 @@ public class GenericStructureInteractTrigger implements Listener {
             return QuestState.valueOf(name);
         } catch (IllegalArgumentException e) {
             logger.warning("Quest '" + quest.getId() + "': unknown quest state '" + name
-                + "' — falling back to " + fallback);
+                + "' - falling back to " + fallback);
             return fallback;
         }
     }

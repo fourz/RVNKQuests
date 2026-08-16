@@ -117,7 +117,12 @@ public class GenericInteractObjective implements Listener {
             if (setsPath != null) {
                 quest.setPathChoice(player, setsPath);
             }
-            quest.advanceStateForPlayer(playerId, advanceState);
+            // Party fan-out (#1986): checkpoint is the player, because an interact objective has no
+            // configured location — it matches a block or item type anywhere in the world. Radius 0
+            // lets the service's min_share_radius floor govern, same as a kill.
+            quest.advanceStateForPlayer(playerId, advanceState,
+                org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                    player.getLocation(), 0.0, requiredState));
             logger.debug(player.getName() + " completed interact objective for quest " + quest.getId());
         }
     }

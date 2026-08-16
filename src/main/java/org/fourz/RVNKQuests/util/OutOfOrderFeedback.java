@@ -37,11 +37,11 @@ public final class OutOfOrderFeedback {
     private static final long DEFAULT_COOLDOWN_MS = 20_000L;
 
     private static final String DEFAULT_TOO_EARLY =
-        "&7Nothing here answers you — not yet.";
+        "&7Nothing here answers you - not yet.";
     private static final String DEFAULT_ALREADY_PAST =
         "&7Whatever was here, you have already taken it.";
     private static final String DEFAULT_PREREQ_BLOCKED =
-        "&7You are not yet ready for this path — a tale of yours remains unfinished.";
+        "&7You are not yet ready for this path - a tale of yours remains unfinished.";
 
     private final boolean enabled;
     private final String tooEarlyMessage;

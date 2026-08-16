@@ -131,6 +131,25 @@ public interface Quest {
     }
 
     /**
+     * Prerequisite quest IDs that are not COMPLETED for this player, in declaration order.
+     * Empty means nothing is blocking.
+     *
+     * <p>Used by {@code /quest state} to refuse a mid-chain state and name the blocker (#1884).
+     * {@code /quest debug setstate} deliberately does not consult it — that command advertises
+     * "bypasses normal state transitions" and now means it.</p>
+     *
+     * <p>The default reports no blockers, which is correct for a quest type that has no
+     * prerequisite concept: it can only make the command more permissive, never wrongly refuse.
+     * {@code AbstractQuest} overrides it against the quest's declared {@code prerequisites}.</p>
+     *
+     * @param playerUuid The player's UUID
+     * @return unmet prerequisite quest IDs; empty if all satisfied or none declared
+     */
+    default CompletableFuture<java.util.List<String>> getUnmetPrerequisites(UUID playerUuid) {
+        return CompletableFuture.completedFuture(java.util.List.of());
+    }
+
+    /**
      * Updates the quest's state and triggers any necessary changes.
      * @deprecated Use {@link #advanceStateForPlayer(UUID, QuestState)} for per-player state.
      * @param newState The new state to advance to

@@ -144,7 +144,7 @@ public class QuestManager implements IQuestService {
     public void loadQuestsFromRepository() {
         IQuestRepository repository = plugin.getQuestRepository();
         if (repository == null) {
-            logger.debug("No quest repository available — skipping data-driven quest loading");
+            logger.debug("No quest repository available - skipping data-driven quest loading");
             return;
         }
 
@@ -162,7 +162,7 @@ public class QuestManager implements IQuestService {
 
                         for (QuestDTO definition : definitions) {
                             if (quests.containsKey(definition.questId())) {
-                                logger.debug("Skipping quest " + definition.questId() + " — already registered");
+                                logger.debug("Skipping quest " + definition.questId() + " - already registered");
                                 continue;
                             }
 

@@ -64,7 +64,7 @@ public class ChainProgressRepositoryImpl implements IChainProgressRepository {
      */
     private void initTable() {
         if (fallbackTracker.isInFallbackMode()) {
-            logger.debug("Skipping chain progress table init — database in fallback mode");
+            logger.debug("Skipping chain progress table init - database in fallback mode");
             return;
         }
 

@@ -92,7 +92,7 @@ public class DataDrivenQuest extends AbstractQuest {
                 List<Listener> listeners = componentFactory.createListenersForState(state, definition);
                 stateListeners.put(state, listeners);
             } catch (Exception e) {
-                logger.error("Failed to create listeners for quest " + questId + " state " + state + " — state will have no listeners", e);
+                logger.error("Failed to create listeners for quest " + questId + " state " + state + " - state will have no listeners", e);
                 stateListeners.put(state, List.of());
             }
         }
@@ -103,7 +103,7 @@ public class DataDrivenQuest extends AbstractQuest {
         logger.debug("Data-driven quest initialized: " + questId +
             " (states with listeners: " + statesWithListeners + ")");
         if (statesWithListeners == 0 && !definition.metadata().isEmpty()) {
-            logger.warning("Quest " + questId + " loaded with zero listeners despite having metadata — check component configs and logs above for errors");
+            logger.warning("Quest " + questId + " loaded with zero listeners despite having metadata - check component configs and logs above for errors");
         }
     }
 

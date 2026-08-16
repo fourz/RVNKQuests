@@ -55,7 +55,7 @@ public class QuestPiglinFarFromHome extends AbstractQuest {
 
     @Override
     public void initialize() {
-        logger.debug("QuestPiglinFarFromHome initialized (branching example — not actively registered)");
+        logger.debug("QuestPiglinFarFromHome initialized (branching example - not actively registered)");
     }
 
     @Override

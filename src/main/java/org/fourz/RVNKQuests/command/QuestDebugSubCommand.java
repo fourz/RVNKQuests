@@ -370,7 +370,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
 
     private boolean executeSetup(CommandSender sender) {
         if (Bukkit.getPluginManager().getPlugin("LuckPerms") == null) {
-            sendErrorMessage(sender, "LuckPerms is not installed — cannot apply permission defaults.");
+            sendErrorMessage(sender, "LuckPerms is not installed - cannot apply permission defaults.");
             sendMessage(sender, "&7Install LuckPerms and run this command again.");
             return true;
         }

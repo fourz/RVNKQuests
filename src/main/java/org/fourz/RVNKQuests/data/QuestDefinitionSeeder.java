@@ -38,14 +38,14 @@ public class QuestDefinitionSeeder {
     public void seedIfNeeded() {
         IQuestRepository repo = plugin.getQuestRepository();
         if (repo == null) {
-            logger.warning("Quest repository not available — skipping seed");
+            logger.warning("Quest repository not available - skipping seed");
             return;
         }
 
         try {
             long count = repo.count().join();
             if (count > 0) {
-                logger.debug("Quest definitions already exist (" + count + ") — skipping seed");
+                logger.debug("Quest definitions already exist (" + count + ") - skipping seed");
                 return;
             }
 
@@ -64,7 +64,7 @@ public class QuestDefinitionSeeder {
     public int reseed() {
         IQuestRepository repo = plugin.getQuestRepository();
         if (repo == null) {
-            logger.warning("Quest repository not available — cannot reseed");
+            logger.warning("Quest repository not available - cannot reseed");
             return 0;
         }
 

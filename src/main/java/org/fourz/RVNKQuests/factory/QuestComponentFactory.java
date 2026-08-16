@@ -115,7 +115,7 @@ public class QuestComponentFactory {
                 componentFailures.put(componentId, message);
                 logger.error("Component '" + componentId + "' failed construction for quest "
                     + definition.questId() + " state " + state.name()
-                    + " — skipping it, keeping the state's other listeners", e);
+                    + " - skipping it, keeping the state's other listeners", e);
             }
         }
 

@@ -135,7 +135,7 @@ public class QuestChainServiceImpl implements IQuestChainService {
                     repo = new ChainProgressRepositoryImpl(rvnkPlugin, dbManager);
                     logger.debug("Chain progress repository initialised (SQL)");
                 } else {
-                    logger.debug("Database not available — chain progress will not be persisted");
+                    logger.debug("Database not available - chain progress will not be persisted");
                 }
             } catch (Exception e) {
                 logger.warning("Failed to initialise chain progress repository: " + e.getMessage());

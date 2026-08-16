@@ -70,7 +70,14 @@ public class GenericEntityProximityTrigger implements Listener {
         for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
             if (entity.getType() == entityType) {
                 quest.setContext("trigger_entity", entity);
-                quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+                // Party fan-out (#1986): the checkpoint is the ENTITY, not the player. The entity is
+                // the thing the beat is about, and it is what a party member has to be near to have
+                // plausibly shared the moment — the firing player is already within `radius` of it
+                // by construction, so measuring from the entity is the tighter, more honest test.
+                // requiredState is NOT_STARTED because that is the gate checked above.
+                quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                    org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                        entity.getLocation(), radius, QuestState.NOT_STARTED));
                 logger.debug("Entity proximity trigger fired for " + player.getName() + " near " + entityType);
                 return;
             }

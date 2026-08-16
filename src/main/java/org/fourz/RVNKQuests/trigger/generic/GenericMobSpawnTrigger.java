@@ -183,7 +183,7 @@ public class GenericMobSpawnTrigger implements Listener {
         this.deathDropBook = QuestComponentFactory.getStringConfig(config, "death_drop_book", null);
         this.deathDropRecoveryMessage = QuestComponentFactory.getStringConfig(config,
             "death_drop_recovery_message",
-            "&e⚠ &fWhat it carried nearly fell out of the world — you caught it in time.");
+            "&e⚠ &fWhat it carried nearly fell out of the world - you caught it in time.");
         this.begOnAttack = QuestComponentFactory.getBoolConfig(config, "beg_on_attack", false);
         this.begMessage = QuestComponentFactory.getStringConfig(config, "beg_message", "Please don't hurt me!");
         this.begCount = QuestComponentFactory.getIntConfig(config, "beg_count", 1);
@@ -192,7 +192,7 @@ public class GenericMobSpawnTrigger implements Listener {
         boolean sited = config.containsKey("x") && config.containsKey("y") && config.containsKey("z");
         if (!sited && (config.containsKey("x") || config.containsKey("y") || config.containsKey("z"))) {
             logger.warning("Quest '" + quest.getId() + "': PROXIMITY_MOB_SPAWN has a partial"
-                + " coordinate (needs x, y AND z) — falling back to spawning near the player");
+                + " coordinate (needs x, y AND z) - falling back to spawning near the player");
         }
         this.siteX = sited ? QuestComponentFactory.getDoubleConfig(config, "x", 0.0) : null;
         this.siteY = sited ? QuestComponentFactory.getDoubleConfig(config, "y", 0.0) : null;
@@ -212,7 +212,7 @@ public class GenericMobSpawnTrigger implements Listener {
         logger.debug("Trigger created for quest " + quest.getId() +
             ": type=" + entityType + " world=" + worldName + " scan_radius=" + radius +
             (sited ? " site=" + siteX + "," + siteY + "," + siteZ + " trigger_radius=" + triggerRadius
-                   : " (unsited — spawns near the player)") +
+                   : " (unsited - spawns near the player)") +
             (interactBook != null ? " book=" + interactBook : "") +
             (deathDropBook != null ? " death_drop=" + deathDropBook : "") +
             (begOnAttack ? " beg=" + begCount : "") +
@@ -381,7 +381,7 @@ public class GenericMobSpawnTrigger implements Listener {
         Long since = strandedSince.putIfAbsent(player.getUniqueId(), now);
         if (since == null) {
             logger.debug("Quest '" + quest.getId() + "': " + player.getName()
-                + " is at " + currentState + " with no quest mob — watching for "
+                + " is at " + currentState + " with no quest mob - watching for "
                 + (respawnDelayMs / 1000) + "s before re-posting");
             return;
         }
@@ -468,7 +468,7 @@ public class GenericMobSpawnTrigger implements Listener {
         EntityEquipment equipment = living.getEquipment();
         if (equipment == null) {
             logger.warning("Quest '" + quest.getId() + "': " + entityType
-                + " has no equipment slots — cannot carry death_drop_book '" + deathDropBook + "'");
+                + " has no equipment slots - cannot carry death_drop_book '" + deathDropBook + "'");
             return;
         }
 
@@ -486,7 +486,7 @@ public class GenericMobSpawnTrigger implements Listener {
         resolveDeathDropItem().thenAccept(resolved -> {
             if (resolved == null) {
                 logger.warning("Quest '" + quest.getId() + "': death_drop_book '" + deathDropBook
-                    + "' not found — mob will drop nothing");
+                    + "' not found - mob will drop nothing");
                 return;
             }
             deathDropItem = resolved;
@@ -519,7 +519,7 @@ public class GenericMobSpawnTrigger implements Listener {
         if (lore != null && lore.isLoreAvailable()) {
             return lore.spawnItemByName(deathDropBook)
                 .thenApply(opt -> opt.orElseGet(() -> {
-                    logger.debug("Death drop '" + deathDropBook + "' is not a lore item —"
+                    logger.debug("Death drop '" + deathDropBook + "' is not a lore item -"
                         + " falling back to the quest-item registry");
                     return QuestItem.getQuestItem(deathDropBook);
                 }))
@@ -543,7 +543,7 @@ public class GenericMobSpawnTrigger implements Listener {
         ItemStack readBack = equipment.getItemInOffHand();
         if (readBack == null || readBack.getType() != book.getType()) {
             logger.warning("Quest '" + quest.getId() + "': off-hand write did not take on "
-                + entityType + " — death drop will rely on the recovery path");
+                + entityType + " - death drop will rely on the recovery path");
             return;
         }
         logger.debug("Equipped death drop '" + deathDropBook + "' on quest mob for " + quest.getId());
@@ -574,7 +574,7 @@ public class GenericMobSpawnTrigger implements Listener {
         ItemStack cached = deathDropItem;
         if (cached == null) {
             logger.warning("Quest '" + quest.getId() + "': death_drop_book '" + deathDropBook
-                + "' was never resolved — nothing to recover");
+                + "' was never resolved - nothing to recover");
             return;
         }
         final ItemStack expected = cached.clone();
@@ -587,7 +587,7 @@ public class GenericMobSpawnTrigger implements Listener {
             // The equipment never made it onto the mob, or the drop chance did not hold. There is
             // no item to watch — go straight to recovery rather than waiting for a drop that is
             // never coming.
-            logger.warning("Quest '" + quest.getId() + "': death drop was not queued by vanilla —"
+            logger.warning("Quest '" + quest.getId() + "': death drop was not queued by vanilla -"
                 + " granting '" + deathDropBook + "' directly");
             grantRecovery(deathLoc, killer, expected);
             return;
@@ -595,7 +595,7 @@ public class GenericMobSpawnTrigger implements Listener {
 
         watchedDropId = null;
         watchedDropPickedUp = false;
-        logger.debug("Quest mob died for " + quest.getId() + " — watching death drop '"
+        logger.debug("Quest mob died for " + quest.getId() + " - watching death drop '"
             + deathDropBook + "'");
 
         // The item entity does not exist until after this event resolves, so acquire it next tick.
@@ -606,7 +606,7 @@ public class GenericMobSpawnTrigger implements Listener {
                 if (dropped == null) {
                     // Spawned and gone inside one tick, or never spawned at all. Either way the
                     // player has nothing to pick up.
-                    logger.warning("Quest '" + quest.getId() + "': death drop never materialised —"
+                    logger.warning("Quest '" + quest.getId() + "': death drop never materialised -"
                         + " granting '" + deathDropBook + "' directly");
                     grantRecovery(deathLoc, killer, expected);
                     return;
@@ -649,7 +649,7 @@ public class GenericMobSpawnTrigger implements Listener {
                 cancel();
                 watchedDropId = null;
                 logger.warning("Quest '" + quest.getId() + "': death drop '" + deathDropBook
-                    + "' was destroyed before pickup — granting directly");
+                    + "' was destroyed before pickup - granting directly");
                 grantRecovery(deathLoc, killer, expected);
             }
         }.runTaskTimer(plugin, DROP_WATCH_INTERVAL_TICKS, DROP_WATCH_INTERVAL_TICKS);
@@ -688,7 +688,7 @@ public class GenericMobSpawnTrigger implements Listener {
             // Environmental death with nobody around (#1904). Dropping it here would just feed it
             // back to whatever destroyed it, so the mob is left to respawn and carry it again.
             logger.warning("Quest '" + quest.getId() + "': death drop lost with no player in range"
-                + " — nothing granted");
+                + " - nothing granted");
             return;
         }
 
@@ -872,7 +872,7 @@ public class GenericMobSpawnTrigger implements Listener {
             giveBookIfNeeded(player);
         }
 
-        logger.debug(player.getName() + " hit quest mob — beg " + (hits + 1) + "/" + begCount);
+        logger.debug(player.getName() + " hit quest mob - beg " + (hits + 1) + "/" + begCount);
     }
 
     private void giveBookIfNeeded(Player player) {

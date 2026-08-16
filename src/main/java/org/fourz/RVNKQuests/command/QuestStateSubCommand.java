@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.fourz.RVNKQuests.RVNKQuests;
+import org.fourz.RVNKQuests.quest.AbstractQuest;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
 
@@ -72,7 +73,50 @@ public class QuestStateSubCommand extends BaseSubCommand {
 
         logger.debug("Changing quest " + questId + " state from " + currentState + " to " + newState + " for " + targetPlayer.getName());
 
-        // Use per-player state advancement
+        // #1884: refuse a mid-chain state whose prerequisites are unmet, and name the blocker.
+        //
+        // This is the conservative half of the decided pairing: `/quest state` refuses,
+        // `/quest debug setstate` honours the bypass it advertises. The model layer deliberately
+        // does NOT gate either of them — AbstractQuest scopes its prerequisite check to
+        // component-driven advances, because gating the admin path there is what produced the
+        // original silent no-op that read as a revert. So the policy lives here, where it can
+        // explain itself, rather than in a layer that can only succeed or quietly do nothing.
+        //
+        // NOT_STARTED is not mid-chain, so teardown still works: a QA pass that can set a state
+        // but not clear it would be worse than one that can do neither.
+        if (AbstractQuest.isMidChainProgress(newState)) {
+            quest.getUnmetPrerequisites(targetPlayer.getUniqueId())
+                .thenAccept(unmet -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (unmet.isEmpty()) {
+                        applyState(sender, quest, targetPlayer, questId, currentState, newState);
+                        return;
+                    }
+                    sendErrorMessage(sender, "Refused: prerequisite "
+                        + (unmet.size() == 1 ? "'" + unmet.get(0) + "' is" : unmet + " are")
+                        + " not satisfied for " + targetPlayer.getName());
+                    sendMessage(sender, "&7   " + questId + " stays at &e" + currentState);
+                    sendMessage(sender, "&7   Complete the prerequisite, or force it with");
+                    sendMessage(sender, "&f   /quest debug setstate " + questId + " " + newState
+                        + " " + targetPlayer.getName());
+                    logger.debug("Refused /quest state " + questId + " -> " + newState + " for "
+                        + targetPlayer.getName() + " - unmet prerequisites: " + unmet);
+                }))
+                .exceptionally(ex -> {
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                        sendErrorMessage(sender, "Failed to check prerequisites: " + ex.getMessage()));
+                    return null;
+                });
+            return true;
+        }
+
+        applyState(sender, quest, targetPlayer, questId, currentState, newState);
+        return true;
+    }
+
+    /** The write itself, shared by the gated and ungated paths. */
+    private void applyState(CommandSender sender, Quest quest,
+                            Player targetPlayer, String questId,
+                            QuestState currentState, QuestState newState) {
         quest.setStateForPlayer(targetPlayer.getUniqueId(), newState)
             .thenRun(() -> {
                 // Run on main thread for message sending
@@ -87,8 +131,6 @@ public class QuestStateSubCommand extends BaseSubCommand {
                 });
                 return null;
             });
-
-        return true;
     }
 
     @Override

@@ -197,7 +197,7 @@ public class GenericEncounterObjective implements Listener {
         if (world.getDifficulty() == Difficulty.PEACEFUL && isMonster(entityType)) {
             if (peacefulWarned.add(playerId)) {
                 logger.warning("Encounter '" + quest.getId() + "': cannot spawn " + entityType
-                    + " in world '" + world.getName() + "' at PEACEFUL difficulty — encounter skipped."
+                    + " in world '" + world.getName() + "' at PEACEFUL difficulty - encounter skipped."
                     + " Raise the world to EASY+ to enable it.");
             }
             return;
@@ -245,7 +245,7 @@ public class GenericEncounterObjective implements Listener {
         killCounts.put(playerId, 0);
 
         logger.debug("Encounter triggered for " + player.getName() + " on quest " + quest.getId() +
-            " — spawned " + spawnCount + " " + entityType);
+            " - spawned " + spawnCount + " " + entityType);
     }
 
     @EventHandler
@@ -282,14 +282,14 @@ public class GenericEncounterObjective implements Listener {
         if (!credited) {
             // Not credited, but NOT discarded either — the kills already banked stay banked.
             logger.debug("Encounter mob died with " + owner.getName() + " away from the fight on quest "
-                + quest.getId() + " — no credit, existing progress kept");
+                + quest.getId() + " - no credit, existing progress kept");
             if (mobs.isEmpty()) {
                 // No player-facing message here: the owner walked away from this wave, so telling
                 // them to "approach again" is noise about something they chose to leave. The
                 // silent-reset complaint in #1904 was about killing 4 of 5 and losing the lot —
                 // that case now credits and completes, so it cannot reach this branch.
                 logger.debug("Encounter wave for " + owner.getName() + " on quest " + quest.getId()
-                    + " expired with the owner away — encounter reset, no message sent");
+                    + " expired with the owner away - encounter reset, no message sent");
                 cleanupEncounter(playerId, mobs);
             }
             return;
@@ -309,7 +309,16 @@ public class GenericEncounterObjective implements Listener {
             }
             cleanupEncounter(playerId, mobs);
             if (setsPath != null) quest.setPathChoice(owner, setsPath);
-            quest.advanceStateForPlayer(playerId, advanceState);
+            // Party fan-out (#1986): checkpoint is the ARENA POST, not the last mob's death spot.
+            // A running fight legitimately ends far from the post — that is why kill credit is
+            // judged from the mob (#1904) — but the arena is the fixed thing the wave belongs to,
+            // and a party member who stayed in the arena while the firer chased the last knight
+            // over a ridge should still share the beat. Falls back to the death location only if
+            // the spawn point cannot be resolved.
+            Location postLoc = getSpawnLocation(owner);
+            quest.advanceStateForPlayer(playerId, advanceState,
+                org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                    postLoc != null ? postLoc : entity.getLocation(), triggerRadius, requiredState));
             logger.debug(owner.getName() + " completed encounter objective for quest " + quest.getId());
         } else if (mobs.isEmpty()) {
             // Every mob is gone but the bar was not met. With ownership-based credit this is only
@@ -318,7 +327,7 @@ public class GenericEncounterObjective implements Listener {
             // their chat. The WARN names both numbers so the misconfiguration is obvious.
             cleanupEncounter(playerId, mobs);
             logger.warning("Encounter '" + quest.getId() + "': wave exhausted for " + owner.getName()
-                + " at " + count + "/" + requiredKills + " — required_kills may exceed spawn_count ("
+                + " at " + count + "/" + requiredKills + " - required_kills may exceed spawn_count ("
                 + requiredKills + " > " + spawnCount + "). Encounter reset.");
         }
     }

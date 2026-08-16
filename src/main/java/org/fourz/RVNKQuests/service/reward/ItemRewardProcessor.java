@@ -255,7 +255,7 @@ public class ItemRewardProcessor implements RewardProcessor {
         if (loreIntegration == null || !loreIntegration.isLoreAvailable()) {
             return RewardDeliveryResult.failure(
                 reward,
-                "RVNKLore unavailable — cannot deliver preset items",
+                "RVNKLore unavailable - cannot deliver preset items",
                 "LORE_UNAVAILABLE"
             );
         }

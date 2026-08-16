@@ -153,7 +153,16 @@ public class GenericCollectObjective implements Listener {
             if (setsPath != null) {
                 quest.setPathChoice(player, setsPath);
             }
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+            // Party fan-out (#1986): prefer the configured/resolved target when the objective has
+            // one, because that is the authored checkpoint. Location is optional on a collect —
+            // without it the beat is "have these items, anywhere", so fall back to the player at
+            // radius 0 and let the service's min_share_radius floor govern.
+            org.bukkit.Location checkpoint = getTargetLocation(player);
+            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                checkpoint != null
+                    ? org.fourz.RVNKQuests.party.PartyBeatContext.of(checkpoint, radius, requiredState)
+                    : org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                        player.getLocation(), 0.0, requiredState));
             logger.debug(player.getName() + " completed collect objective for quest " + quest.getId());
         } else {
             // Show progress message (throttled)

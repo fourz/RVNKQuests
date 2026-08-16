@@ -140,7 +140,11 @@ public class GenericEscortObjective implements Listener {
             if (setsPath != null) {
                 quest.setPathChoice(player, setsPath);
             }
-            quest.advanceStateForPlayer(playerId, advanceState);
+            // Party fan-out (#1986): checkpoint is the DESTINATION, not the escort entity or the
+            // player. The destination is the fixed, authored point the beat is about — the entity
+            // is within `radius` of it by the check above, and the player is trailing it.
+            quest.advanceStateForPlayer(playerId, advanceState,
+                org.fourz.RVNKQuests.party.PartyBeatContext.of(dest, radius, requiredState));
             logger.debug(player.getName() + " completed escort objective for quest " + quest.getId());
         }
     }
@@ -175,7 +179,7 @@ public class GenericEscortObjective implements Listener {
                 quest.setStateForPlayer(entry.getKey(), failState);
             }
             activeFollows.clear();
-            logger.debug("Escort entity died for quest " + quest.getId() + " — advancing to fail state");
+            logger.debug("Escort entity died for quest " + quest.getId() + " - advancing to fail state");
         }
     }
 
