@@ -196,4 +196,19 @@ public class QuestProbeSubCommand extends BaseSubCommand {
         }
         return List.of();
     }
+
+    /**
+     * Worked examples for {@code /quest help probe} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest probe Shad0melt",
+                "  probe that player's current location",
+                "/quest probe alphac -316 118 447",
+                "/quest probe alphac -316 118 447 10",
+                "  [radius] widens the search; default is the trigger's own radius",
+                "Use this before filing a trigger as broken - it reports what is actually",
+                "registered at a location.");
+    }
 }

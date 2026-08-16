@@ -76,4 +76,15 @@ public class QuestExportSubCommand extends BaseSubCommand {
         }
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help export} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest export tfah_ch1_journey",
+                "/quest export all",
+                "  writes definition JSON you can re-import elsewhere");
+    }
 }

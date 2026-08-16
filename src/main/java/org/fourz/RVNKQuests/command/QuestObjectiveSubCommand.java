@@ -187,4 +187,16 @@ public class QuestObjectiveSubCommand extends BaseSubCommand {
         }
         return super.getTabCompletionOptions(sender, args);
     }
+
+    /**
+     * Worked examples for {@code /quest help objective} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest objective tfah_ch1_journey reach_nocturne set 1 Shad0melt",
+                "/quest objective tfah_ch1_journey reach_nocturne complete Shad0melt",
+                "/quest objective tfah_ch1_journey reach_nocturne reset Shad0melt",
+                "  this edits a PLAYER's progress; /quest def-objective edits the definition");
+    }
 }

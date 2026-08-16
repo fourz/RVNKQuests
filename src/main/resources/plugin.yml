@@ -47,6 +47,9 @@ permissions:
   rvnkquests.journal:
     description: View quest journal (/quest journal)
     default: true
+  rvnkquests.party:
+    description: Manage a quest party (/quest party) — shared beat advancement (#1982)
+    default: true
   rvnkquests.leaderboard:
     description: View quest leaderboards (/quest leaderboard)
     default: true

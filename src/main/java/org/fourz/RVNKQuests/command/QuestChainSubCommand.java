@@ -348,4 +348,26 @@ public class QuestChainSubCommand extends BaseSubCommand {
 
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help chain} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest chain list",
+                "/quest chain list Shad0melt",
+                "/quest chain start wanderers_path Shad0melt",
+                "/quest chain status wanderers_path Shad0melt",
+                "/quest chain reset wanderers_path Shad0melt",
+                "  reset needs the player - there is no chain-wide reset",
+                "THERE ARE TWO WAYS TO CHAIN QUESTS, and this command only sees one.",
+                "  1. A registered QuestChain entity - what /quest chain list shows.",
+                "     wanderers_path is the only one as of 2026-08-15.",
+                "  2. A 'prerequisites:' list on a quest definition - an implicit chain.",
+                "     TFAH is built this way: tfah_zeal_arrival -> tfah_zeal_tower ->",
+                "     tfah_zeal_sanctum, and tfah_ch1_journey -> tfah_ch1_archea.",
+                "So a quest missing from /quest chain list is NOT necessarily unchained.",
+                "Check the definition's prerequisites before concluding anything.");
+    }
 }

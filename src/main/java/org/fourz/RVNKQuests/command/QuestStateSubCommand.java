@@ -113,4 +113,16 @@ public class QuestStateSubCommand extends BaseSubCommand {
         }
         return super.getTabCompletionOptions(sender, args);
     }
+
+    /**
+     * Worked examples for {@code /quest help state} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest state tfah_ch1_journey Shad0melt",
+                "  read a player's state for one quest",
+                "States: NOT_STARTED TRIGGER_FOUND QUEST_ACTIVE OBJECTIVE_FOUND COMPLETED ABANDONED",
+                "To WRITE a state use /quest debug setstate.");
+    }
 }

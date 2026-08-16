@@ -148,4 +148,18 @@ public class QuestStartSubCommand extends BaseSubCommand {
         }
         return super.getTabCompletionOptions(sender, args);
     }
+
+    /**
+     * Worked examples for {@code /quest help start} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest start tfah_ch1_journey",
+                "  as a player, starts it for yourself",
+                "/quest start tfah_ch1_journey Shad0melt",
+                "  console MUST name the player - it has no self to start for",
+                "Starting does not skip the trigger. A quest whose trigger has not fired",
+                "still needs its TRIGGER_FOUND step, so check /quest state after.");
+    }
 }

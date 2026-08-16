@@ -172,4 +172,20 @@ public class QuestReloadSubCommand extends BaseSubCommand {
         }
         return level.getName();
     }
+
+    /**
+     * Worked examples for {@code /quest help reload} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest reload",
+                "  re-read config and quest definitions",
+                "/quest reload reset",
+                "  reload and clear cached definitions",
+                "/quest reload reseed",
+                "  reload and re-run the definition seeder",
+                "Quest YAML is decorative while the DB is up. Editing a .yml changes nothing -",
+                "upload it and run /quest import <id>. reload is config-only.");
+    }
 }

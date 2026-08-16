@@ -149,4 +149,16 @@ public class QuestLeaderboardSubCommand extends BaseSubCommand {
         }
         return super.getTabCompletionOptions(sender, args);
     }
+
+    /**
+     * Worked examples for {@code /quest help leaderboard} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest leaderboard",
+                "/quest leaderboard quests",
+                "/quest leaderboard streak",
+                "/quest leaderboard today");
+    }
 }

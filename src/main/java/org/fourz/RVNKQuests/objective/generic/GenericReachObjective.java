@@ -91,7 +91,10 @@ public class GenericReachObjective implements Listener {
             if (setsPath != null) {
                 quest.setPathChoice(player, setsPath);
             }
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+            // Party fan-out (#1982): ctx from the RESOLVED target, so the dynamic
+            // context_location_key case shares the actual checkpoint, not the static default.
+            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                    org.fourz.RVNKQuests.party.PartyBeatContext.of(target, radius, requiredState));
             logger.debug(player.getName() + " reached target location for quest " + quest.getId());
         }
     }

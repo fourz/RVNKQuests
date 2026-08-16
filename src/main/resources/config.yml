@@ -8,6 +8,20 @@ quests:
   # Announce quest completions server-wide
   announce_completion: true
 
+  # Quest party (#1982) — shared beat advancement for players questing together.
+  # In-memory: a restart dissolves parties (per-player progress is unaffected).
+  party:
+    enabled: true
+    # Maximum members per party, leader included
+    max_size: 4
+    # How long an invite stays acceptable
+    invite_timeout_seconds: 60
+    # Presence rule: a member shares a beat when within multiplier x trigger radius
+    # of the checkpoint, in the same world, at the moment it fires
+    share_radius_multiplier: 5.0
+    # Radius floor for beats with no radius of their own (kills)
+    min_share_radius: 10.0
+
   # Default world for quest triggers and objectives
   # Used by seeded quest definitions — change before first startup or reseed
   default_world: event

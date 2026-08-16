@@ -166,9 +166,15 @@ public abstract class BaseCommand implements ICommand, ICommandRouter, CommandEx
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        // If no arguments or help is requested, show help
+        // If no arguments or help is requested, show help. With a verb argument it serves that
+        // verb's usage and worked examples (#1981) — the examples ship in the jar, so they cannot
+        // drift from the build the way a second copy in docs/plugins/commands/ does.
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
-            sendHelp(sender);
+            if (args.length >= 2) {
+                sendVerbHelp(sender, args[1].toLowerCase());
+            } else {
+                sendHelp(sender);
+            }
             return true;
         }
 
@@ -238,13 +244,83 @@ public abstract class BaseCommand implements ICommand, ICommandRouter, CommandEx
         sender.sendMessage(ChatColor.YELLOW + "Usage: " + ChatColor.WHITE + getUsage());
 
         if (!subCommands.isEmpty()) {
-            sender.sendMessage(ChatColor.YELLOW + "Subcommands:");
-            for (Map.Entry<String, SubCommand> entry : subCommands.entrySet()) {
-                SubCommand subCommand = entry.getValue();
-                if (subCommand.hasPermission(sender)) {
-                    sender.sendMessage(ChatColor.GRAY + "  " + entry.getKey() +
-                        ChatColor.WHITE + " - " + subCommand.getDescription());
+            // Sorted, and derived from the registry rather than a hand-kept table — a table drifts
+            // silently as verbs are added. RVNKWorlds' curated list had lost six verbs before it
+            // was caught, so this stays generated even though it costs the grouping.
+            List<String> names = new ArrayList<>(subCommands.keySet());
+            Collections.sort(names);
+
+            int visible = 0;
+            boolean anyExamples = false;
+            List<String> lines = new ArrayList<>();
+            for (String name : names) {
+                SubCommand subCommand = subCommands.get(name);
+                if (subCommand == null || !subCommand.hasPermission(sender)) {
+                    continue;
                 }
+                visible++;
+                boolean hasExamples = !subCommand.getExamples().isEmpty();
+                anyExamples |= hasExamples;
+                lines.add(ChatColor.GRAY + "  " + name
+                        + (hasExamples ? ChatColor.AQUA + "*" : " ")
+                        + ChatColor.WHITE + " - " + subCommand.getDescription());
+            }
+
+            sender.sendMessage(ChatColor.YELLOW + "Subcommands (" + visible + "):");
+            for (String line : lines) {
+                sender.sendMessage(line);
+            }
+            if (anyExamples) {
+                sender.sendMessage(ChatColor.AQUA + "*" + ChatColor.GRAY
+                        + " has worked examples — " + ChatColor.WHITE
+                        + "/" + getName() + " help <subcommand>");
+            }
+            sender.sendMessage(ChatColor.GRAY + "Every subcommand also accepts "
+                    + ChatColor.WHITE + "/" + getName() + " help <subcommand>"
+                    + ChatColor.GRAY + " for its usage.");
+        }
+    }
+
+    /**
+     * {@code /<command> help <verb>} &mdash; one subcommand's usage and worked examples.
+     *
+     * <p>Usage always prints, because every subcommand has one. Examples print only when the
+     * subcommand overrides {@link SubCommand#getExamples()}; a verb whose grammar is a single
+     * argument does not need them and says so rather than showing an empty section.</p>
+     */
+    protected void sendVerbHelp(CommandSender sender, String verb) {
+        SubCommand subCommand = getSubCommand(verb);
+        if (subCommand == null) {
+            sender.sendMessage(ChatColor.RED + "Unknown subcommand: " + verb);
+            sender.sendMessage(ChatColor.GRAY + "Use " + ChatColor.WHITE + "/" + getName() + " help"
+                    + ChatColor.GRAY + " for the list.");
+            return;
+        }
+        if (!subCommand.hasPermission(sender)) {
+            sendNoPermissionMessage(sender);
+            return;
+        }
+
+        sender.sendMessage(ChatColor.GOLD + "=== " + getName() + " " + verb + " ===");
+        sender.sendMessage(ChatColor.WHITE + subCommand.getDescription());
+        sender.sendMessage(ChatColor.YELLOW + "Usage: " + ChatColor.WHITE + subCommand.getUsage());
+        if (subCommand.isPlayerOnly()) {
+            sender.sendMessage(ChatColor.GRAY + "Players only — not available from console.");
+        }
+        sender.sendMessage(ChatColor.GRAY + "Permission: " + subCommand.getPermission());
+
+        List<String> examples = subCommand.getExamples();
+        if (examples.isEmpty()) {
+            sender.sendMessage(ChatColor.GRAY
+                    + "No further examples — the usage line above is the whole grammar.");
+            return;
+        }
+        sender.sendMessage(ChatColor.YELLOW + "Examples:");
+        for (String example : examples) {
+            if (example.startsWith("  ")) {
+                sender.sendMessage(ChatColor.DARK_GRAY + "     " + example.trim());
+            } else {
+                sender.sendMessage(ChatColor.WHITE + "  " + example);
             }
         }
     }

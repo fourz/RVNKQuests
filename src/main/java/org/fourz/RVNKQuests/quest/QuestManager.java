@@ -425,6 +425,11 @@ public class QuestManager implements IQuestService {
                 .forEach(l -> l.clearPlayerData(playerUuid))
         );
 
+        // Quest party cleanup (#1982) — leave-on-quit, same rules as /quest party leave
+        if (plugin.getQuestPartyService() != null) {
+            plugin.getQuestPartyService().handleQuit(playerUuid);
+        }
+
         // Progress saving is handled by PlayerJoinQuitListener
     }
 

@@ -107,7 +107,12 @@ public class GenericKillObjective implements Listener {
             if (setsPath != null) {
                 quest.setPathChoice(killer, setsPath);
             }
-            quest.advanceStateForPlayer(playerId, advanceState);
+            // Party fan-out (#1982): checkpoint = the final kill's location. baseRadius 0 lets
+            // the service's min_share_radius floor govern (default 10 x multiplier 5 = 50 blocks).
+            // Kill counts stay PER-PLAYER in v1 — a qualifying member advances state without
+            // their own count being complete; pooled party counts are a filed follow-up.
+            quest.advanceStateForPlayer(playerId, advanceState,
+                    org.fourz.RVNKQuests.party.PartyBeatContext.of(killer.getLocation(), 0.0, requiredState));
         }
     }
 

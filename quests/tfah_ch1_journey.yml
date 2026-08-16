@@ -10,17 +10,20 @@ metadata:
   chain: tfah_chapter1
   chapter: 1
   components:
-    # KNOWN STALE (2026-08-02): this exact block is AIR -- preflight reports a BLOCKER for it. The
-    # trigger still fires because STRUCTURE_INTERACT defaults to a 3.0 radius and the real lectern
-    # is ~2.24 blocks away, so it works on 0.76 blocks of margin. -315,116,447 was tried and is
-    # DIRT. Do not "fix" this by guessing: read the lectern's real block first, then set it here.
+    # RESOLVED 2026-08-10 (#1881). The lectern was never missing — the coordinate was wrong. Read
+    # off the live Event world: the real block is alphac -316,118,447, a LECTERN holding the
+    # written book "THE QUIET WORLD" (rvnklore lore_item_id 48, entry e27e0d5f-1cb9-47f2-8729-
+    # b953703ab420) whose pages are the Chapter 1 route. That is 1.41 blocks from the old
+    # -315,118,446 -- not the 2.24 the 08-02 handoff recorded, and -315,116,447 was never it.
+    # The trigger fired anyway because STRUCTURE_INTERACT uses a 3.0 radius; only preflight, which
+    # checks the exact block, reported the BLOCKER. Coordinate now matches the world.
     lectern_trigger:
       type: STRUCTURE_INTERACT
       block_type: LECTERN
       world: alphac
-      x: -315
+      x: -316
       y: 118
-      z: 446
+      z: 447
       required_state: NOT_STARTED
       advance_state: TRIGGER_FOUND
     reach_bridge:

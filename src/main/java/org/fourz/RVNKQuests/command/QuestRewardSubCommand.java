@@ -177,4 +177,19 @@ public class QuestRewardSubCommand extends BaseSubCommand {
         }
         return Collections.emptyList();
     }
+
+    /**
+     * Worked examples for {@code /quest help reward} (#1981).
+     */
+    @Override
+    public java.util.List<String> getExamples() {
+        return java.util.List.of(
+                "/quest reward add tfah_ch1_journey ITEM diamond 3",
+                "  <quest_id> <type> <value> [amount]",
+                "/quest reward add tfah_ch1_journey EXPERIENCE 500",
+                "/quest reward remove tfah_ch1_journey 4",
+                "  remove takes the reward id, not the type",
+                "Rewards fire from advanceStateForPlayer(COMPLETED), so they land whether the",
+                "quest was completed by a trigger component or by /quest complete.");
+    }
 }
