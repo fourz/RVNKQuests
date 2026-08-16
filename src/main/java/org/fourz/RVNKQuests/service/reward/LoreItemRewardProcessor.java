@@ -67,7 +67,7 @@ public class LoreItemRewardProcessor implements RewardProcessor {
             }
             if (loreIntegration == null || !loreIntegration.isLoreAvailable()) {
                 return RewardDeliveryResult.failure(reward,
-                        "RVNKLore unavailable — cannot deliver lore item", "LORE_UNAVAILABLE");
+                        "RVNKLore unavailable - cannot deliver lore item", "LORE_UNAVAILABLE");
             }
 
             String itemName = reward.value();
@@ -115,10 +115,10 @@ public class LoreItemRewardProcessor implements RewardProcessor {
 
                 if (delivered == 0) {
                     return RewardDeliveryResult.failure(reward,
-                            "Inventory full — no copies of " + itemName + " delivered", "INVENTORY_FULL");
+                            "Inventory full - no copies of " + itemName + " delivered", "INVENTORY_FULL");
                 }
                 String note = dropped > 0
-                        ? String.format("Delivered %d %s (%d dropped — inventory full)", delivered, itemName, dropped)
+                        ? String.format("Delivered %d %s (%d dropped - inventory full)", delivered, itemName, dropped)
                         : String.format("Delivered %d %s", delivered, itemName);
                 return RewardDeliveryResult.success(reward, note, metadata);
 

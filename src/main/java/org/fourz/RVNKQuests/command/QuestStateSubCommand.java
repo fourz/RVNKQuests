@@ -99,7 +99,7 @@ public class QuestStateSubCommand extends BaseSubCommand {
                     sendMessage(sender, "&f   /quest debug setstate " + questId + " " + newState
                         + " " + targetPlayer.getName());
                     logger.debug("Refused /quest state " + questId + " -> " + newState + " for "
-                        + targetPlayer.getName() + " — unmet prerequisites: " + unmet);
+                        + targetPlayer.getName() + " - unmet prerequisites: " + unmet);
                 }))
                 .exceptionally(ex -> {
                     Bukkit.getScheduler().runTask(plugin, () ->

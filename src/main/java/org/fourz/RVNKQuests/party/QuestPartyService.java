@@ -216,7 +216,7 @@ public final class QuestPartyService {
      */
     public List<UUID> qualifyingMembers(UUID firer, PartyBeatContext ctx) {
         if (!Bukkit.isPrimaryThread()) {
-            logger.warning("qualifyingMembers called off the main thread — returning no members");
+            logger.warning("qualifyingMembers called off the main thread - returning no members");
             return List.of();
         }
         QuestParty party = partyByPlayer.get(firer);
@@ -230,11 +230,11 @@ public final class QuestPartyService {
             if (member.equals(firer)) continue;
             Player p = Bukkit.getPlayer(member);
             if (p == null) {
-                logger.debug("Party fan-out skip " + member + " — offline");
+                logger.debug("Party fan-out skip " + member + " - offline");
                 continue;
             }
             if (!p.getWorld().getName().equalsIgnoreCase(ctx.worldName())) {
-                logger.debug("Party fan-out skip " + p.getName() + " — wrong world ("
+                logger.debug("Party fan-out skip " + p.getName() + " - wrong world ("
                         + p.getWorld().getName() + " vs " + ctx.worldName() + ")");
                 continue;
             }
@@ -242,7 +242,7 @@ public final class QuestPartyService {
             double dy = p.getLocation().getY() - ctx.y();
             double dz = p.getLocation().getZ() - ctx.z();
             if (dx * dx + dy * dy + dz * dz > effSq) {
-                logger.debug("Party fan-out skip " + p.getName() + " — out of range (>"
+                logger.debug("Party fan-out skip " + p.getName() + " - out of range (>"
                         + (int) effective + " blocks)");
                 continue;
             }

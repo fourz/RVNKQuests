@@ -35,7 +35,7 @@ public class QuestChainDefinitionSeeder {
     public void seedIfNeeded() {
         IQuestChainService chainService = plugin.getQuestChainService();
         if (chainService == null) {
-            logger.warning("Quest chain service not available — skipping seed");
+            logger.warning("Quest chain service not available - skipping seed");
             return;
         }
 
@@ -44,7 +44,7 @@ public class QuestChainDefinitionSeeder {
             List<QuestChainDTO> existing = chainService.getAllChains()
                 .get(5, java.util.concurrent.TimeUnit.SECONDS);
             if (!existing.isEmpty()) {
-                logger.info("Quest chains already exist (" + existing.size() + ") — skipping seed");
+                logger.info("Quest chains already exist (" + existing.size() + ") - skipping seed");
                 return;
             }
 

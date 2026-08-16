@@ -197,7 +197,7 @@ public class GenericEncounterObjective implements Listener {
         if (world.getDifficulty() == Difficulty.PEACEFUL && isMonster(entityType)) {
             if (peacefulWarned.add(playerId)) {
                 logger.warning("Encounter '" + quest.getId() + "': cannot spawn " + entityType
-                    + " in world '" + world.getName() + "' at PEACEFUL difficulty — encounter skipped."
+                    + " in world '" + world.getName() + "' at PEACEFUL difficulty - encounter skipped."
                     + " Raise the world to EASY+ to enable it.");
             }
             return;
@@ -245,7 +245,7 @@ public class GenericEncounterObjective implements Listener {
         killCounts.put(playerId, 0);
 
         logger.debug("Encounter triggered for " + player.getName() + " on quest " + quest.getId() +
-            " — spawned " + spawnCount + " " + entityType);
+            " - spawned " + spawnCount + " " + entityType);
     }
 
     @EventHandler
@@ -282,14 +282,14 @@ public class GenericEncounterObjective implements Listener {
         if (!credited) {
             // Not credited, but NOT discarded either — the kills already banked stay banked.
             logger.debug("Encounter mob died with " + owner.getName() + " away from the fight on quest "
-                + quest.getId() + " — no credit, existing progress kept");
+                + quest.getId() + " - no credit, existing progress kept");
             if (mobs.isEmpty()) {
                 // No player-facing message here: the owner walked away from this wave, so telling
                 // them to "approach again" is noise about something they chose to leave. The
                 // silent-reset complaint in #1904 was about killing 4 of 5 and losing the lot —
                 // that case now credits and completes, so it cannot reach this branch.
                 logger.debug("Encounter wave for " + owner.getName() + " on quest " + quest.getId()
-                    + " expired with the owner away — encounter reset, no message sent");
+                    + " expired with the owner away - encounter reset, no message sent");
                 cleanupEncounter(playerId, mobs);
             }
             return;
@@ -327,7 +327,7 @@ public class GenericEncounterObjective implements Listener {
             // their chat. The WARN names both numbers so the misconfiguration is obvious.
             cleanupEncounter(playerId, mobs);
             logger.warning("Encounter '" + quest.getId() + "': wave exhausted for " + owner.getName()
-                + " at " + count + "/" + requiredKills + " — required_kills may exceed spawn_count ("
+                + " at " + count + "/" + requiredKills + " - required_kills may exceed spawn_count ("
                 + requiredKills + " > " + spawnCount + "). Encounter reset.");
         }
     }

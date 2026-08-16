@@ -98,7 +98,7 @@ public class GenericStructureInteractTrigger implements Listener {
         boolean sited = config.containsKey("x") && config.containsKey("y") && config.containsKey("z");
         if (!sited && (config.containsKey("x") || config.containsKey("y") || config.containsKey("z"))) {
             logger.warning("Quest '" + quest.getId() + "': STRUCTURE_INTERACT has a partial"
-                + " coordinate (needs x, y AND z) — falling back to world-wide matching");
+                + " coordinate (needs x, y AND z) - falling back to world-wide matching");
         }
         if (sited) {
             this.x = QuestComponentFactory.getDoubleConfig(config, "x", 0.0);
@@ -133,7 +133,7 @@ public class GenericStructureInteractTrigger implements Listener {
         for (String key : config.keySet()) {
             if (!KNOWN_KEYS.contains(key)) {
                 logger.warning("Quest '" + quest.getId() + "': STRUCTURE_INTERACT ignores"
-                    + " unknown config key '" + key + "' — it will have no effect");
+                    + " unknown config key '" + key + "' - it will have no effect");
             }
         }
     }
@@ -200,7 +200,7 @@ public class GenericStructureInteractTrigger implements Listener {
             return QuestState.valueOf(name);
         } catch (IllegalArgumentException e) {
             logger.warning("Quest '" + quest.getId() + "': unknown quest state '" + name
-                + "' — falling back to " + fallback);
+                + "' - falling back to " + fallback);
             return fallback;
         }
     }

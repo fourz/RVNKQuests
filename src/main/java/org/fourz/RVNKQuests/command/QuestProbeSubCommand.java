@@ -155,7 +155,7 @@ public class QuestProbeSubCommand extends BaseSubCommand {
             f.advanceState = (QuestState) getField(trigger, "advanceState");
             return f;
         } catch (Exception e) {
-            logger.warning("probe: could not read trigger fields — " + e.getMessage());
+            logger.warning("probe: could not read trigger fields - " + e.getMessage());
             return null;
         }
     }
@@ -175,8 +175,8 @@ public class QuestProbeSubCommand extends BaseSubCommand {
     }
 
     private void sendUsage(CommandSender sender) {
-        sendInfoMessage(sender, "Usage: /quest probe <player>  — probe player's current location");
-        sendInfoMessage(sender, "       /quest probe <world> <x> <y> <z> [radius]  — probe coordinates");
+        sendInfoMessage(sender, "Usage: /quest probe <player>  - probe player's current location");
+        sendInfoMessage(sender, "       /quest probe <world> <x> <y> <z> [radius]  - probe coordinates");
     }
 
     @Override

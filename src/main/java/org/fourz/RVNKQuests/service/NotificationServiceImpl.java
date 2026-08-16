@@ -106,12 +106,12 @@ public class NotificationServiceImpl implements INotificationService {
         // BOSS_BAR has a dedicated showQuestProgressBar API; text-only sends are no-ops.
         map.put(NotificationChannel.BOSS_BAR, (player, message) ->
             logger.debug("BOSS_BAR text send skipped for " + player.getName()
-                + " — use showQuestProgressBar() instead"));
+                + " - use showQuestProgressBar() instead"));
 
         // SOUND has no text message concept; callers drive sound via NotificationType.
         map.put(NotificationChannel.SOUND, (player, message) ->
             logger.debug("SOUND channel text send skipped for " + player.getName()
-                + " — play sounds directly via NotificationType.getDefaultSound()"));
+                + " - play sounds directly via NotificationType.getDefaultSound()"));
 
         return Collections.unmodifiableMap(map);
     }

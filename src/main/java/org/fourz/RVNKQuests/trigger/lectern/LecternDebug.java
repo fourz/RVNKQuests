@@ -60,7 +60,7 @@ final class LecternDebug {
         String blockedBy = !worldOk ? "world"
                 : !matched ? "book"
                 : !stateOk ? "state"
-                : "none — this interaction WOULD fire the trigger";
+                : "none - this interaction WOULD fire the trigger";
 
         logger.warning("[lectern-debug] " + triggerType + " quest=" + questId
                 + " player=" + player.getName()

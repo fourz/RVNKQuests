@@ -134,7 +134,7 @@ public class QuestValidateSubCommand extends BaseSubCommand {
             }
         }
         if (totalListeners == 0) {
-            logger.warning(quest.getId() + " has zero registered listeners across all states — triggers/objectives will not fire");
+            logger.warning(quest.getId() + " has zero registered listeners across all states - triggers/objectives will not fire");
             valid = false;
         }
         

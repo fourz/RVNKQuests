@@ -346,7 +346,7 @@ public class EntityFollow {
             follower.setVelocity(new Vector(0, 0, 0));
             follower.teleport(leaderLoc.clone().add(1, 0.5, 0));
             stuckCounter = 0;
-            logger.debug("Follower beyond max distance (" + (int) distance + ") — teleported to leader");
+            logger.debug("Follower beyond max distance (" + (int) distance + ") - teleported to leader");
         }
         // Without teleportWhenLost, entity beyond max distance stops moving but won't teleport
     }

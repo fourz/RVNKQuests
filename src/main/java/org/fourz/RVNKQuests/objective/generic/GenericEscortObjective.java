@@ -179,7 +179,7 @@ public class GenericEscortObjective implements Listener {
                 quest.setStateForPlayer(entry.getKey(), failState);
             }
             activeFollows.clear();
-            logger.debug("Escort entity died for quest " + quest.getId() + " — advancing to fail state");
+            logger.debug("Escort entity died for quest " + quest.getId() + " - advancing to fail state");
         }
     }
 

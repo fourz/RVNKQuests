@@ -481,7 +481,7 @@ public class RVNKQuests extends JavaPlugin {
 
             rvnkCoreAvailable = true;
             rvnkCoreInstance = coreInstance;
-            logger.info("RVNKCore integration enabled — 8 services registered");
+            logger.info("RVNKCore integration enabled - 8 services registered");
 
             // Register notification types with PlayerPreferencesService
             registerNotificationTypes();

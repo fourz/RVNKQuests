@@ -103,7 +103,7 @@ public class QuestComponentSubCommand extends BaseSubCommand {
             return;
         }
         if (compDef == null) {
-            sendErrorMessage(sender, "Component JSON parsed to null — check syntax.");
+            sendErrorMessage(sender, "Component JSON parsed to null - check syntax.");
             return;
         }
 

@@ -23,7 +23,7 @@ public class QuestPartySubCommand extends BaseSubCommand {
     private static final List<String> VERBS = List.of("invite", "accept", "leave", "list", "disband");
 
     public QuestPartySubCommand(RVNKQuests plugin) {
-        super(plugin, "party", "Manage your quest party — share beats with players questing beside you",
+        super(plugin, "party", "Manage your quest party - share beats with players questing beside you",
               "/quest party <invite <player>|accept|leave|list|disband>", "rvnkquests.party", true);
     }
 
@@ -46,7 +46,7 @@ public class QuestPartySubCommand extends BaseSubCommand {
             case "list" -> handleList(player, parties);
             case "disband" -> handleDisband(player, parties);
             default -> sendErrorMessage(sender, "Unknown party action: " + args[0]
-                    + " — use " + String.join("/", VERBS));
+                    + " - use " + String.join("/", VERBS));
         }
         return true;
     }
@@ -64,7 +64,7 @@ public class QuestPartySubCommand extends BaseSubCommand {
         switch (parties.invite(player, target)) {
             case OK -> {
                 sendSuccessMessage(player, "Invited " + target.getName()
-                        + " — they have " + (parties.getInviteTimeoutMillis() / 1000) + "s to accept.");
+                        + " - they have " + (parties.getInviteTimeoutMillis() / 1000) + "s to accept.");
                 target.sendMessage("§e⚠ §f" + player.getName()
                         + "§7 invited you to a quest party. §fRun /quest party accept§7 to join.");
             }
@@ -89,7 +89,7 @@ public class QuestPartySubCommand extends BaseSubCommand {
                     if (p != null) p.sendMessage("§a✓ §f" + player.getName() + "§7 joined the quest party.");
                 }
             }
-            case ALREADY_IN_PARTY -> sendErrorMessage(player, "You are already in a party — leave it first.");
+            case ALREADY_IN_PARTY -> sendErrorMessage(player, "You are already in a party - leave it first.");
             case NO_INVITE -> sendErrorMessage(player, "You have no pending invite.");
             case INVITE_EXPIRED -> sendErrorMessage(player, "That invite has expired.");
             case PARTY_FULL -> sendErrorMessage(player, "That party filled up while you decided.");

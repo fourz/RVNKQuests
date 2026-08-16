@@ -272,7 +272,7 @@ public abstract class BaseCommand implements ICommand, ICommandRouter, CommandEx
             }
             if (anyExamples) {
                 sender.sendMessage(ChatColor.AQUA + "*" + ChatColor.GRAY
-                        + " has worked examples — " + ChatColor.WHITE
+                        + " has worked examples - " + ChatColor.WHITE
                         + "/" + getName() + " help <subcommand>");
             }
             sender.sendMessage(ChatColor.GRAY + "Every subcommand also accepts "
@@ -305,14 +305,14 @@ public abstract class BaseCommand implements ICommand, ICommandRouter, CommandEx
         sender.sendMessage(ChatColor.WHITE + subCommand.getDescription());
         sender.sendMessage(ChatColor.YELLOW + "Usage: " + ChatColor.WHITE + subCommand.getUsage());
         if (subCommand.isPlayerOnly()) {
-            sender.sendMessage(ChatColor.GRAY + "Players only — not available from console.");
+            sender.sendMessage(ChatColor.GRAY + "Players only - not available from console.");
         }
         sender.sendMessage(ChatColor.GRAY + "Permission: " + subCommand.getPermission());
 
         List<String> examples = subCommand.getExamples();
         if (examples.isEmpty()) {
             sender.sendMessage(ChatColor.GRAY
-                    + "No further examples — the usage line above is the whole grammar.");
+                    + "No further examples - the usage line above is the whole grammar.");
             return;
         }
         sender.sendMessage(ChatColor.YELLOW + "Examples:");

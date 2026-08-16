@@ -285,7 +285,7 @@ public abstract class AbstractQuest implements Quest {
                 // gate below covers — so party play can never leapfrog the chain.
                 if (partyExpectedFrom != null && currentState != partyExpectedFrom) {
                     logger.debug("Party fan-out for quest " + questId + " skipped for " + playerUuid
-                        + " — member at " + currentState + ", beat expects " + partyExpectedFrom);
+                        + " - member at " + currentState + ", beat expects " + partyExpectedFrom);
                     stateCache.put(playerUuid, currentState);
                     return CompletableFuture.<Void>completedFuture(null);
                 }
@@ -294,7 +294,7 @@ public abstract class AbstractQuest implements Quest {
                 // admin operations use setStateForPlayer() and skip this.
                 if (monotonic && !isForwardProgress(currentState, newState)) {
                     logger.debug("Quest " + questId + " advance " + currentState + " -> " + newState
-                        + " for " + playerUuid + " ignored — not forward progress (#1853)");
+                        + " for " + playerUuid + " ignored - not forward progress (#1853)");
                     stateCache.put(playerUuid, currentState);
                     return CompletableFuture.<Void>completedFuture(null);
                 }
@@ -319,7 +319,7 @@ public abstract class AbstractQuest implements Quest {
                     return arePrerequisitesMet(playerUuid).thenCompose(met -> {
                         if (!met) {
                             logger.debug("Quest " + questId + " trigger blocked for " + playerUuid
-                                + " — prerequisites not met");
+                                + " - prerequisites not met");
                             // Party members get told WHY (#1982). Solo blocks stay silent — the
                             // OutOfOrderFeedback leak guard exists so undiscovered content is never
                             // advertised, but a party member opted in, and the firer's own advance

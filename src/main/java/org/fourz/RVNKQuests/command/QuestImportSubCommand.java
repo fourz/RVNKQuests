@@ -50,7 +50,7 @@ public class QuestImportSubCommand extends BaseSubCommand {
                         } else {
                             failed++;
                             sendErrorMessage(sender, "Failed to import quest: " + quest.questId()
-                                + " (save returned false — check DB schema/fallback state)");
+                                + " (save returned false - check DB schema/fallback state)");
                         }
                     } catch (Exception e) {
                         failed++;
@@ -61,7 +61,7 @@ public class QuestImportSubCommand extends BaseSubCommand {
                 // Reload quests in the quest manager
                 plugin.getQuestManager().loadQuestsFromRepository();
                 sendSuccessMessage(sender, "Imported " + imported + " quest(s) from YAML files"
-                    + (failed > 0 ? " (" + failed + " failed — see above)" : "") + ".");
+                    + (failed > 0 ? " (" + failed + " failed - see above)" : "") + ".");
             }).exceptionally(ex -> {
                 logger.error("Import-all failed before completion", (Throwable) ex);
                 sendErrorMessage(sender, "Import failed: " + rootMessage(ex));
@@ -82,7 +82,7 @@ public class QuestImportSubCommand extends BaseSubCommand {
                         sendSuccessMessage(sender, "Imported quest: " + questId);
                     } else {
                         sendErrorMessage(sender, "Failed to import quest: " + questId
-                            + " (save returned false — check DB schema/fallback state)");
+                            + " (save returned false - check DB schema/fallback state)");
                     }
                 }).exceptionally(ex -> {
                     logger.error("Save failed while importing quest: " + questId, (Throwable) ex);
