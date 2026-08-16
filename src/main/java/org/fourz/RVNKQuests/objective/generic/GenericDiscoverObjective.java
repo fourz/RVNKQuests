@@ -103,7 +103,11 @@ public class GenericDiscoverObjective implements Listener {
         // If no detection materials, treat as simple reach
         if (detectionMaterials.isEmpty()) {
             if (setsPath != null) quest.setPathChoice(player, setsPath);
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+            // Party fan-out (#1986): with no detection materials this degrades to a plain reach,
+            // so the checkpoint is where the player stands, scaled by the detection radius.
+            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                    player.getLocation(), detectionRadius, requiredState));
             return;
         }
 
@@ -127,7 +131,12 @@ public class GenericDiscoverObjective implements Listener {
         if (found >= minBlocks) {
             quest.setContext("discovered_location", player.getLocation());
             if (setsPath != null) quest.setPathChoice(player, setsPath);
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+            // Party fan-out (#1986): a discovery has no authored coordinate — the structure is
+            // found wherever the scan succeeded, so the finder's position IS the checkpoint.
+            // detectionRadius is the right scale: it is how far the scan itself reached.
+            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                    player.getLocation(), detectionRadius, requiredState));
             logger.debug(player.getName() + " discovered structure for quest " + quest.getId());
         }
     }

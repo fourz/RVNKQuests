@@ -87,7 +87,11 @@ public class LecternBookRemovedTrigger implements Listener {
         if (quest.getStateForPlayer(player) != requiredState) return;
         if (!matched) return;
 
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+        // Party fan-out (#1986): checkpoint is the lectern the book came off, taken from the event
+        // rather than a clicked block — PlayerTakeLecternBookEvent carries the lectern directly.
+        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+            org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                event.getLectern().getLocation(), 0.0, requiredState));
         logger.debug("LecternBookRemovedTrigger fired for " + player.getName());
     }
 

@@ -97,7 +97,10 @@ public class LecternBookInHandTrigger implements Listener {
         if (!matched) return;
 
         // Do NOT cancel — book places on the lectern naturally
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+        // Party fan-out (#1986): checkpoint is the lectern, per LecternBookOnTrigger.
+        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+            org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                block.getLocation(), 0.0, requiredState));
         logger.debug("LecternBookInHandTrigger fired for " + player.getName());
     }
 

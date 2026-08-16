@@ -309,7 +309,16 @@ public class GenericEncounterObjective implements Listener {
             }
             cleanupEncounter(playerId, mobs);
             if (setsPath != null) quest.setPathChoice(owner, setsPath);
-            quest.advanceStateForPlayer(playerId, advanceState);
+            // Party fan-out (#1986): checkpoint is the ARENA POST, not the last mob's death spot.
+            // A running fight legitimately ends far from the post — that is why kill credit is
+            // judged from the mob (#1904) — but the arena is the fixed thing the wave belongs to,
+            // and a party member who stayed in the arena while the firer chased the last knight
+            // over a ridge should still share the beat. Falls back to the death location only if
+            // the spawn point cannot be resolved.
+            Location postLoc = getSpawnLocation(owner);
+            quest.advanceStateForPlayer(playerId, advanceState,
+                org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                    postLoc != null ? postLoc : entity.getLocation(), triggerRadius, requiredState));
             logger.debug(owner.getName() + " completed encounter objective for quest " + quest.getId());
         } else if (mobs.isEmpty()) {
             // Every mob is gone but the bar was not met. With ownership-based credit this is only

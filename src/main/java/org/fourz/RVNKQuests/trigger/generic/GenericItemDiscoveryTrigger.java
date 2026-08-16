@@ -103,7 +103,12 @@ public class GenericItemDiscoveryTrigger implements Listener {
             return;
         }
 
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState);
+        // Party fan-out (#1986): a discovery has no place of its own — it happens wherever the
+        // holder is standing. Radius 0 is deliberate and legal: the service applies its
+        // min_share_radius floor, so this shares on the same footing as a kill.
+        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+            org.fourz.RVNKQuests.party.PartyBeatContext.of(
+                player.getLocation(), 0.0, requiredState));
         logger.debug("Item discovery trigger fired for " + player.getName() + " on quest " + quest.getId() + " — advancing to " + advanceState);
     }
 
