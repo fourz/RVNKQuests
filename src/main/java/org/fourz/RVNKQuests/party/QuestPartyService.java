@@ -37,6 +37,15 @@ public final class QuestPartyService {
     private final Map<UUID, QuestParty> partyByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, PendingInvite> pendingInvites = new ConcurrentHashMap<>();
 
+    /**
+     * One shared instance, deliberately — the per-player throttle lives in its {@code lastSpoken}
+     * map, so building a fresh one per call would reset the cooldown every time and turn a
+     * movement-driven beat into a message per tick. The default messages are used because this is a
+     * party-service concern, not a per-component one.
+     */
+    private final org.fourz.RVNKQuests.util.OutOfOrderFeedback outOfRangeFeedback =
+            org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(null);
+
     /** Invite expiry is lazy — checked on read — so there is no scheduler to manage. */
     private record PendingInvite(UUID inviter, QuestParty party, long expiresAtMillis) {
         boolean expired() {
@@ -257,6 +266,10 @@ public final class QuestPartyService {
             if (dx * dx + dy * dy + dz * dz > effSq) {
                 logger.debug("Party fan-out skip " + p.getName() + " - out of range (>"
                         + (int) effective + " blocks)");
+                // Tell them, throttled. This used to be silent, which from the player's chair is
+                // indistinguishable from the party feature being broken: everyone else advanced,
+                // they did not, and nothing said why (#1982).
+                outOfRangeFeedback.notifyPartyOutOfRange(p);
                 continue;
             }
             qualified.add(member);
