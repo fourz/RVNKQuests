@@ -156,9 +156,11 @@ public class QuestPartySubCommand extends BaseSubCommand {
                 "  the leader leaving promotes the oldest member",
                 "/quest party disband",
                 "  leader only - everyone is released at once",
-                "Party advancement needs presence: same world, within 5x the trigger",
-                "radius when a member fires the beat. Miss it and you catch up solo",
-                "at the normal radius - nothing is lost.",
+                "Party advancement needs presence: same world, and within",
+                "5x the trigger radius or 100 blocks, whichever is LARGER, when a",
+                "member fires the beat. Most triggers are small, so 100 is the",
+                "number that usually applies. Miss it and you catch up solo at",
+                "the normal radius - nothing is lost.",
                 "Prerequisites stay personal: an unready member is told so in chat.");
     }
 }

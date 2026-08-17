@@ -80,8 +80,21 @@ public final class QuestPartyService {
         return getDouble(ConfigKeys.PARTY_SHARE_RADIUS_MULTIPLIER, 5.0);
     }
 
+    /**
+     * Floor under the share radius, so a tight trigger does not make a party impossible to keep.
+     *
+     * <p>Raised 10 -> 20 on 2026-08-16 after live QA. With the 5x multiplier this puts the default
+     * share range at <b>100 blocks</b> rather than 50. 50 sounds generous written down and is not:
+     * a lectern trigger has radius 3, and two players exploring the same ruin routinely drift
+     * further apart than 50 blocks without either of them having stopped playing together.</p>
+     *
+     * <p>The floor is the right knob here rather than the multiplier. Raising the multiplier to
+     * reach 100 would also scale every large trigger — a radius-30 proximity beat would start
+     * sharing at 300 blocks, which is most of a render distance and no longer "making an effort".
+     * Raising the floor lifts only the tight triggers, which is where the problem actually was.</p>
+     */
     public double getMinShareRadius() {
-        return getDouble(ConfigKeys.PARTY_MIN_SHARE_RADIUS, 10.0);
+        return getDouble(ConfigKeys.PARTY_MIN_SHARE_RADIUS, 20.0);
     }
 
     private boolean getBool(String path, boolean def) {
