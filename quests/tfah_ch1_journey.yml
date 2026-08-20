@@ -71,7 +71,11 @@ rewards:
     type: COMMAND
     value: 'lore item give "THE RECORD OF NOCTURNE" %player%'
     amount: 1
+  journey_pick:
+    type: COMMAND
+    value: 'lore item give "Nickel''s Pick" %player%'
+    amount: 1
   journey_say:
     type: COMMAND
-    value: 'say [The Hat] Nocturne keeps the record of the dead. Read it well.'
+    value: 'say [The Hat] Nocturne keeps the graves. The man who signed is under them.'
     amount: 1
