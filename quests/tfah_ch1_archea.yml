@@ -89,5 +89,5 @@ rewards:
     amount: 1
   ch1_shard:
     type: COMMAND
-    value: 'give %player% gold_ingot[custom_name={text:"Ravenforge Shard",color:"gold",italic:false},lore=[{text:"Torn from the Black Knight.",color:"gray",italic:true},{text:"Nickel9 was digging for this.",color:"gray",italic:true}],enchantment_glint_override=true]'
+    value: 'lore item give "Ravenforge Shard" %player%'
     amount: 1
