@@ -26,6 +26,7 @@ metadata:
       z: 447
       required_state: NOT_STARTED
       advance_state: TRIGGER_FOUND
+      advance_message: "&7You read, and it begins. &fWest, to the great bridge - the ground gives out before Ravenport."
     reach_bridge:
       objective_type: REACH
       world: alphac
@@ -35,6 +36,7 @@ metadata:
       radius: 20.0
       required_state: TRIGGER_FOUND
       advance_state: QUEST_ACTIVE
+      advance_message: "&7The bridge is behind you. &fRavenport stands north - someone counted every soul who left, and his tally is still there."
     reach_railway:
       objective_type: REACH
       world: alphac
@@ -44,6 +46,7 @@ metadata:
       radius: 20.0
       required_state: QUEST_ACTIVE
       advance_state: OBJECTIVE_FOUND
+      advance_message: "&7You have found the Archean Railway. &fRide north to Nocturne - the stations are kept, and little else here is."
     reach_nocturne:
       objective_type: REACH
       world: alphac

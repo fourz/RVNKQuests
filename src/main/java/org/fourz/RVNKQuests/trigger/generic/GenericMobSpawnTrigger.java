@@ -101,6 +101,9 @@ public class GenericMobSpawnTrigger implements Listener {
     private final RVNKQuests plugin;
     private final DataDrivenQuest quest;
     private final LogManager logger;
+
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
     private final Map<String, Object> config;
 
     private final EntityType entityType;
@@ -207,6 +210,7 @@ public class GenericMobSpawnTrigger implements Listener {
 
         boolean globalDetect = plugin.getConfigManager().isMobNameTypeMatchingEnabled();
         this.detectExisting = QuestComponentFactory.getBoolConfig(config, "detect_existing", globalDetect);
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
         this.scanIntervalMs = plugin.getConfigManager().getMobScanIntervalMs();
 
         logger.debug("Trigger created for quest " + quest.getId() +
@@ -305,6 +309,7 @@ public class GenericMobSpawnTrigger implements Listener {
                         org.fourz.RVNKQuests.party.PartyBeatContext.of(
                                 site != null ? site : player.getLocation(), triggerRadius,
                                 QuestState.NOT_STARTED));
+                advanceFeedback.notifyAdvanced(player);
                 logger.debug("Adopted existing " + entityType + " (" + customName +
                     ") for quest " + quest.getId() + " near " + player.getName());
                 return;
@@ -327,6 +332,7 @@ public class GenericMobSpawnTrigger implements Listener {
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(spawnLoc, triggerRadius,
                         QuestState.NOT_STARTED));
+        advanceFeedback.notifyAdvanced(player);
 
         logger.debug("Spawned " + entityType + " for quest " + quest.getId() + " near " + player.getName());
     }

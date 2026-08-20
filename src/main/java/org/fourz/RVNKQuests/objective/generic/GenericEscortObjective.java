@@ -46,6 +46,9 @@ public class GenericEscortObjective implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final String contextEntityKey;
     private final String contextLocationKey;
     private final String worldName;
@@ -85,6 +88,7 @@ public class GenericEscortObjective implements Listener {
         this.failState = failStateStr != null ? parseState(failStateStr) : null;
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
     }
 
     @EventHandler
@@ -145,6 +149,7 @@ public class GenericEscortObjective implements Listener {
             // is within `radius` of it by the check above, and the player is trailing it.
             quest.advanceStateForPlayer(playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(dest, radius, requiredState));
+            advanceFeedback.notifyAdvanced(player);
             logger.debug(player.getName() + " completed escort objective for quest " + quest.getId());
         }
     }

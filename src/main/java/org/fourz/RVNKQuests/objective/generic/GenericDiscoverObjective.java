@@ -40,6 +40,9 @@ public class GenericDiscoverObjective implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final String worldName;
     private final double detectionRadius;
     private final Set<Material> detectionMaterials;
@@ -63,6 +66,7 @@ public class GenericDiscoverObjective implements Listener {
 
         // Parse detection materials
         this.detectionMaterials = new HashSet<>();
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
         String materialsStr = QuestComponentFactory.getStringConfig(config, "detection_materials", "");
         for (String mat : materialsStr.split(",")) {
             mat = mat.trim().toUpperCase();
@@ -108,6 +112,7 @@ public class GenericDiscoverObjective implements Listener {
             quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
                     player.getLocation(), detectionRadius, requiredState));
+            advanceFeedback.notifyAdvanced(player);
             return;
         }
 
@@ -137,6 +142,7 @@ public class GenericDiscoverObjective implements Listener {
             quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
                     player.getLocation(), detectionRadius, requiredState));
+            advanceFeedback.notifyAdvanced(player);
             logger.debug(player.getName() + " discovered structure for quest " + quest.getId());
         }
     }

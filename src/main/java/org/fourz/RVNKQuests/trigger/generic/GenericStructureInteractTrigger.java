@@ -57,6 +57,7 @@ public class GenericStructureInteractTrigger implements Listener {
         Set<String> keys = new java.util.HashSet<>(Set.of(
             "type", "block_type", "world", "x", "y", "z", "radius", "required_state", "advance_state"));
         keys.addAll(org.fourz.RVNKQuests.util.OutOfOrderFeedback.configKeys());
+        keys.addAll(org.fourz.RVNKQuests.util.AdvanceFeedback.configKeys());
         return Set.copyOf(keys);
     }
 
@@ -79,6 +80,9 @@ public class GenericStructureInteractTrigger implements Listener {
 
     /** Explains a right-click that hit the right block at the wrong beat. */
     private final org.fourz.RVNKQuests.util.OutOfOrderFeedback feedback;
+
+    /** Optional per-beat line + cue sent when this trigger advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
     public GenericStructureInteractTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.plugin = plugin;
@@ -112,6 +116,7 @@ public class GenericStructureInteractTrigger implements Listener {
         this.radius = QuestComponentFactory.getDoubleConfig(config, "radius", DEFAULT_RADIUS);
         this.radiusSquared = radius * radius;
         this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
 
         warnUnknownKeys(config);
 
@@ -173,6 +178,7 @@ public class GenericStructureInteractTrigger implements Listener {
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
             org.fourz.RVNKQuests.party.PartyBeatContext.of(
                 block.getLocation(), radius, requiredState));
+        advanceFeedback.notifyAdvanced(player);
         logger.debug("Structure interact trigger fired for " + player.getName() + " on " + blockType
             + " at " + block.getX() + "," + block.getY() + "," + block.getZ());
     }

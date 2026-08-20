@@ -71,6 +71,9 @@ public class GenericEncounterObjective implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final EntityType entityType;
     private final int spawnCount;
     private final int requiredKills;
@@ -140,6 +143,8 @@ public class GenericEncounterObjective implements Listener {
         }
 
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
+
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
     }
 
@@ -319,6 +324,7 @@ public class GenericEncounterObjective implements Listener {
             quest.advanceStateForPlayer(playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
                     postLoc != null ? postLoc : entity.getLocation(), triggerRadius, requiredState));
+            advanceFeedback.notifyAdvanced(owner);
             logger.debug(owner.getName() + " completed encounter objective for quest " + quest.getId());
         } else if (mobs.isEmpty()) {
             // Every mob is gone but the bar was not met. With ownership-based credit this is only
