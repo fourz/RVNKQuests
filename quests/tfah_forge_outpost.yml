@@ -1,0 +1,113 @@
+quest_id: tfah_forge_outpost
+name: The Shipment That Did Not Arrive
+description: A waybill for nine wagons east and one crate back, consigned to a forge on a world that was one season old when the crate was booked. The forge ran a line across the cold water. Follow it to the end and find out what the last leg was really carried by.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  # Both worlds are held for the duration. 'world' IS the Kingdom of Zeal crossroads -- KOZ is not a
+  # separate world key, which is easy to get wrong from the name alone (same trap as tfah_sky_ascent).
+  #
+  # one_survival_world is NOT optional here: it was observed reverting IMPORTED -> reclaimed twice in
+  # one session on 2026-08-23. Without the declaration the crossing becomes unplayable mid-run, which
+  # is #1883 exactly.
+  required_worlds:
+  - world
+  - one_survival_world
+  start_trigger: The Waybill
+  chain: tfah_ravenforge
+  chapter: 4
+  components:
+
+    # Beat 1 -- the [Tome] lectern beside the KOZ_One gate.
+    #
+    # Read-to-begin, for the same reason Chapter 1 uses a lectern: a hub every player walks through
+    # would phantom-start on a proximity trigger (#1764). Sited, not world-wide -- STRUCTURE_INTERACT
+    # honours x/y/z within radius since #1894, and there are 22 other lecterns at this hub belonging
+    # to the #1527 curse trail that must never fire this quest.
+    #
+    # Coordinate read back off the placed block via 'lore lectern list' (#2031), not typed from an
+    # F3 reading -- the reported position was -134,74,-3, which is a real miss on both axes.
+    gate_lectern:
+      type: STRUCTURE_INTERACT
+      block_type: LECTERN
+      world: world
+      x: -135
+      y: 74
+      z: -4
+      radius: 3
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+      advance_message: '&e[The Hat] &fNine wagons east. One crate back. Take the gate marked Spring 2026.'
+
+    # Beat 2 -- landfall on Survival Island.
+    #
+    # Arriving IS the beat, so this sits on the portal exit rather than a landmark. tfah_sky_ascent
+    # beat 2 was sited 285 blocks off its own arrival point and never advanced, which left the beat
+    # after it permanently inert. Coordinate is the registered One_Survival portal.
+    landfall:
+      objective_type: REACH
+      world: one_survival_world
+      x: 107.0
+      y: 107.0
+      z: 126.0
+      radius: 40.0
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+      advance_message: '&e[The Hat] &fStone shore, cold water, and a great deal of nothing arranged east.'
+
+    # Beat 3 -- the Halfway Bell relay, mid-crossing.
+    #
+    # Sited on the dock clearing where a player steps off the boat, not on the tower -- the arrival
+    # point is the beat, same principle as beat 2. Generous radius because there is no correct
+    # approach to an island by water.
+    waystation:
+      objective_type: REACH
+      world: one_survival_world
+      x: 475.0
+      y: 64.0
+      z: 910.0
+      radius: 48.0
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
+      advance_message: '&e[The Hat] &fRelay Two. East forty-one, west forty. Somebody drew a box around the difference.'
+
+    # Beat 4 -- the ledger lectern inside the woodland mansion.
+    #
+    # PROVISIONAL COORDINATE. The mansion at 608,~,2160 is in near-virgin terrain (r.1.4.mca was
+    # 15 KB) and has not been generated or dressed. This must be re-sited off the placed block
+    # before the event, exactly as beat 1 was.
+    #
+    # Preflight will report this beat 'unverified' rather than 'ok' while the chunk is cold. That is
+    # the expected reading, not a pass -- see #1878, where an unloaded chunk produced the same word.
+    outpost_ledger:
+      type: STRUCTURE_INTERACT
+      block_type: LECTERN
+      world: one_survival_world
+      x: 608
+      y: 80
+      z: 2160
+      radius: 3
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+
+  state_mapping:
+    NOT_STARTED:
+    - gate_lectern
+    TRIGGER_FOUND:
+    - landfall
+    QUEST_ACTIVE:
+    - waystation
+    OBJECTIVE_FOUND:
+    - outpost_ledger
+
+rewards:
+  outpost_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 800
+  # No give for THE RAVENFORGE LEDGER: beat 4's lectern is a [Tome] dispenser holding it, so the
+  # player takes the book off the lectern themselves. That IS the retrieval. A reward give on top
+  # would hand out a second copy.
+  outpost_say:
+    type: COMMAND
+    value: 'say [The Hat] Forty made, thirty-nine hung. You are standing under the fortieth. Go home the way the freight went.'
