@@ -46,7 +46,7 @@ metadata:
       radius: 20.0
       required_state: QUEST_ACTIVE
       advance_state: OBJECTIVE_FOUND
-      advance_message: "&7You have found the Archean Railway. &fRide north to Nocturne - the stations are kept, and little else here is."
+      advance_message: "&7You have found the Archean Railway. &fStalin77's line, and he still keeps the stations. Ride north to Nocturne - little else here is kept."
     reach_nocturne:
       objective_type: REACH
       world: alphac
@@ -56,6 +56,7 @@ metadata:
       radius: 30.0
       required_state: OBJECTIVE_FOUND
       advance_state: COMPLETED
+      advance_message: "&7Nocturne. The graves are in rows, and the rows are labelled. &fSouth now - near a thousand blocks south - to Archea. The garrison there never stood down."
   state_mapping:
     NOT_STARTED:
     - lectern_trigger
