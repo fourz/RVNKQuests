@@ -6,6 +6,8 @@ cooldown_minutes: 0
 metadata:
   required_worlds:
   - zeal
+  chain: tfah_zeal
+  chapter: 1
   components:
     arr_trigger:
       type: LOCATION_PROXIMITY
@@ -16,6 +18,7 @@ metadata:
       radius: 30.0
       required_state: NOT_STARTED
       advance_state: TRIGGER_FOUND
+      advance_message: "&7Zeal. Nobody has swept this street in twelve years. &fThe Ruined Commons lie a few paces east - the open ground at the old centre. Stand in it."
     arr_reach:
       objective_type: REACH
       world: zeal
@@ -25,6 +28,7 @@ metadata:
       radius: 15.0
       required_state: TRIGGER_FOUND
       advance_state: COMPLETED
+      advance_message: "&7The Commons remember you standing here. &fNorth-northwest now, a hundred blocks across the dead city, then climb - the tower stands thirty blocks above you, under a burning portal."
   state_mapping:
     NOT_STARTED:
     - arr_trigger

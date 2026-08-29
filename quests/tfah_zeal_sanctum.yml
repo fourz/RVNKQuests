@@ -10,6 +10,8 @@ metadata:
   required_worlds:
   - alphac
   - world
+  chain: tfah_zeal
+  chapter: 1
   components:
     sanctum_trigger:
       type: LOCATION_PROXIMITY
@@ -20,6 +22,7 @@ metadata:
       radius: 50.0
       required_state: NOT_STARTED
       advance_state: TRIGGER_FOUND
+      advance_message: "&7Sol Sanctum. Ten gates in a ring and every one still lit. &fThirteen blocks east to the ring node, same height - the gate that brought you is not the gate that takes you home."
     sanctum_reach:
       objective_type: REACH
       world: alphac
@@ -29,6 +32,7 @@ metadata:
       radius: 15.0
       required_state: TRIGGER_FOUND
       advance_state: OBJECTIVE_FOUND
+      advance_message: "&7The ring is closed behind you. &fTake the KOZ gate. Kingdom of Zeal, the crossroads near origin - that is where the circuit ends."
     koz_reach:
       objective_type: REACH
       world: world

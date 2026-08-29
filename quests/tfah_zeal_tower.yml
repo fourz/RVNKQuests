@@ -8,6 +8,8 @@ prerequisites:
 metadata:
   required_worlds:
   - zeal
+  chain: tfah_zeal
+  chapter: 1
   state_mapping:
     NOT_STARTED:
     - tower_reach
@@ -21,6 +23,7 @@ metadata:
       radius: 8.0
       required_state: NOT_STARTED
       advance_state: COMPLETED
+      advance_message: "&7The tower still stands over the dead city. &fThe portal at its base goes on to Sol Sanctum - a ring of arches high above Alpha Centauri. Step through it."
 rewards:
   tower_title:
     type: COMMAND
