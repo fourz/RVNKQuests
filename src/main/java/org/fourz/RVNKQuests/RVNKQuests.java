@@ -479,6 +479,21 @@ public class RVNKQuests extends JavaPlugin {
             registerMethod.invoke(serviceRegistry, IJournalService.class, journalService);
             registerMethod.invoke(serviceRegistry, IRepeatableQuestService.class, repeatableQuestService);
 
+            // REST endpoint (#2043). Guarded by its own Class.forName: an older RVNKCore
+            // without IQuestsApiService must cost the REST surface only, not the other
+            // eight services and not the plugin.
+            try {
+                Class<?> serviceInterface = Class.forName("org.fourz.rvnkcore.api.service.IQuestsApiService");
+                Object apiEndpoint = Class.forName("org.fourz.RVNKQuests.api.QuestApiEndpointImpl")
+                        .getConstructor(RVNKQuests.class).newInstance(this);
+                registerMethod.invoke(serviceRegistry, serviceInterface, apiEndpoint);
+                logger.info("Quest REST endpoint registered (IQuestsApiService)");
+            } catch (ClassNotFoundException e) {
+                logger.warning("Quest REST endpoint not registered - RVNKCore build predates IQuestsApiService (needs 1.5.82+)");
+            } catch (Exception e) {
+                logger.warning("Quest REST endpoint registration failed: " + e.getMessage());
+            }
+
             rvnkCoreAvailable = true;
             rvnkCoreInstance = coreInstance;
             logger.info("RVNKCore integration enabled - 8 services registered");
