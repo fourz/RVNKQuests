@@ -36,6 +36,9 @@ public class GenericInteractObjective implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final Material blockType;
     private final Material itemType;
     private final int requiredCount;
@@ -63,6 +66,7 @@ public class GenericInteractObjective implements Listener {
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
         this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
     }
 
     @EventHandler
@@ -123,6 +127,7 @@ public class GenericInteractObjective implements Listener {
             quest.advanceStateForPlayer(playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
                     player.getLocation(), 0.0, requiredState));
+            advanceFeedback.notifyAdvanced(player);
             logger.debug(player.getName() + " completed interact objective for quest " + quest.getId());
         }
     }

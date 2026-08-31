@@ -33,6 +33,9 @@ public class GenericEntityProximityTrigger implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final EntityType entityType;
     private final String worldName;
     private final double radius;
@@ -45,6 +48,7 @@ public class GenericEntityProximityTrigger implements Listener {
         this.entityType = parseEntityType(QuestComponentFactory.getStringConfig(config, "entity_type", "ELDER_GUARDIAN"));
         this.worldName = QuestComponentFactory.getStringConfig(config, "world", "world");
         this.radius = QuestComponentFactory.getDoubleConfig(config, "radius", 50.0);
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
     }
 
@@ -78,6 +82,7 @@ public class GenericEntityProximityTrigger implements Listener {
                 quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(
                         entity.getLocation(), radius, QuestState.NOT_STARTED));
+                advanceFeedback.notifyAdvanced(player);
                 logger.debug("Entity proximity trigger fired for " + player.getName() + " near " + entityType);
                 return;
             }

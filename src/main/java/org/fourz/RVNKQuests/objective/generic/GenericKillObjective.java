@@ -40,6 +40,9 @@ public class GenericKillObjective implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final EntityType entityType;
     private final String customName;
     private final int requiredKills;
@@ -66,6 +69,7 @@ public class GenericKillObjective implements Listener {
         this.contextKey = QuestComponentFactory.getStringConfig(config, "context_key", "kill_count");
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
     }
 
     @EventHandler
@@ -113,6 +117,7 @@ public class GenericKillObjective implements Listener {
             // their own count being complete; pooled party counts are a filed follow-up.
             quest.advanceStateForPlayer(playerId, advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(killer.getLocation(), 0.0, requiredState));
+            advanceFeedback.notifyAdvanced(killer);
         }
     }
 

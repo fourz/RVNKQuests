@@ -35,6 +35,9 @@ public class GenericReachObjective implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final String worldName;
     private final double targetX;
     private final double targetY;
@@ -59,6 +62,7 @@ public class GenericReachObjective implements Listener {
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "OBJECTIVE_FOUND"));
         this.contextLocationKey = QuestComponentFactory.getStringConfig(config, "context_location_key", null);
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
     }
 
@@ -95,6 +99,7 @@ public class GenericReachObjective implements Listener {
             // context_location_key case shares the actual checkpoint, not the static default.
             quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(target, radius, requiredState));
+            advanceFeedback.notifyAdvanced(player);
             logger.debug(player.getName() + " reached target location for quest " + quest.getId());
         }
     }

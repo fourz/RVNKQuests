@@ -26,6 +26,7 @@ metadata:
       z: 447
       required_state: NOT_STARTED
       advance_state: TRIGGER_FOUND
+      advance_message: "&7You read, and it begins. &fWest, to the great bridge - the ground gives out before Ravenport."
     reach_bridge:
       objective_type: REACH
       world: alphac
@@ -35,6 +36,7 @@ metadata:
       radius: 20.0
       required_state: TRIGGER_FOUND
       advance_state: QUEST_ACTIVE
+      advance_message: "&7The bridge is behind you. &fRavenport stands north - someone counted every soul who left, and his tally is still there."
     reach_railway:
       objective_type: REACH
       world: alphac
@@ -44,6 +46,7 @@ metadata:
       radius: 20.0
       required_state: QUEST_ACTIVE
       advance_state: OBJECTIVE_FOUND
+      advance_message: "&7You have found the Archean Railway. &fStalin77's line, and he still keeps the stations. Ride north to Nocturne - little else here is kept."
     reach_nocturne:
       objective_type: REACH
       world: alphac
@@ -53,6 +56,7 @@ metadata:
       radius: 30.0
       required_state: OBJECTIVE_FOUND
       advance_state: COMPLETED
+      advance_message: "&7Nocturne. The graves are in rows, and the rows are labelled. &fSouth now - near a thousand blocks south - to Archea. The garrison there never stood down."
   state_mapping:
     NOT_STARTED:
     - lectern_trigger
@@ -71,7 +75,11 @@ rewards:
     type: COMMAND
     value: 'lore item give "THE RECORD OF NOCTURNE" %player%'
     amount: 1
+  journey_pick:
+    type: COMMAND
+    value: 'lore item give "Nickel''s Pick" %player%'
+    amount: 1
   journey_say:
     type: COMMAND
-    value: 'say [The Hat] Nocturne keeps the record of the dead. Read it well.'
+    value: 'say [The Hat] Nocturne keeps the graves. The man who signed is under them.'
     amount: 1

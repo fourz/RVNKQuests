@@ -26,17 +26,29 @@ canonical shape.
 | `tfah_zeal_sanctum.yml` | The Ring Closes | Tales From A Hat — Zeal |
 | `tfah_ch1_journey.yml` | The Quiet World | Tales From A Hat — Chapter 1 |
 | `tfah_ch1_archea.yml` | The Knights of the Darkness | Tales From A Hat — Chapter 1 |
+| `tfah_sky_ascent.yml` | The Kingdom Looked Up | Tales From A Hat — Skylands (scenario 3) |
+| `tfah_forge_outpost.yml` | The Shipment That Did Not Arrive | Tales From A Hat — Ravenforge (scenario 4) |
+| `welcome_alphac.yml` | Welcome to Alpha Centauri | — |
 | `survey_trail.yml` | The Surveyor's Trail | Surveyor (Zeal 2013 dome) |
 | `survey_choice.yml` | Wanderer or Historian | Surveyor |
 | `survey_sanctum.yml` | The Sanctum Remembers | Surveyor |
 
 ## Not yet captured here
 
-`/quest validate` on Event lists quests beyond these eight (e.g. `koz_lost_sun`,
-`twinkies_bridge`, `twinkies_archea_mark`, `welcome_alphac`, and disabled ones such as
-`piglin_far_from_home`, `ancient_guardian`, `koz_road_to_origin`). Those are defined outside this
-folder (config/DB seed) and are **not** version-controlled yet — a follow-up if the whole quest
-catalog should live here.
+Verified against `/quest validate` on RVNK Event, 2026-08-23: the server registers **14** quests, this
+folder holds **11**. The three defined outside this folder (config/DB seed) and **not** version
+controlled are:
+
+- `twinkies_bridge` — "Where It Started"
+- `koz_lost_sun` — "The Lost Sun"
+- `twinkies_archea_mark` — "The Admin's Favourite"
+
+Capturing those is the follow-up if the whole catalog should live here.
+
+> This section previously listed `welcome_alphac` as uncaptured and the table above listed only
+> eight files. Both were stale — `welcome_alphac`, `tfah_sky_ascent` and `tfah_forge_outpost` are all
+> version controlled. Re-check against `/quest validate` rather than trusting this list.
+
 
 ## Known engine caveats (see board:rvnkquests)
 

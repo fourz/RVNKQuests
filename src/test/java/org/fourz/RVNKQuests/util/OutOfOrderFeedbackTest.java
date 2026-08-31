@@ -246,6 +246,53 @@ class OutOfOrderFeedbackTest {
     }
 
     @Test
+    @DisplayName("out-of-range member is told to catch up, not left silent")
+    void partyOutOfRangeSpeaks() {
+        OutOfOrderFeedback feedback = OutOfOrderFeedback.from(null);
+
+        assertEquals(OutOfOrderFeedback.Outcome.SENT_PARTY_OUT_OF_RANGE,
+            feedback.notifyPartyOutOfRange(player));
+
+        String sent = captureMessage();
+        // The point of the reword: the player must be told what to DO. Assert on the instruction,
+        // not the exact prose, so the wording can be tuned without breaking the test.
+        assertTrue(sent.toLowerCase().contains("catch up"),
+            "must tell them to catch up, got: " + sent);
+        assertTrue(sent.toLowerCase().contains("objective"),
+            "must point at the objective to follow, got: " + sent);
+    }
+
+    @Test
+    @DisplayName("out-of-range honours the per-player throttle")
+    void partyOutOfRangeIsThrottled() {
+        OutOfOrderFeedback feedback = OutOfOrderFeedback.from(null);
+
+        assertEquals(OutOfOrderFeedback.Outcome.SENT_PARTY_OUT_OF_RANGE,
+            feedback.notifyPartyOutOfRange(player));
+        assertEquals(OutOfOrderFeedback.Outcome.SUPPRESSED_THROTTLED,
+            feedback.notifyPartyOutOfRange(player),
+            "a member trailing a moving party must not get a message per tick");
+    }
+
+    @Test
+    @DisplayName("the prereq message says what to do, not just that something is wrong")
+    void prereqMessageIsActionable() {
+        OutOfOrderFeedback feedback = OutOfOrderFeedback.from(null);
+
+        assertEquals(OutOfOrderFeedback.Outcome.SENT_PREREQ_BLOCKED,
+            feedback.notifyPrerequisiteBlocked(player, "The Quiet World"));
+
+        String sent = captureMessage().toLowerCase();
+        // Regression guard on the 2026-08-16 reword. The old default was "You are not yet ready for
+        // this path - a tale of yours remains unfinished.": true, atmospheric, and it told the
+        // player nothing they could act on.
+        assertTrue(sent.contains("catch up"),
+            "must direct them to their party, got: " + sent);
+        assertFalse(sent.contains("remains unfinished"),
+            "the old cryptic wording must not come back, got: " + sent);
+    }
+
+    @Test
     @DisplayName("a blank configured message reports itself rather than passing as sent")
     void blankMessageReportsSuppression() {
         OutOfOrderFeedback blank = OutOfOrderFeedback.from(config("out_of_order_message", ""));

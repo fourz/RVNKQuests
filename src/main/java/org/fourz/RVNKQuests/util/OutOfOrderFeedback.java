@@ -40,23 +40,35 @@ public final class OutOfOrderFeedback {
         "&7Nothing here answers you - not yet.";
     private static final String DEFAULT_ALREADY_PAST =
         "&7Whatever was here, you have already taken it.";
+    // Reworded 2026-08-16: the previous line was "You are not yet ready for this path - a tale of
+    // yours remains unfinished." Accurate and completely unactionable — a player reads it, learns
+    // that something is wrong, and has no idea what to DO. Say where the story is and how to rejoin
+    // it. Flavour is fine; a riddle is not.
     private static final String DEFAULT_PREREQ_BLOCKED =
-        "&7You are not yet ready for this path - a tale of yours remains unfinished.";
+        "&7Your party's tale has run ahead of your own. Catch up to them, "
+        + "find what they are following, and the path will open for you.";
+
+    /** Party-only: the member was simply too far away when the beat fired. */
+    private static final String DEFAULT_PARTY_OUT_OF_RANGE =
+        "&7Your party moved on without you. Catch up to them and find the objective "
+        + "they are following - nothing is lost, you have only fallen behind.";
 
     private final boolean enabled;
     private final String tooEarlyMessage;
     private final String alreadyPastMessage;
     private final String prereqBlockedMessage;
+    private final String partyOutOfRangeMessage;
     private final long cooldownMs;
 
     private final Map<UUID, Long> lastSpoken = new ConcurrentHashMap<>();
 
     private OutOfOrderFeedback(boolean enabled, String tooEarly, String alreadyPast,
-                               String prereqBlocked, long cooldownMs) {
+                               String prereqBlocked, String partyOutOfRange, long cooldownMs) {
         this.enabled = enabled;
         this.tooEarlyMessage = tooEarly;
         this.alreadyPastMessage = alreadyPast;
         this.prereqBlockedMessage = prereqBlocked;
+        this.partyOutOfRangeMessage = partyOutOfRange;
         this.cooldownMs = cooldownMs;
     }
 
@@ -78,13 +90,15 @@ public final class OutOfOrderFeedback {
     public static OutOfOrderFeedback from(Map<String, Object> config) {
         if (config == null) {
             return new OutOfOrderFeedback(true, DEFAULT_TOO_EARLY, DEFAULT_ALREADY_PAST,
-                DEFAULT_PREREQ_BLOCKED, DEFAULT_COOLDOWN_MS);
+                DEFAULT_PREREQ_BLOCKED, DEFAULT_PARTY_OUT_OF_RANGE, DEFAULT_COOLDOWN_MS);
         }
         return new OutOfOrderFeedback(
             QuestComponentFactory.getBoolConfig(config, "out_of_order_feedback", true),
             QuestComponentFactory.getStringConfig(config, "out_of_order_message", DEFAULT_TOO_EARLY),
             QuestComponentFactory.getStringConfig(config, "already_past_message", DEFAULT_ALREADY_PAST),
             QuestComponentFactory.getStringConfig(config, "prereq_blocked_message", DEFAULT_PREREQ_BLOCKED),
+            QuestComponentFactory.getStringConfig(config, "party_out_of_range_message",
+                DEFAULT_PARTY_OUT_OF_RANGE),
             (long) QuestComponentFactory.getDoubleConfig(config, "out_of_order_cooldown_ms",
                 DEFAULT_COOLDOWN_MS));
     }
@@ -97,7 +111,8 @@ public final class OutOfOrderFeedback {
      */
     public static java.util.Set<String> configKeys() {
         return java.util.Set.of("out_of_order_feedback", "out_of_order_message",
-            "already_past_message", "prereq_blocked_message", "out_of_order_cooldown_ms");
+            "already_past_message", "prereq_blocked_message", "party_out_of_range_message",
+            "out_of_order_cooldown_ms");
     }
 
     /**
@@ -175,6 +190,40 @@ public final class OutOfOrderFeedback {
     }
 
     /**
+     * Party-only (#1982): tells a member they were out of range when the beat fired.
+     *
+     * <p>This case was previously <b>silent</b> — the fan-out skipped a distant member with a debug
+     * line and nothing else. From the player's chair that is indistinguishable from the party
+     * feature being broken: everyone else advanced, they did not, and the game said nothing. The
+     * whole reason #1982 exists is that a silent correct decision reads as a bug.</p>
+     *
+     * <p>Unlike {@link #notifyPrerequisiteBlocked}, "catch up" is <i>literally</i> the fix here, so
+     * the message says so plainly. A prerequisite block is not solved by running; falling behind
+     * is.</p>
+     *
+     * <p>Shares the same per-player cooldown as the other messages, which matters more here than
+     * anywhere: a party working through a movement-driven beat can re-fire this every step.</p>
+     *
+     * @param player the member who was too far away
+     */
+    public Outcome notifyPartyOutOfRange(Player player) {
+        if (!enabled || player == null) {
+            return Outcome.SUPPRESSED_DISABLED;
+        }
+        if (partyOutOfRangeMessage == null || partyOutOfRangeMessage.isBlank()) {
+            return Outcome.SUPPRESSED_BLANK_MESSAGE;
+        }
+
+        long now = System.currentTimeMillis();
+        Long last = lastSpoken.get(player.getUniqueId());
+        if (last != null && (now - last) < cooldownMs) return Outcome.SUPPRESSED_THROTTLED;
+        lastSpoken.put(player.getUniqueId(), now);
+
+        player.sendMessage(partyOutOfRangeMessage.replace('&', '§'));
+        return Outcome.SENT_PARTY_OUT_OF_RANGE;
+    }
+
+    /**
      * What {@link #notifyWrongBeat} decided, so the calling component can log it (#1930).
      *
      * <p>The message itself is {@code player.sendMessage} — a direct server-to-player send. It is
@@ -192,6 +241,8 @@ public final class OutOfOrderFeedback {
         SENT_ALREADY_PAST,
         /** Message sent: a party member's prerequisites block this beat (#1982). */
         SENT_PREREQ_BLOCKED,
+        /** Message sent: a party member was out of range when the beat fired (#1982). */
+        SENT_PARTY_OUT_OF_RANGE,
         /** Feedback switched off, or a null argument. */
         SUPPRESSED_DISABLED,
         /** The player is exactly at the required state — the component itself should have fired. */

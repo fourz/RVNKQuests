@@ -40,6 +40,9 @@ public class GenericCollectObjective implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final Map<Material, Integer> requiredItems;
     private final boolean consumeItems;
     private final String worldName;
@@ -77,6 +80,7 @@ public class GenericCollectObjective implements Listener {
 
         // Parse items map
         this.requiredItems = new LinkedHashMap<>();
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
         Object itemsObj = config.get("items");
         if (itemsObj instanceof Map) {
             Map<String, Object> itemsMap = (Map<String, Object>) itemsObj;
@@ -163,6 +167,7 @@ public class GenericCollectObjective implements Listener {
                     ? org.fourz.RVNKQuests.party.PartyBeatContext.of(checkpoint, radius, requiredState)
                     : org.fourz.RVNKQuests.party.PartyBeatContext.of(
                         player.getLocation(), 0.0, requiredState));
+            advanceFeedback.notifyAdvanced(player);
             logger.debug(player.getName() + " completed collect objective for quest " + quest.getId());
         } else {
             // Show progress message (throttled)

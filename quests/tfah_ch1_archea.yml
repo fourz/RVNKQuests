@@ -21,6 +21,7 @@ metadata:
       radius: 20.0
       required_state: NOT_STARTED
       advance_state: TRIGGER_FOUND
+      advance_message: "&7The platform is empty, and then it is not. &fFive of them, in Archean colours. They were told to hold this ground and nobody ever told them to stop."
     wave1_knights:
       objective_type: ENCOUNTER
       entity_type: ZOMBIFIED_PIGLIN
@@ -32,11 +33,12 @@ metadata:
       y: 97
       z: 2192
       trigger_radius: 25
-      spawn_radius: 8
+      spawn_radius: 7
       prevent_infighting: true
       block_portals: true
       required_state: TRIGGER_FOUND
       advance_state: QUEST_ACTIVE
+      advance_message: "&7The knights are down. &fBowmen next - three of them, and they have the range on you. Close the distance or find cover."
     wave2_bowmen:
       objective_type: ENCOUNTER
       entity_type: SKELETON
@@ -48,11 +50,12 @@ metadata:
       y: 97
       z: 2192
       trigger_radius: 40
-      spawn_radius: 10
+      spawn_radius: 7
       prevent_infighting: true
       block_portals: true
       required_state: QUEST_ACTIVE
       advance_state: OBJECTIVE_FOUND
+      advance_message: "&7The bowmen are quiet. &fOne left, and he is not a soldier. Moose696 built the capital behind you. Nobody ever told him the Empire fell."
     wave3_captain:
       objective_type: ENCOUNTER
       entity_type: ZOMBIFIED_PIGLIN
@@ -89,5 +92,5 @@ rewards:
     amount: 1
   ch1_shard:
     type: COMMAND
-    value: 'give %player% gold_ingot[custom_name={text:"Ravenforge Shard",color:"gold",italic:false},lore=[{text:"Torn from the Black Knight.",color:"gray",italic:true},{text:"Nickel9 was digging for this.",color:"gray",italic:true}],enchantment_glint_override=true]'
+    value: 'lore item give "Ravenforge Shard" %player%'
     amount: 1

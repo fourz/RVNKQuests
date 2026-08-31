@@ -210,11 +210,21 @@ class QuestPartyServiceTest {
     void radiusFloorApplies() {
         formParty();
         PartyBeatContext killCtx = new PartyBeatContext("alphac", 0, 64, 0, 0.0, QuestState.QUEST_ACTIVE);
-        // effective = max(0, 10) * 5 = 50
-        placeAt(member, "alphac", 45, 64, 0);
-        assertEquals(1, service.qualifyingMembers(leader.getUniqueId(), killCtx).size());
+        // effective = max(0, 20) * 5 = 100. Floor raised from 10 on 2026-08-16 after live QA showed
+        // 50 was too tight for two players exploring the same ruin together.
+        placeAt(member, "alphac", 95, 64, 0);
+        assertEquals(1, service.qualifyingMembers(leader.getUniqueId(), killCtx).size(),
+                "just inside the 100-block floor should qualify");
+        placeAt(member, "alphac", 110, 64, 0);
+        assertTrue(service.qualifyingMembers(leader.getUniqueId(), killCtx).isEmpty(),
+                "outside the floor should not qualify");
+
+        // The old boundary must now be comfortably INSIDE — this is what would have failed before
+        // the change, and is the assertion that actually pins the new value rather than just
+        // tracking it.
         placeAt(member, "alphac", 60, 64, 0);
-        assertTrue(service.qualifyingMembers(leader.getUniqueId(), killCtx).isEmpty());
+        assertEquals(1, service.qualifyingMembers(leader.getUniqueId(), killCtx).size(),
+                "60 blocks was excluded under the old floor of 10; it must qualify now");
     }
 
     @Test

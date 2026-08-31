@@ -35,6 +35,9 @@ public class GenericItemDiscoveryTrigger implements Listener {
     private final DataDrivenQuest quest;
     private final LogManager logger;
 
+    /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
     private final Material itemType;
     private final String itemName;
     private final String worldName;
@@ -56,6 +59,7 @@ public class GenericItemDiscoveryTrigger implements Listener {
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "NOT_STARTED"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
         this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
     }
 
     @EventHandler
@@ -109,6 +113,7 @@ public class GenericItemDiscoveryTrigger implements Listener {
         quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
             org.fourz.RVNKQuests.party.PartyBeatContext.of(
                 player.getLocation(), 0.0, requiredState));
+        advanceFeedback.notifyAdvanced(player);
         logger.debug("Item discovery trigger fired for " + player.getName() + " on quest " + quest.getId() + " - advancing to " + advanceState);
     }
 
