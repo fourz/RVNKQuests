@@ -2,7 +2,6 @@ package org.fourz.RVNKQuests.quest;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.fourz.RVNKQuests.event.QuestCompleteEvent;
 import org.fourz.RVNKQuests.RVNKQuests;
 import org.fourz.RVNKQuests.data.IQuestRepository;
 import org.fourz.RVNKQuests.data.dto.QuestDTO;
@@ -639,17 +638,15 @@ public class QuestManager implements IQuestService {
                     return CompletableFuture.completedFuture(false);
                 }
                 return quest.advanceStateForPlayer(playerId, QuestState.COMPLETED)
-                    .thenApply(v -> {
-                        // Fire QuestCompleteEvent so chain listeners and other
-                        // systems are notified (including force-complete)
-                        Player player = Bukkit.getPlayer(playerId);
-                        if (player != null) {
-                            Bukkit.getScheduler().runTask(plugin, () ->
-                                Bukkit.getPluginManager().callEvent(
-                                    new QuestCompleteEvent(player, questId, quest.getName())));
-                        }
-                        return true;
-                    });
+                    .thenApply(v -> true);
+                    // QuestCompleteEvent is NOT fired here (#1984). advanceStateForPlayer ->
+                    // AbstractQuest.performAdvance already fires it for every path that reaches
+                    // COMPLETED - trigger component, admin command, or this method - and firing
+                    // again here gave listeners TWO events per completion on this path while a
+                    // trigger-driven completion gave one. Inconsistent is worse than merely
+                    // doubled: ChainProgressListener could double-advance a chain and RVNKLore's
+                    // QuestDiscoveryListener could double-grant a discovery, but only sometimes.
+                    // AbstractQuest is the single firing point; keep it that way.
             })
             .whenComplete((result, ex) -> completionsInProgress.remove(inFlightKey));
     }
