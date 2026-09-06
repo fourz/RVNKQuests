@@ -118,6 +118,35 @@ class QuestCompletionDispatchTest {
     }
 
     @Test
+    @DisplayName("QuestCompleteEvent fires EXACTLY ONCE via QuestManager.completeQuest — regression for #1984")
+    void questCompleteEventFiresOnceViaCompleteQuest() throws Exception {
+        // #1984 lives on the QuestManager.completeQuest() path, NOT on advanceStateForPlayer.
+        // completeQuest() called advanceStateForPlayer(COMPLETED) - which fires the event inside
+        // performAdvance - and then fired QuestCompleteEvent a SECOND time itself. A test that
+        // only calls advanceStateForPlayer passes either way and proves nothing; this one must
+        // drive the real manager path or it is worthless.
+        QuestManager manager = new QuestManager(plugin);
+        manager.registerQuest(quest);
+
+        manager.completeQuest(playerId, "test_quest").get();
+
+        verify(pluginManager, times(1))
+            .callEvent(any(org.fourz.RVNKQuests.event.QuestCompleteEvent.class));
+    }
+
+    @Test
+    @DisplayName("No QuestCompleteEvent for intermediate states")
+    void noQuestCompleteEventForIntermediateStates() throws Exception {
+        when(progressService.getQuestState(eq(playerId), anyString()))
+            .thenReturn(CompletableFuture.completedFuture(QuestState.NOT_STARTED));
+
+        quest.advanceStateForPlayer(playerId, QuestState.QUEST_ACTIVE).get();
+
+        verify(pluginManager, never())
+            .callEvent(any(org.fourz.RVNKQuests.event.QuestCompleteEvent.class));
+    }
+
+    @Test
     @DisplayName("onComplete fires when advanceStateForPlayer reaches COMPLETED — regression for #1137")
     void onCompleteFiresOnAdvanceToCompleted() throws Exception {
         quest.advanceStateForPlayer(playerId, QuestState.COMPLETED).get();

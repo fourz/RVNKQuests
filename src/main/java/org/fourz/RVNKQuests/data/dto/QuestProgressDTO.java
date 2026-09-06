@@ -68,6 +68,20 @@ public record QuestProgressDTO(
         Instant newStartedAt = startedAt;
         Instant newCompletedAt = completedAt;
 
+        // NOT_STARTED means "no run in progress", so it must carry no run timestamps (#2065).
+        // This method only ever SET stamps and never cleared them, so a transition back to
+        // NOT_STARTED produced a row that contradicts itself - state saying the quest was
+        // never begun while startedAt and completedAt both say otherwise. Any consumer
+        // trusting completedAt then disagrees with one trusting state.
+        //
+        // No caller reaches this branch today (nothing advances TO NOT_STARTED, and
+        // resetQuestProgress deletes the row outright), so this is defensive rather than a
+        // fix for an observed live path - see the issue for what is and is not proven about
+        // the qa_reward_item row that prompted it.
+        if (newState == QuestState.NOT_STARTED) {
+            return new QuestProgressDTO(playerUuid, questId, newState, pathChoice, null, null, metadata);
+        }
+
         // Set startedAt when transitioning from NOT_STARTED
         if (state == QuestState.NOT_STARTED && newState != QuestState.NOT_STARTED && newStartedAt == null) {
             newStartedAt = Instant.now();
