@@ -15,9 +15,14 @@ import java.util.concurrent.CompletableFuture;
  * Implementation of ILoreIntegration for RVNKLore cross-plugin communication.
  *
  * <p>Thin async wrapper over {@link LoreServiceFacade}, which owns all RVNKLore
- * reflection (#1494). This class adds only the async envelope, the ILoreIntegration
- * business semantics (naming patterns, default fallbacks), and the still-pending
- * discovery stubs. All actual RVNKLore invocation lives in the facade.</p>
+ * reflection (#1494). This class adds only the async envelope and the ILoreIntegration
+ * business semantics (naming patterns, default fallbacks). All actual RVNKLore invocation
+ * lives in the facade.</p>
+ *
+ * <p>Discovery is no longer stubbed (#1650). {@code grantLoreDiscovery}, {@code hasDiscovered}
+ * and {@code getPlayerDiscoveries} now go through RVNKLore's {@code IDiscoveryService} and write
+ * to {@code lore_discovery}. Against RVNKLore older than 1.0.133 that service is absent, and the
+ * three methods report failure or empty rather than claiming a success they cannot deliver.</p>
  *
  * <p>Gracefully degrades when RVNKLore is unavailable — all lore lookups return
  * empty Optional/false and quests continue to function without lore features.</p>
@@ -65,9 +70,17 @@ public class LoreIntegrationImpl implements ILoreIntegration {
             logger.debug("Cannot grant lore discovery - RVNKLore unavailable");
             return CompletableFuture.completedFuture(false);
         }
-        // Note: Discovery tracking is a future RVNKLore feature — log intent and succeed.
-        logger.debug("Lore discovery grant requested for player " + playerId + ": " + loreId);
-        return CompletableFuture.completedFuture(true);
+        // #1650: this used to return true having written nothing, so a LORE reward reported success
+        // to the dispatcher and to the player while no row was ever created. A silent false success
+        // is worse than a failure, because nothing upstream can detect it. It now persists through
+        // RVNKLore's IDiscoveryService, which handles offline players too (RVNKQuests #1983).
+        if (!facade.isDiscoveryAvailable()) {
+            logger.warning("LORE reward not persisted for " + playerId + " (" + loreId + ") - "
+                    + "RVNKLore does not expose IDiscoveryService; needs RVNKLore 1.0.133+");
+            return CompletableFuture.completedFuture(false);
+        }
+        return CompletableFuture.supplyAsync(() ->
+                facade.grantDiscovery(playerId, loreId, "QUEST_COMPLETE"));
     }
 
     @Override
@@ -85,22 +98,18 @@ public class LoreIntegrationImpl implements ILoreIntegration {
 
     @Override
     public CompletableFuture<Boolean> hasDiscovered(UUID playerId, String loreId) {
-        // Note: Discovery tracking is a future RVNKLore feature — return false for now.
-        if (!facade.isAvailable()) {
+        if (!facade.isAvailable() || !facade.isDiscoveryAvailable()) {
             return CompletableFuture.completedFuture(false);
         }
-        logger.debug("Discovery check for player " + playerId + ": " + loreId + " (feature pending)");
-        return CompletableFuture.completedFuture(false);
+        return CompletableFuture.supplyAsync(() -> facade.hasDiscovered(playerId, loreId));
     }
 
     @Override
     public CompletableFuture<List<String>> getPlayerDiscoveries(UUID playerId) {
-        // Note: Discovery tracking is a future RVNKLore feature — return empty list.
-        if (!facade.isAvailable()) {
+        if (!facade.isAvailable() || !facade.isDiscoveryAvailable()) {
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
-        logger.debug("Discovery list for player " + playerId + " (feature pending)");
-        return CompletableFuture.completedFuture(Collections.emptyList());
+        return CompletableFuture.supplyAsync(() -> facade.getDiscoveredEntryIds(playerId));
     }
 
     @Override
