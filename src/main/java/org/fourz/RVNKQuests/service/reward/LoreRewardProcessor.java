@@ -1,6 +1,7 @@
 package org.fourz.RVNKQuests.service.reward;
 
 import org.fourz.RVNKQuests.data.dto.RewardDTO;
+import org.fourz.RVNKQuests.integration.ILoreIntegration;
 import org.fourz.RVNKQuests.data.dto.RewardType;
 import org.fourz.RVNKQuests.service.IRewardService.RewardDeliveryResult;
 import org.fourz.RVNKQuests.service.IRewardService.RewardValidationResult;
@@ -8,7 +9,6 @@ import org.fourz.RVNKQuests.service.RewardProcessor;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 
 /**
  * Reward processor for RVNKLore integration.
@@ -43,13 +43,23 @@ import java.util.function.BiConsumer;
 public class LoreRewardProcessor implements RewardProcessor {
 
     /**
-     * Callback for lore unlock operations.
-     * Set this to integrate with the RVNKLore system.
+     * RVNKLore integration, injected by {@code RewardServiceImpl.setLoreIntegration()} once the
+     * plugin has resolved it (#1650).
+     *
+     * <p>This replaces a {@code BiConsumer<UUID,String> loreUnlockCallback} that had a setter and a
+     * constructor but was <b>never assigned anywhere in the codebase</b>. With it null, delivery
+     * fell to a branch that returned {@code success("... (pending integration)")} — reporting a
+     * delivered reward while writing nothing. Every other lore-touching processor
+     * (Item, RngItem, LoreItem) was already wired through setLoreIntegration; this one was simply
+     * missed, and the miss was invisible because its failure mode was a false success.</p>
+     *
+     * <p>Using {@link ILoreIntegration} rather than a callback also lets delivery report the real
+     * outcome: {@code grantLoreDiscovery} returns a future carrying whether the row was written.</p>
      */
-    private BiConsumer<UUID, String> loreUnlockCallback;
-    
+    private ILoreIntegration loreIntegration;
+
     /**
-     * Flag indicating if RVNKLore integration is available.
+     * Flag indicating if RVNKLore is on the server at all.
      */
     private volatile boolean loreAvailable = false;
 
@@ -62,13 +72,19 @@ public class LoreRewardProcessor implements RewardProcessor {
     }
 
     /**
-     * Create with a lore unlock callback.
-     *
-     * @param loreUnlockCallback Callback invoked when lore is unlocked (playerId, loreId)
+     * Create with the lore integration already resolved.
      */
-    public LoreRewardProcessor(BiConsumer<UUID, String> loreUnlockCallback) {
-        this.loreUnlockCallback = loreUnlockCallback;
+    public LoreRewardProcessor(ILoreIntegration loreIntegration) {
+        this.loreIntegration = loreIntegration;
         this.loreAvailable = true;
+    }
+
+    /** Injected after RVNKLore resolves — see {@code RewardServiceImpl.setLoreIntegration()}. */
+    public void setLoreIntegration(ILoreIntegration loreIntegration) {
+        this.loreIntegration = loreIntegration;
+        if (loreIntegration != null) {
+            this.loreAvailable = true;
+        }
     }
 
     /**
@@ -82,16 +98,6 @@ public class LoreRewardProcessor implements RewardProcessor {
         } catch (ClassNotFoundException e) {
             loreAvailable = false;
         }
-    }
-
-    /**
-     * Set the lore unlock callback.
-     *
-     * @param callback Callback for lore unlocks
-     */
-    public void setLoreUnlockCallback(BiConsumer<UUID, String> callback) {
-        this.loreUnlockCallback = callback;
-        this.loreAvailable = true;
     }
 
     @Override
@@ -120,23 +126,33 @@ public class LoreRewardProcessor implements RewardProcessor {
             }
 
             try {
-                // Invoke the lore callback if set
-                if (loreUnlockCallback != null) {
-                    loreUnlockCallback.accept(playerId, loreId);
-                    
-                    String category = getMetadataString(reward, "category");
-                    String message = category != null 
-                        ? String.format("Unlocked lore entry '%s' in category '%s'", loreId, category)
-                        : String.format("Unlocked lore entry: %s", loreId);
-                    
-                    return RewardDeliveryResult.success(reward, message);
-                } else {
-                    // Log that we would unlock but no callback is set
-                    return RewardDeliveryResult.success(
+                if (loreIntegration == null || !loreIntegration.isLoreAvailable()) {
+                    // Report FAILURE, not success. The previous code returned
+                    // success("... (pending integration)") here, which is how a reward that
+                    // delivered nothing looked delivered in every log and every test (#1650).
+                    return RewardDeliveryResult.failure(
                         reward,
-                        "Lore unlock registered: " + loreId + " (pending integration)"
+                        "Lore integration not wired - discovery not recorded",
+                        "LORE_UNAVAILABLE"
                     );
                 }
+
+                // Blocking join is safe: deliver() already runs inside supplyAsync.
+                boolean granted = Boolean.TRUE.equals(
+                        loreIntegration.grantLoreDiscovery(playerId, loreId).join());
+                if (!granted) {
+                    return RewardDeliveryResult.failure(
+                        reward,
+                        "Lore discovery was not recorded for " + loreId,
+                        "LORE_NOT_RECORDED"
+                    );
+                }
+
+                String category = getMetadataString(reward, "category");
+                String message = category != null
+                    ? String.format("Unlocked lore entry '%s' in category '%s'", loreId, category)
+                    : String.format("Unlocked lore entry: %s", loreId);
+                return RewardDeliveryResult.success(reward, message);
             } catch (Exception e) {
                 return RewardDeliveryResult.failure(
                     reward,
