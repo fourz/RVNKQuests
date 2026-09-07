@@ -123,6 +123,36 @@ public final class QuestPartyService {
         return partyByPlayer.get(player);
     }
 
+    /**
+     * Every live party, de-duplicated.
+     *
+     * <p>{@code partyByPlayer} maps <em>each member</em> to the shared instance, so its values
+     * contain one entry per member, not per party. Callers that want to enumerate parties want
+     * this; iterating the map directly reports a two-person party twice.</p>
+     *
+     * <p>Added for operator diagnostics (#2091): party state was previously invisible to staff —
+     * {@code /quest party} is player-only, so a report of "sharing is broken" could not be
+     * inspected at all, only reproduced.</p>
+     */
+    public java.util.Collection<QuestParty> getAllParties() {
+        java.util.Map<UUID, QuestParty> distinct = new java.util.LinkedHashMap<>();
+        for (QuestParty party : partyByPlayer.values()) {
+            distinct.putIfAbsent(party.getPartyId(), party);
+        }
+        return java.util.List.copyOf(distinct.values());
+    }
+
+    /**
+     * The share radius a beat with this trigger radius would use.
+     *
+     * <p>Mirrors the calculation in {@link #qualifyingMembers}. Exposed so diagnostics can show
+     * the real number rather than leaving operators to recompute it — reading the multiplier
+     * alone and forgetting the floor gives the wrong answer for every tight trigger.</p>
+     */
+    public double effectiveShareRadius(double baseRadius) {
+        return Math.max(baseRadius, getMinShareRadius()) * getShareRadiusMultiplier();
+    }
+
     public PartyResult invite(Player inviter, Player target) {
         if (!isEnabled()) return PartyResult.DISABLED;
         if (inviter.getUniqueId().equals(target.getUniqueId())) return PartyResult.SELF_INVITE;

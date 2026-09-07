@@ -28,7 +28,7 @@ import java.util.logging.Level;
 public class QuestDebugSubCommand extends BaseSubCommand {
 
     private static final List<String> SUB_COMMANDS = Arrays.asList(
-        "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup", "preflight"
+        "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup", "preflight", "party"
     );
 
     private SeedSubCommand seedSubCommand;
@@ -77,6 +77,8 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             case "preflight":
             case "pf":
                 return preflightSubCommand.execute(sender, subArgs);
+            case "party":
+                return executeParty(sender, subArgs);
             default:
                 sendErrorMessage(sender, "Unknown debug command: " + subCommand);
                 showUsage(sender);
@@ -94,6 +96,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug setstate <quest> <state> [player] &8- Set quest state (bypasses validation)");
         sendMessage(sender, "&7/quest debug setup &8- Bootstrap LuckPerms permission defaults");
         sendMessage(sender, "&7/quest debug preflight <quest> [--no-load] [--force] &8- Check worlds, blocks, states, rewards");
+        sendMessage(sender, "&7/quest debug party [player] &8- Show live quest parties and member positions");
     }
 
     /**
@@ -439,5 +442,103 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 "  minimal 10 / standard 100 / stress 1000 / cleanup / status",
                 "DEBUG logging plus load is an availability risk - it once queued ~150k lines",
                 "and blocked shutdown for 11 minutes.");
+    }
+
+    /**
+     * Show live party state (#2091).
+     *
+     * <p>{@code /quest party} is player-only by design, which left staff with no way to inspect a
+     * report of "our party is not sharing". This answers the first questions without needing two
+     * accounts and a repro: does a party exist, who is in it, are they in the same world, and how
+     * far apart are they.</p>
+     *
+     * <p>Distance is reported from the leader rather than from a checkpoint, because a checkpoint
+     * only exists at fire time. It is a proxy: a member 300 blocks from the leader is not
+     * necessarily out of range of the next beat, but is very likely to be.</p>
+     */
+    private boolean executeParty(CommandSender sender, String[] args) {
+        org.fourz.RVNKQuests.party.QuestPartyService svc = plugin.getQuestPartyService();
+        if (svc == null) {
+            sendErrorMessage(sender, "Party service is not initialised.");
+            return true;
+        }
+
+        sendMessage(sender, "&6=== RVNKQuests Parties ===");
+        if (!svc.isEnabled()) {
+            sendMessage(sender, "&cParty feature is DISABLED in config - no parties can form.");
+            return true;
+        }
+
+        // Show the real share range, not just the knobs. Reading the multiplier and forgetting the
+        // floor is how a radius-12 trigger gets mis-computed as 60 when it is actually 100.
+        sendMessage(sender, "&7Share radius: &fmax(triggerRadius, " + fmt(svc.getMinShareRadius())
+                + ") x " + fmt(svc.getShareRadiusMultiplier()));
+        sendMessage(sender, "&7  A radius-3 trigger shares at &f" + fmt(svc.effectiveShareRadius(3))
+                + "&7; a radius-30 trigger at &f" + fmt(svc.effectiveShareRadius(30)));
+        sendMessage(sender, "&7Max size: &f" + svc.getMaxSize()
+                + " &7| Invite timeout: &f" + (svc.getInviteTimeoutMillis() / 1000) + "s");
+
+        java.util.Collection<org.fourz.RVNKQuests.party.QuestParty> parties;
+        if (args.length > 0) {
+            Player target = Bukkit.getPlayerExact(args[0]);
+            if (target == null) {
+                sendErrorMessage(sender, "Player not online: " + args[0]);
+                return true;
+            }
+            org.fourz.RVNKQuests.party.QuestParty one = svc.getParty(target.getUniqueId());
+            if (one == null) {
+                sendMessage(sender, "&e" + target.getName() + " is not in a party.");
+                return true;
+            }
+            parties = java.util.List.of(one);
+        } else {
+            parties = svc.getAllParties();
+        }
+
+        if (parties.isEmpty()) {
+            sendMessage(sender, "&7No active parties.");
+            return true;
+        }
+
+        sendMessage(sender, "&7Parties: &f" + parties.size());
+        for (org.fourz.RVNKQuests.party.QuestParty party : parties) {
+            Player leader = Bukkit.getPlayer(party.getLeader());
+            String leaderName = leader != null ? leader.getName() : party.getLeader().toString();
+            sendMessage(sender, "&6  " + party.getPartyId().toString().substring(0, 8)
+                    + " &7leader &f" + leaderName + " &7(" + party.size() + " members)");
+
+            for (java.util.UUID id : party.getMembers()) {
+                Player p = Bukkit.getPlayer(id);
+                if (p == null) {
+                    // Offline members matter: a party that looks intact may be half-absent, and
+                    // an offline member never qualifies regardless of where they logged out.
+                    sendMessage(sender, "&8    - " + id + " &8(OFFLINE)");
+                    continue;
+                }
+                StringBuilder line = new StringBuilder("&7    ");
+                line.append(party.isLeader(id) ? "&e* " : "&7  ");
+                line.append("&f").append(p.getName())
+                    .append(" &7").append(p.getWorld().getName())
+                    .append(" &8").append((int) p.getLocation().getX()).append(",")
+                    .append((int) p.getLocation().getY()).append(",")
+                    .append((int) p.getLocation().getZ());
+
+                if (leader != null && !party.isLeader(id)) {
+                    if (!p.getWorld().getName().equalsIgnoreCase(leader.getWorld().getName())) {
+                        line.append(" &c(different world to leader)");
+                    } else {
+                        line.append(" &7").append((int) p.getLocation().distance(leader.getLocation()))
+                            .append("&8 blocks from leader");
+                    }
+                }
+                sendMessage(sender, line.toString());
+            }
+        }
+        return true;
+    }
+
+    /** Trim a trailing .0 so 100.0 reads as 100. */
+    private String fmt(double d) {
+        return d == Math.floor(d) ? String.valueOf((long) d) : String.valueOf(d);
     }
 }
