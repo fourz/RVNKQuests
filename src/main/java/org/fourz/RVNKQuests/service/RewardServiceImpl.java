@@ -115,6 +115,14 @@ public class RewardServiceImpl implements IRewardService {
             ((LoreItemRewardProcessor) loreItemProcessor).setLoreIntegration(loreIntegration);
             logger.debug("LoreItemRewardProcessor wired with LoreIntegration");
         }
+        // #1650: LORE was the one lore-touching processor missing from this list. Unwired, its
+        // delivery path returned success("... (pending integration)") — so the reward looked
+        // delivered while recording nothing, and the omission was invisible for exactly that reason.
+        RewardProcessor loreProcessor = processors.get(RewardType.LORE);
+        if (loreProcessor instanceof LoreRewardProcessor) {
+            ((LoreRewardProcessor) loreProcessor).setLoreIntegration(loreIntegration);
+            logger.debug("LoreRewardProcessor wired with LoreIntegration");
+        }
     }
 
     // ==================== Single Reward Delivery ====================

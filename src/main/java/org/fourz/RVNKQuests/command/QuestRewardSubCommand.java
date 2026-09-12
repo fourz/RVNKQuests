@@ -90,6 +90,13 @@ public class QuestRewardSubCommand extends BaseSubCommand {
         if (type == RewardType.RNG_ITEM) {
             reward = reward.withMetadata(Map.of("pool_id", value));
         }
+        // LORE reads metadata["loreId"], not value — same shape as RNG_ITEM above (#1650). Without
+        // this mirror, every LORE reward created through this command failed delivery with
+        // INVALID_LORE_ID, because the command wrote one field and the processor read another.
+        // That is almost certainly why no quest in the repo had a LORE reward authored.
+        if (type == RewardType.LORE) {
+            reward = reward.withMetadata(Map.of("loreId", value));
+        }
 
         final String finalValue = value;
         final int finalAmount = amount;

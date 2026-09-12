@@ -247,7 +247,16 @@ public class QuestComponentFactory {
             case LECTERN_BOOK_ON -> new LecternBookOnTrigger(plugin, quest, config);
             case LECTERN_BOOK_IN_HAND -> new LecternBookInHandTrigger(plugin, quest, config);
             case LECTERN_BOOK_REMOVED -> new LecternBookRemovedTrigger(plugin, quest, config);
-            case COMMAND, WORLD_EVENT, CUSTOM -> null;
+            // #1017. Both are Listeners with no @EventHandler by design: COMMAND is fired by
+            // /quest trigger, and WORLD_EVENT detection is centralised in WorldEventScheduler so
+            // cross-quest priority can be arbitrated in one place. Returning a real instance
+            // rather than null is what lets state_mapping reference them, quest validate judge
+            // them, and preflight/coords/fire enumerate them.
+            case COMMAND -> new GenericCommandTrigger(plugin, quest, config);
+            case WORLD_EVENT -> new GenericWorldEventTrigger(plugin, quest, config);
+            // CUSTOM stays unimplemented: it is specified as "plugin-defined behavior" with no
+            // handler contract, so there is nothing to construct. It remains a deliberate null.
+            case CUSTOM -> null;
         };
     }
 

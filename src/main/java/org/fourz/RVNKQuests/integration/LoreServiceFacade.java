@@ -8,6 +8,7 @@ import org.fourz.rvnkcore.util.log.LogManager;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,6 +56,12 @@ public class LoreServiceFacade {
     // ILoreItemResolver
     private Object itemResolverService = null;
     private Method resolveItemIdMethod = null;
+
+    // IDiscoveryService (#1650)
+    private Object discoveryService = null;
+    private Method grantDiscoveryMethod = null;
+    private Method hasDiscoveredMethod = null;
+    private Method getDiscoveredEntryIdsMethod = null;
 
     public LoreServiceFacade(RVNKQuests plugin) {
         this.logger = LogManager.getInstance(plugin, getClass());
@@ -152,6 +159,26 @@ public class LoreServiceFacade {
                 logger.debug("RVNKLore item resolver available (" + resolveItemIdMethod.getName() + ")");
             } catch (Exception e) {
                 logger.debug("ILoreItemResolver not registered - item id resolution unavailable: " + e.getMessage());
+            }
+
+            // IDiscoveryService (optional) — absent on RVNKLore builds before 1.0.133. Its absence
+            // must stay non-fatal: quests run fine without discovery, and hard-failing here would
+            // take out lore lookups too (#1650).
+            try {
+                Class<?> discoveryInterface = Class.forName("org.fourz.RVNKLore.service.IDiscoveryService");
+                discoveryService = getServiceMethod.invoke(serviceRegistry, discoveryInterface);
+                if (discoveryService != null) {
+                    Class<?> dsClass = discoveryService.getClass();
+                    grantDiscoveryMethod = dsClass.getMethod("grantDiscovery", UUID.class, String.class, String.class);
+                    hasDiscoveredMethod = dsClass.getMethod("hasDiscovered", UUID.class, String.class);
+                    getDiscoveredEntryIdsMethod = dsClass.getMethod("getDiscoveredEntryIds", UUID.class);
+                    logger.debug("RVNKLore discovery service available");
+                } else {
+                    logger.debug("IDiscoveryService not registered - LORE rewards will not persist");
+                }
+            } catch (Exception e) {
+                logger.debug("IDiscoveryService unavailable (RVNKLore < 1.0.133?) - "
+                        + "LORE rewards will not persist: " + e.getMessage());
             }
 
             available = true;
@@ -310,6 +337,58 @@ public class LoreServiceFacade {
         } catch (Exception e) {
             logger.warning("Error converting lore entry to DTO: " + e.getMessage());
             return new LoreEntryDTO("unknown", "Unknown", "Error loading lore", "UNKNOWN");
+        }
+    }
+
+    // ── Discovery (#1650) ────────────────────────────────────────────────────────
+    //
+    // Blocking joins, matching the rest of this class: the facade is synchronous by contract and
+    // LoreIntegrationImpl supplies the async envelope. Every method degrades to a safe default
+    // when RVNKLore is older than 1.0.133 and the service is simply not there.
+
+    /** @return true when RVNKLore exposes IDiscoveryService (1.0.133+). */
+    public boolean isDiscoveryAvailable() {
+        return discoveryService != null && grantDiscoveryMethod != null;
+    }
+
+    public boolean grantDiscovery(UUID playerUuid, String entryId, String triggerType) {
+        if (!isDiscoveryAvailable()) return false;
+        try {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Boolean> future =
+                (CompletableFuture<Boolean>) grantDiscoveryMethod.invoke(
+                    discoveryService, playerUuid, entryId, triggerType);
+            return Boolean.TRUE.equals(future.join());
+        } catch (Exception e) {
+            logger.warning("Error granting discovery " + entryId + " to " + playerUuid + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean hasDiscovered(UUID playerUuid, String entryId) {
+        if (discoveryService == null || hasDiscoveredMethod == null) return false;
+        try {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Boolean> future =
+                (CompletableFuture<Boolean>) hasDiscoveredMethod.invoke(discoveryService, playerUuid, entryId);
+            return Boolean.TRUE.equals(future.join());
+        } catch (Exception e) {
+            logger.warning("Error checking discovery " + entryId + " for " + playerUuid + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    public List<String> getDiscoveredEntryIds(UUID playerUuid) {
+        if (discoveryService == null || getDiscoveredEntryIdsMethod == null) return Collections.emptyList();
+        try {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<List<String>> future =
+                (CompletableFuture<List<String>>) getDiscoveredEntryIdsMethod.invoke(discoveryService, playerUuid);
+            List<String> ids = future.join();
+            return ids != null ? ids : Collections.emptyList();
+        } catch (Exception e) {
+            logger.warning("Error listing discoveries for " + playerUuid + ": " + e.getMessage());
+            return Collections.emptyList();
         }
     }
 }

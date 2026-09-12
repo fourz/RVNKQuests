@@ -68,54 +68,9 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
     private record Finding(Severity severity, String subject, String detail) {
     }
 
-    /**
-     * RVNKCore's identifier for the development tier.
-     *
-     * <p><b>This is the server id, not the chat room name.</b> The two are easy to confuse and do
-     * not match: RVNK Dev's chat room is {@code test} while its {@code server-id} is {@code dev}.
-     * Guessing {@code test} here made the gate report Dev as a production tier and refuse to load
-     * chunks on the one server where loading is free. The other ids are {@code event} and
-     * {@code nations}.</p>
-     */
-    private static final String DEV_SERVER_ID = "dev";
-
     public QuestPreflightSubCommand(RVNKQuests plugin) {
         super(plugin, "preflight", "Check a quest's world/block/reward preconditions",
                 "/quest debug preflight <quest> [--no-load] [--force]", "rvnkquests.admin", false);
-    }
-
-    /**
-     * Resolves this server's tier identifier, or {@code null} when it cannot be determined.
-     *
-     * <p>Delegates to RVNKCore's own {@code ConfigLoader.getServerId()} rather than re-reading the
-     * config here. Server identity already exists there, it is the same value the chat mesh uses,
-     * and it carries a fallback chain ({@code chat-relay.server-id} then {@code webhook.server-id})
-     * that a copy would silently drift from — an earlier attempt read only the first key and
-     * misidentified Dev as a production tier.</p>
-     *
-     * <p>A new RVNKQuests config key was rejected for the same reason it usually is: it would not
-     * reach servers that already have a {@code config.yml}, since {@code saveDefaultConfig()}
-     * writes only when the file is absent. The key would be in the jar, absent everywhere real,
-     * and the gate would read as working while doing nothing (#1563).</p>
-     */
-    private String resolveTier() {
-        try {
-            org.bukkit.plugin.Plugin core = Bukkit.getPluginManager().getPlugin("RVNKCore");
-            if (core == null) return null;
-            String id = org.fourz.rvnkcore.config.ConfigLoader.getInstance(core).getServerId();
-            return (id == null || id.isBlank()) ? null : id.trim();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * @return true when this is the development tier.
-     *     <p><b>Unknown resolves to not-Dev.</b> If RVNKCore is missing or the id is unreadable,
-     *     the safe reading of "I do not know which tier this is" is the cautious one.</p>
-     */
-    private boolean isDevTier(String tier) {
-        return tier != null && DEV_SERVER_ID.equalsIgnoreCase(tier);
     }
 
     @Override
@@ -126,8 +81,9 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
 
         // Loading a chunk is a mutation, however brief. On Dev that is free; on a tier with players
         // in it the operator decided it must be asked for explicitly (#1867).
-        String tier = resolveTier();
-        boolean devTier = isDevTier(tier);
+        // Shared with fire/trace/session (#2093) so one rule governs every tier gate.
+        String tier = org.fourz.RVNKQuests.util.ServerTier.resolve();
+        boolean devTier = org.fourz.RVNKQuests.util.ServerTier.isDev(tier);
         boolean forced = false;
         boolean suppressed = false;
         for (String arg : args) {
@@ -259,8 +215,20 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
         if (!anyCoord) {
             String kind = str(config.get("type"));
             if (kind == null) kind = str(config.get("objective_type"));
-            findings.add(new Finding(Severity.OK, id,
-                    "world-scoped in '" + worldName + "'" + (kind == null ? "" : " (" + kind + ")")));
+            // WORLD_EVENT carries its whole identity in event_type, so "(WORLD_EVENT)" alone tells
+            // an operator nothing about which event they are waiting for (#1017).
+            String detail = "world-scoped in '" + worldName + "'"
+                    + (kind == null ? "" : " (" + kind + ")");
+            if ("WORLD_EVENT".equalsIgnoreCase(kind)) {
+                String eventType = str(config.get("event_type"));
+                String phase = str(config.get("moon_phase"));
+                Integer priority = intOf(config.get("priority"));
+                detail = "WORLD_EVENT " + (eventType == null ? "NO event_type" : eventType)
+                        + " in '" + worldName + "'"
+                        + (phase == null ? "" : " phase=" + phase)
+                        + " priority=" + (priority == null ? 10 : priority);
+            }
+            findings.add(new Finding(Severity.OK, id, detail));
             return;
         }
         if (!allCoords) {
