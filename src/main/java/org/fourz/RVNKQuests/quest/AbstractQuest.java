@@ -228,6 +228,50 @@ public abstract class AbstractQuest implements Quest {
         return ctx.worldName() + " " + (int) ctx.x() + "," + (int) ctx.y() + "," + (int) ctx.z();
     }
 
+    /**
+     * Writes a player's state with <b>no side effects at all</b> — for rolling a QA session back
+     * (#2093).
+     *
+     * <h2>Why {@code setStateForPlayer} is wrong for a rollback</h2>
+     *
+     * <p>Caught in live QA on Dev. {@code setStateForPlayer} is the admin path: it skips the
+     * monotonic guard so it can move a quest backwards, but it still runs {@code performAdvance},
+     * and {@code performAdvance} fires <b>every</b> completion side effect when the target state is
+     * {@code COMPLETED} — {@code onComplete} (which pays rewards), the notification, the public
+     * server broadcast, and {@code QuestCompleteEvent}.</p>
+     *
+     * <p>So restoring a player to a quest they had already completed re-granted the rewards and
+     * re-announced the completion in chat. A rollback that pays out and broadcasts is not a
+     * rollback. This path persists the state and refreshes the listeners for it, and does nothing
+     * else: no journal entry, no rewards, no notification, no event, no broadcast.</p>
+     *
+     * <p><b>Not a general-purpose setter.</b> It deliberately bypasses the journal, so using it
+     * anywhere other than restoring a state this player genuinely already held would leave the
+     * journal disagreeing with the progress table.</p>
+     */
+    public CompletableFuture<Void> restoreStateForPlayer(UUID playerUuid, QuestState newState) {
+        if (progressService == null) {
+            logger.warning("QuestProgressService not available - cannot restore state");
+            return CompletableFuture.completedFuture(null);
+        }
+        // Still goes through the write chain, so a restore cannot interleave with a component
+        // advance that is already in flight for this player (#1853).
+        return writeChains.compute(playerUuid, (uuid, prior) -> {
+            CompletableFuture<Void> base = (prior != null) ? prior : CompletableFuture.completedFuture(null);
+            return base.handle((v, ex) -> (Void) null).thenComposeAsync(ignored -> {
+                stateCache.put(uuid, newState);
+                return progressService.updateQuestState(uuid, questId, newState)
+                    .thenAccept(progress -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        // Listeners must match the restored state, or the player is left with the
+                        // components of the state they were rolled back from.
+                        questManager.updateQuestListenersForPlayer(this, uuid);
+                        logger.debug("Restored state for " + uuid + " on " + questId
+                            + " to " + newState + " (no side effects)");
+                    }));
+            });
+        });
+    }
+
     @Override
     public CompletableFuture<Void> setStateForPlayer(UUID playerUuid, QuestState newState) {
         return enqueueStateChange(playerUuid, newState, false, null, null);

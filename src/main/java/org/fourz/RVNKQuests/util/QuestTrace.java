@@ -81,7 +81,9 @@ public final class QuestTrace {
         /** A single console/chat line, colour-coded by decision. */
         public String render() {
             StringBuilder sb = new StringBuilder();
-            sb.append(decision.colour()).append(String.format("%-12s", decision.label()));
+            // 13, not 12: the longest label ("prereq-block") is exactly 12 characters, so %-12s
+            // pads to nothing and the line renders as "prereq-blockquest_id". Caught in live QA.
+            sb.append(decision.colour()).append(String.format("%-13s", decision.label()));
             sb.append("&f").append(questId).append(" &7").append(from).append(" &8-> &7").append(to);
             if (checkpoint != null) {
                 sb.append(" &8@ ").append(checkpoint);

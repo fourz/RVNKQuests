@@ -40,12 +40,17 @@ import java.util.logging.Level;
  * <h2>Snapshot and restore</h2>
  *
  * <p>{@code start} records the player's state for every registered quest; {@code end} writes back
- * any that moved. Restores go through {@code setStateForPlayer}, the admin path, because a restore
- * is usually backwards and the monotonic guard would reject it (#1853).</p>
+ * any that moved, through {@link org.fourz.RVNKQuests.quest.AbstractQuest#restoreStateForPlayer} —
+ * a silent write that skips the monotonic guard <b>and</b> every side effect.</p>
  *
- * <p>Rewards already paid during the session are <b>not</b> reclaimed. Rolling back a state does
- * not un-grant an item, un-spend experience, or remove a journal entry. A session makes a run
- * repeatable, not reversible, and the report says so on every {@code end}.</p>
+ * <p>The obvious choice, {@code setStateForPlayer}, is wrong here and live QA proved it. It is the
+ * admin path, so it moves a quest backwards happily, but it still runs {@code performAdvance},
+ * which pays rewards and broadcasts to public chat when the target state is {@code COMPLETED}.
+ * Rolling a player back onto a quest they had already finished re-granted two items and announced
+ * the completion in chat a second time.</p>
+ *
+ * <p>Rewards already paid <em>during</em> the session are still <b>not</b> reclaimed — a session
+ * makes a run repeatable, not reversible, and the report says so on every {@code end}.</p>
  */
 public class QuestSessionSubCommand extends BaseSubCommand {
 
@@ -150,7 +155,8 @@ public class QuestSessionSubCommand extends BaseSubCommand {
                         + " &7(memory only, config.yml untouched)");
                 sendMessage(sender, "&a✓ Session running. End with &f/quest debug session end "
                         + target.getName());
-                sendMessage(sender, "&7  Rewards paid during the session are NOT reclaimed on end.");
+                sendMessage(sender, "&7  Rewards paid during the session are NOT reclaimed on end,"
+                        + " but the rollback itself fires nothing.");
             }));
 
         return true;
@@ -192,8 +198,16 @@ public class QuestSessionSubCommand extends BaseSubCommand {
                     return CompletableFuture.completedFuture(null);
                 }
                 moved.add("&7  " + entry.getKey() + " &f" + now + " &8-> &f" + want);
-                // setStateForPlayer, not advance: a restore is usually backwards and the
-                // monotonic guard would silently drop it (#1853).
+                // restoreStateForPlayer, not setStateForPlayer. Both skip the monotonic guard so a
+                // backwards restore lands, but setStateForPlayer still runs performAdvance, which
+                // fires every completion side effect when the target is COMPLETED.
+                //
+                // Found in live QA: rolling a player back to a quest they had already completed
+                // re-paid its rewards and re-broadcast the completion to public chat. A rollback
+                // that pays out and announces itself is not a rollback.
+                if (quest instanceof org.fourz.RVNKQuests.quest.AbstractQuest aq) {
+                    return aq.restoreStateForPlayer(id, want);
+                }
                 return quest.setStateForPlayer(id, want);
             }));
         }
@@ -212,8 +226,10 @@ public class QuestSessionSubCommand extends BaseSubCommand {
                     return;
                 }
                 sendSuccessMessage(sender, "Session ended for " + session.playerName() + ".");
-                sendMessage(sender, "&7  Rewards paid during the session were NOT reclaimed -"
-                        + " items, xp and journal entries remain.");
+                sendMessage(sender, "&7  States were restored silently - the rollback fired no"
+                        + " rewards, notifications, broadcasts or journal entries.");
+                sendMessage(sender, "&7  Rewards paid DURING the session are still NOT reclaimed -"
+                        + " items, xp and journal entries from the run remain.");
             }));
 
         return true;

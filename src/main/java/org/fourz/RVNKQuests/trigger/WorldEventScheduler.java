@@ -187,9 +187,10 @@ public class WorldEventScheduler implements Listener {
             // Latch before firing, not after. A fire that throws must not leave the beat armed to
             // retry sixty seconds later for the rest of the night.
             lastFiredDay.put(key, day);
-            int fired = dispatch(component, world.getPlayers());
-            logger.debug(type + " day " + day + " in " + world.getName()
-                    + " for quest " + component.getQuest().getId() + " - fired for " + fired + " player(s)");
+            dispatch(component, world.getPlayers()).thenAccept(fired ->
+                    logger.debug(type + " day " + day + " in " + world.getName()
+                            + " for quest " + component.getQuest().getId()
+                            + " - fired for " + fired + " player(s)"));
         }
     }
 
@@ -225,28 +226,65 @@ public class WorldEventScheduler implements Listener {
                 .comparingInt(GenericWorldEventTrigger::getPriority)
                 .thenComparing(c -> c.getQuest().getId()));
 
+        List<GenericWorldEventTrigger> eligible = new ArrayList<>();
+        for (GenericWorldEventTrigger component : candidates) {
+            if (component.matchesWorldState(world)) eligible.add(component);
+        }
+        if (eligible.isEmpty()) return;
+
         for (Player player : players) {
-            for (GenericWorldEventTrigger component : candidates) {
-                if (!component.matchesWorldState(world)) continue;
-                if (!component.isEligible(player)) continue;
-                component.fire(player);
-                // First eligible candidate in priority order wins for this player, and no further
-                // quest sees this event.
-                break;
-            }
+            tryInPriorityOrder(player, eligible, 0);
         }
     }
 
-    /** Fires a single component for every eligible player. @return how many advanced. */
-    private int dispatch(GenericWorldEventTrigger component, List<Player> players) {
-        World world = Bukkit.getWorld(component.getWorldName());
-        if (world != null && !component.matchesWorldState(world)) return 0;
+    /**
+     * Offers one event to a player, walking the priority list until one beat takes it.
+     *
+     * <p>Sequential rather than parallel, and recursive rather than a loop, because
+     * {@link GenericWorldEventTrigger#fire} is now asynchronous — it reads the authoritative quest
+     * state rather than the cache, for the reason documented on that method. Firing every candidate
+     * at once and keeping the first success would let a lower-priority quest advance the player
+     * before a higher-priority one had finished deciding, which is exactly the arbitration this
+     * exists to enforce.</p>
+     */
+    private void tryInPriorityOrder(Player player, List<GenericWorldEventTrigger> ordered, int index) {
+        if (index >= ordered.size()) return;
+        ordered.get(index).fire(player).thenAccept(fired -> {
+            if (!fired) {
+                tryInPriorityOrder(player, ordered, index + 1);
+            }
+            // Fired: the highest-priority eligible beat has taken this event for this player, and
+            // no further quest sees it.
+        });
+    }
 
-        int fired = 0;
-        for (Player player : players) {
-            if (component.fire(player)) fired++;
+    /**
+     * Fires a single component for every player in the list.
+     *
+     * @return a future completing with how many players actually advanced. Asynchronous because
+     *     eligibility now depends on an authoritative state read, so the count is not known at
+     *     call time — the poll logs it when it settles.
+     */
+    private java.util.concurrent.CompletableFuture<Integer> dispatch(
+            GenericWorldEventTrigger component, List<Player> players) {
+        World world = Bukkit.getWorld(component.getWorldName());
+        if (world != null && !component.matchesWorldState(world)) {
+            return java.util.concurrent.CompletableFuture.completedFuture(0);
         }
-        return fired;
+
+        List<java.util.concurrent.CompletableFuture<Boolean>> fires = new ArrayList<>();
+        for (Player player : players) {
+            fires.add(component.fire(player));
+        }
+        return java.util.concurrent.CompletableFuture
+                .allOf(fires.toArray(new java.util.concurrent.CompletableFuture[0]))
+                .thenApply(ignored -> {
+                    int fired = 0;
+                    for (java.util.concurrent.CompletableFuture<Boolean> f : fires) {
+                        if (Boolean.TRUE.equals(f.getNow(Boolean.FALSE))) fired++;
+                    }
+                    return fired;
+                });
     }
 
     // ── Discovery ───────────────────────────────────────────────────────────────

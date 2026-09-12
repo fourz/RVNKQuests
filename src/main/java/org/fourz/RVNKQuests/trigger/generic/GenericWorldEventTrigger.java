@@ -209,40 +209,85 @@ public class GenericWorldEventTrigger implements Listener {
     // ── Firing ──────────────────────────────────────────────────────────────────
 
     /**
-     * Whether this player is eligible for the beat right now.
+     * Cheap world pre-filter. The state check is deliberately <b>not</b> here — see {@link #fire}.
      *
-     * <p>Two rules, both from the specification. The player must be in this component's world —
-     * except for {@link Type#PLAYER_JOIN}, where the scheduler has already checked the login-spawn
-     * world and the player's current world is the same thing at that moment. And the player must be
-     * at the beat's {@code required_state}, which doubles as the deduplication gate for the types
-     * that carry no engine-level debounce.</p>
+     * <p>The player must be in this component's world. For {@link Type#PLAYER_JOIN} the scheduler
+     * has already established that this is the login-spawn world, which at join time is the same
+     * thing as the current world.</p>
      */
-    public boolean isEligible(Player player) {
-        if (!watches(player.getWorld().getName())) return false;
-        return quest.getStateForPlayer(player) == requiredState;
+    public boolean watchesWorldOf(Player player) {
+        return watches(player.getWorld().getName());
     }
 
     /**
-     * Advance this player's quest for the beat.
+     * Advance this player's quest for the beat, if they are eligible.
      *
-     * <p>Carries a {@link PartyBeatContext} built from the player's own position with radius 0, the
-     * same shape {@code GenericItemDiscoveryTrigger} uses: a world event has no place of its own,
-     * so members share it on the footing of a kill and the party service applies its configured
-     * minimum share radius.</p>
+     * <h2>Why the state read is asynchronous</h2>
      *
-     * @return true if the advance was dispatched
+     * <p>This originally used {@code quest.getStateForPlayer(Player)}, the synchronous convenience
+     * accessor, and that was <b>wrong</b> — caught in live QA on Dev. That accessor reads
+     * {@code AbstractQuest.stateCache} and returns {@code NOT_STARTED} when the entry is missing,
+     * kicking off an async load for next time. The interface says so explicitly: "an uncached
+     * NOT_STARTED is a default, not a confirmed database state."</p>
+     *
+     * <p>A hot-reload, an import or a restart builds a <b>new</b> quest object with an empty cache.
+     * The move-based triggers tolerate that because {@code PlayerMoveEvent} fires constantly and
+     * the next event sees a warmed cache. <b>A world event is one-shot.</b> Nightfall happens once
+     * per cycle and the day latch is already spent; a storm starts once. So a cold cache does not
+     * delay the beat, it loses it — and worse, a beat gated on {@code NOT_STARTED} would fire for a
+     * player who is actually mid-chain, because the default it read happens to match.</p>
+     *
+     * <p>Hence the authoritative {@code getStateForPlayer(UUID)} read, then a hop back to the main
+     * thread to advance. The world is re-checked on that hop: the player can change world between
+     * the read completing and the advance running.</p>
+     *
+     * <p>The advance carries a {@link PartyBeatContext} built from the player's own position with
+     * radius 0, the same shape {@code GenericItemDiscoveryTrigger} uses — a world event has no place
+     * of its own, so members share it on the footing of a kill and the party service applies its
+     * configured minimum share radius.</p>
+     *
+     * @return completes with true if the advance was dispatched, false if the player was ineligible
      */
-    public boolean fire(Player player) {
-        if (!isEligible(player)) return false;
+    public java.util.concurrent.CompletableFuture<Boolean> fire(Player player) {
+        if (!watchesWorldOf(player)) {
+            return java.util.concurrent.CompletableFuture.completedFuture(false);
+        }
 
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
-                PartyBeatContext.of(player.getLocation(), 0.0, requiredState));
-        announce(player);
+        java.util.UUID playerId = player.getUniqueId();
+        java.util.concurrent.CompletableFuture<Boolean> result =
+                new java.util.concurrent.CompletableFuture<>();
 
-        logger.debug("WORLD_EVENT " + eventType + " fired for " + player.getName()
-                + " in " + worldName + " (quest: " + quest.getId()
-                + ", priority " + priority + ", -> " + advanceState + ")");
-        return true;
+        quest.getStateForPlayer(playerId).thenAccept(state -> {
+            if (state != requiredState) {
+                logger.debug("WORLD_EVENT " + eventType + " skipped " + player.getName()
+                        + " - at " + state + ", beat requires " + requiredState
+                        + " (quest: " + quest.getId() + ")");
+                result.complete(false);
+                return;
+            }
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                Player live = org.bukkit.Bukkit.getPlayer(playerId);
+                if (live == null || !watchesWorldOf(live)) {
+                    // Left the world, or logged out, between the read and this tick.
+                    result.complete(false);
+                    return;
+                }
+                quest.advanceStateForPlayer(playerId, advanceState,
+                        PartyBeatContext.of(live.getLocation(), 0.0, requiredState));
+                announce(live);
+                logger.debug("WORLD_EVENT " + eventType + " fired for " + live.getName()
+                        + " in " + worldName + " (quest: " + quest.getId()
+                        + ", priority " + priority + ", -> " + advanceState + ")");
+                result.complete(true);
+            });
+        }).exceptionally(ex -> {
+            logger.warning("WORLD_EVENT " + eventType + " state lookup failed for "
+                    + player.getName() + " on quest " + quest.getId() + ": " + ex);
+            result.complete(false);
+            return null;
+        });
+
+        return result;
     }
 
     /**
@@ -257,10 +302,20 @@ public class GenericWorldEventTrigger implements Listener {
      * wording is not talked over by a generic notice. Only when none is configured does this fall
      * back to {@code NotificationService}, which is also where the player's notification
      * preferences are honoured.</p>
+     *
+     * <p><b>The fallback notice fires only on the opening beat.</b> Found in live QA: a three-beat
+     * storm chain sent "quest start notification" on all three, so a player mid-quest was told the
+     * quest had started again on every world event. {@code notifyQuestStart} means what it says, so
+     * it is gated on the beat that actually starts the quest. A mid-chain beat with no authored line
+     * stays silent — a quest that wants to speak on every beat should author an
+     * {@code AdvanceFeedback} line, which is exactly what that mechanism is for.</p>
      */
     private void announce(Player player) {
         if (advanceFeedback.isConfigured()) {
             advanceFeedback.notifyAdvanced(player);
+            return;
+        }
+        if (requiredState != QuestState.NOT_STARTED) {
             return;
         }
         // Fetched at fire time, not cached in the constructor. Quest components are built during

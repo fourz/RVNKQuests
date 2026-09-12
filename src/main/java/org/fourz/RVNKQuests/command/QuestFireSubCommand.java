@@ -148,16 +148,33 @@ public class QuestFireSubCommand extends BaseSubCommand {
                 // Re-read rather than assume. Four of the five exits in applyStateChange complete
                 // normally without changing anything, so "the future completed" is not evidence
                 // that the state moved — reporting it as success is the ambiguity trace exists for.
+                //
+                // Compare against BEFORE, not just against the target. Found in live QA: firing a
+                // component at a player already holding its advance_state matched `after == advance`
+                // and printed "advanced TRIGGER_FOUND -> TRIGGER_FOUND" for a no-op. That is
+                // precisely the false-success this command was written to eliminate, reproduced in
+                // the command itself.
                 QuestState after = quest.getStateForPlayer(target);
-                if (after == advance) {
+                if (after != before) {
                     sendSuccessMessage(sender, componentId + " advanced " + target.getName()
                             + ": " + before + " -> " + after);
+                    if (after != advance) {
+                        sendMessage(sender, "&e  Note: landed on " + after + ", not the requested "
+                                + advance + ".");
+                    }
+                    return;
+                }
+
+                if (after == advance) {
+                    sendMessage(sender, "&e✖ No state change. " + target.getName()
+                            + " was ALREADY at " + after
+                            + " - side effects were deliberately not re-fired.");
                 } else {
                     sendMessage(sender, "&e✖ No state change. " + target.getName() + " is still "
                             + after + " - the advance was evaluated and dropped by a gate.");
-                    sendMessage(sender, "&7  Run &f/quest debug trace " + target.getName()
-                            + "&7 and fire again to see which gate and why.");
                 }
+                sendMessage(sender, "&7  Run &f/quest debug trace " + target.getName()
+                        + "&7 and fire again to see which gate and why.");
             }));
 
         return true;
