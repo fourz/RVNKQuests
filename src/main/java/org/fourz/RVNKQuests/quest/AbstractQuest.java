@@ -42,8 +42,26 @@ public abstract class AbstractQuest implements Quest {
     private final ConfigManager configManager;
 
     /**
-     * Local state cache — avoids blocking main thread on PlayerMoveEvent handlers.
-     * Eagerly updated by advanceStateForPlayer(); lazily populated on first read.
+     * Local state cache — avoids blocking the main thread in PlayerMoveEvent handlers.
+     *
+     * <h3>Two kinds of write, and they must not use the same method (#2094)</h3>
+     *
+     * <ul>
+     *   <li><b>Authoritative writes</b> — an advance committing, a restore, a reset. These know the
+     *       new truth and use {@code put}. They must win.</li>
+     *   <li><b>Populating reads</b> — the lazy load in {@link #getStateForPlayer(Player)} and the
+     *       join-time {@link #preloadStateForPlayer}. These carry a value read at some earlier
+     *       instant and use {@code putIfAbsent}. They must <b>never</b> overwrite.</li>
+     * </ul>
+     *
+     * <p>Both were {@code put} until #2094. A read issued on join lands a few ticks later, so an
+     * advance committing in that window was silently overwritten with the pre-advance value. The
+     * database stayed correct and only the cache went wrong — and since every console read and
+     * every move-based gate consults this cache, the tooling then <b>confirmed</b> the stale
+     * answer. It produced a false bug call that took a relog to disprove.</p>
+     *
+     * <p>Absent is the only state a populating read may fill. Eviction on quit is the refresh
+     * mechanism; within a session the cache is maintained eagerly.</p>
      */
     private final Map<UUID, QuestState> stateCache = new ConcurrentHashMap<>();
 
@@ -61,9 +79,13 @@ public abstract class AbstractQuest implements Quest {
     private final Map<UUID, QuestState> pausedStateCache = new ConcurrentHashMap<>();
 
     /**
-     * Local path choice cache — mirrors stateCache pattern for branching quests.
-     * Eagerly updated by setPathChoice(); lazily populated on first read.
-     * Value is empty string when explicitly loaded but no path set (vs null = not yet loaded).
+     * Local path choice cache — mirrors the {@link #stateCache} pattern for branching quests,
+     * <b>including its authoritative-write versus populating-read rule (#2094)</b>.
+     *
+     * <p>Eagerly updated by {@code setPathChoice()} with {@code put}; lazily populated with
+     * {@code putIfAbsent}. Value is the empty string when explicitly loaded but no path is set,
+     * versus null meaning not yet loaded — so the empty string is a real cached value and
+     * {@code putIfAbsent} respects it.</p>
      */
     private final Map<UUID, String> pathChoiceCache = new ConcurrentHashMap<>();
 
@@ -136,7 +158,12 @@ public abstract class AbstractQuest implements Quest {
         // Not cached yet — kick off async load and return NOT_STARTED for now.
         // The cache will be populated within a few ticks; move-based handlers
         // will re-check on the next event and pick up the loaded state.
-        getStateForPlayer(uuid).thenAccept(state -> stateCache.put(uuid, state));
+        //
+        // putIfAbsent, NOT put (#2094). This read was issued now and lands later; an advance that
+        // commits in between writes the authoritative value, and an unconditional put would
+        // overwrite it with the value that was true before the advance. See the class note on
+        // populating reads versus authoritative writes.
+        getStateForPlayer(uuid).thenAccept(state -> stateCache.putIfAbsent(uuid, state));
         return QuestState.NOT_STARTED;
     }
 
@@ -150,10 +177,23 @@ public abstract class AbstractQuest implements Quest {
      * Call on player join to ensure move-based handlers have immediate state access.
      */
     public void preloadStateForPlayer(UUID playerUuid) {
-        getStateForPlayer(playerUuid).thenAccept(state -> stateCache.put(playerUuid, state));
-        // Preload path choice for branching quests
+        // putIfAbsent, NOT put (#2094). This runs on PlayerJoinEvent and its reads land a few ticks
+        // later. A join-time advance — a WORLD_EVENT PLAYER_JOIN beat, a chain unlock, a quest-unlock
+        // reward — commits in that window and writes the real value; an unconditional put here then
+        // overwrote it with the pre-advance value read moments earlier.
+        //
+        // The database stayed correct and only the cache went wrong, which is the worst shape: every
+        // console read (/quest debug player, /quest debug list) and every move-based component gate
+        // reads this cache, so the tooling CONFIRMED the stale answer. It cost a false bug call — a
+        // beat that had fired was reported as not firing, and only a relog (evict + re-preload)
+        // settled it, against a tester who had watched it fire.
+        //
+        // Absent is the only state a populating read may fill: eviction on quit is the refresh
+        // mechanism, and within a session the cache is maintained eagerly by every advance.
+        getStateForPlayer(playerUuid).thenAccept(state -> stateCache.putIfAbsent(playerUuid, state));
+        // Preload path choice for branching quests — same rule, same reason.
         getPathChoice(playerUuid).thenAccept(path ->
-            pathChoiceCache.put(playerUuid, path != null ? path : ""));
+            pathChoiceCache.putIfAbsent(playerUuid, path != null ? path : ""));
     }
 
     /**
@@ -803,9 +843,10 @@ public abstract class AbstractQuest implements Quest {
         if (cached != null) {
             return cached.isEmpty() ? null : cached;
         }
-        // Not cached yet — kick off async load
+        // Not cached yet — kick off async load.
+        // putIfAbsent, NOT put (#2094): setPathChoice may commit while this read is in flight.
         getPathChoice(player.getUniqueId()).thenAccept(path ->
-            pathChoiceCache.put(player.getUniqueId(), path != null ? path : ""));
+            pathChoiceCache.putIfAbsent(player.getUniqueId(), path != null ? path : ""));
         return null;
     }
 
