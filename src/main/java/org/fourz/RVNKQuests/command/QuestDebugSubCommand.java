@@ -28,12 +28,22 @@ import java.util.logging.Level;
 public class QuestDebugSubCommand extends BaseSubCommand {
 
     private static final List<String> SUB_COMMANDS = Arrays.asList(
-        "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup", "preflight", "party"
+        "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup", "preflight", "party",
+        // #2093 — the five tools #1867 specified but never shipped. Read-only first, then the
+        // three that mutate and are gated to Dev by ServerTier.
+        "coords", "drift", "fire", "trace", "session"
     );
 
     private SeedSubCommand seedSubCommand;
     private QuestSetStateSubCommand setStateSubCommand;
     private QuestPreflightSubCommand preflightSubCommand;
+
+    // #2093
+    private QuestCoordsSubCommand coordsSubCommand;
+    private QuestDriftSubCommand driftSubCommand;
+    private QuestFireSubCommand fireSubCommand;
+    private QuestTraceSubCommand traceSubCommand;
+    private QuestSessionSubCommand sessionSubCommand;
 
     private static final List<String> LOG_LEVELS = Arrays.asList("DEBUG", "INFO", "WARN", "OFF");
 
@@ -43,6 +53,26 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         this.seedSubCommand = new SeedSubCommand(plugin);
         this.setStateSubCommand = new QuestSetStateSubCommand(plugin);
         this.preflightSubCommand = new QuestPreflightSubCommand(plugin);
+        this.coordsSubCommand = new QuestCoordsSubCommand(plugin);
+        this.driftSubCommand = new QuestDriftSubCommand(plugin);
+        this.fireSubCommand = new QuestFireSubCommand(plugin);
+        this.traceSubCommand = new QuestTraceSubCommand(plugin);
+        this.sessionSubCommand = new QuestSessionSubCommand(plugin);
+    }
+
+    /**
+     * Ends any live QA session, restoring the log level (#2093), and drops every trace sink so it
+     * cannot outlive its command sender.
+     *
+     * <p>Called from the plugin's shutdown path. A session raises the log level in memory only, so
+     * this is belt-and-braces rather than the sole guard — but a trace sink holding a
+     * {@code CommandSender} across a reload is a real leak.</p>
+     */
+    public void shutdown() {
+        if (sessionSubCommand != null) {
+            sessionSubCommand.shutdown();
+        }
+        org.fourz.RVNKQuests.util.QuestTrace.clear();
     }
 
     @Override
@@ -79,6 +109,17 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 return preflightSubCommand.execute(sender, subArgs);
             case "party":
                 return executeParty(sender, subArgs);
+            // #2093
+            case "coords":
+                return coordsSubCommand.execute(sender, subArgs);
+            case "drift":
+                return driftSubCommand.execute(sender, subArgs);
+            case "fire":
+                return fireSubCommand.execute(sender, subArgs);
+            case "trace":
+                return traceSubCommand.execute(sender, subArgs);
+            case "session":
+                return sessionSubCommand.execute(sender, subArgs);
             default:
                 sendErrorMessage(sender, "Unknown debug command: " + subCommand);
                 showUsage(sender);
@@ -97,6 +138,12 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug setup &8- Bootstrap LuckPerms permission defaults");
         sendMessage(sender, "&7/quest debug preflight <quest> [--no-load] [--force] &8- Check worlds, blocks, states, rewards");
         sendMessage(sender, "&7/quest debug party [player] &8- Show live quest parties and member positions");
+        sendMessage(sender, "&7/quest debug coords <quest> &8- Coordinates, distances, co-location");
+        sendMessage(sender, "&7/quest debug drift <quest> &8- Diff on-disk YAML against the live definition");
+        sendMessage(sender, "&8/quest debug fire <quest> <component> <player> &8- Exercise one advance (Dev)");
+        sendMessage(sender, "&8/quest debug trace <player|off|status> &8- Stream state decisions (Dev)");
+        sendMessage(sender, "&8/quest debug session <start|end|status> [player] &8- Bracket a QA run (Dev)");
+        sendMessage(sender, "&8   coords/drift are read-only and run on any tier; the last three are Dev only.");
     }
 
     /**

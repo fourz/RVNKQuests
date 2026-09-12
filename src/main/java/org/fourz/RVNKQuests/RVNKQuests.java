@@ -94,6 +94,9 @@ public class RVNKQuests extends JavaPlugin {
     // Quest party (#1982) — shared beat advancement; in-memory, dissolved on restart
     private org.fourz.RVNKQuests.party.QuestPartyService questPartyService;
 
+    /** Detects and dispatches WORLD_EVENT quest beats (#1017). */
+    private org.fourz.RVNKQuests.trigger.WorldEventScheduler worldEventScheduler;
+
     // RVNKCore integration
     private boolean rvnkCoreAvailable = false;
     private Object rvnkCoreInstance = null;
@@ -152,6 +155,12 @@ public class RVNKQuests extends JavaPlugin {
             journalService = new JournalServiceImpl(this);
             notificationService = new NotificationServiceImpl(this);
             repeatableQuestService = new RepeatableQuestServiceImpl(this, databaseManager, questProgressService);
+
+            // WORLD_EVENT detection (#1017). Started after questManager exists because the
+            // scheduler discovers components by walking the live quest list rather than keeping a
+            // registry — see WorldEventScheduler for why there is no registry.
+            worldEventScheduler = new org.fourz.RVNKQuests.trigger.WorldEventScheduler(this);
+            worldEventScheduler.start();
 
             // Register player join/quit listener for progress loading/saving
             getServer().getPluginManager().registerEvents(new PlayerJoinQuitListener(this), this);
@@ -215,6 +224,18 @@ public class RVNKQuests extends JavaPlugin {
             if (commandManager != null) {
                 commandManager.shutdown();
             }
+
+            // Stop WORLD_EVENT polling before the quests it reads are torn down (#1017),
+            // otherwise a poll can land mid-cleanup and walk a half-dismantled quest list.
+            if (worldEventScheduler != null) {
+                worldEventScheduler.shutdown();
+            }
+
+            // Drop every /quest debug trace sink (#2093). Each one holds a CommandSender, so
+            // leaving them attached leaks the sender across a reload. The QA session log level
+            // needs no unwinding here: it is raised in memory only and LogManager.clearLoggers()
+            // below discards it.
+            org.fourz.RVNKQuests.util.QuestTrace.clear();
 
             // Clean up quests first
             if (questManager != null) {
@@ -287,6 +308,13 @@ public class RVNKQuests extends JavaPlugin {
      */
     public org.fourz.RVNKQuests.party.QuestPartyService getQuestPartyService() {
         return questPartyService;
+    }
+
+    /**
+     * Gets the WORLD_EVENT scheduler (#1017), or null before onEnable completes.
+     */
+    public org.fourz.RVNKQuests.trigger.WorldEventScheduler getWorldEventScheduler() {
+        return worldEventScheduler;
     }
 
     public QuestManager getQuestManager() {
