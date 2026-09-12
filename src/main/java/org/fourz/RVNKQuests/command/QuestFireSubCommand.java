@@ -78,12 +78,11 @@ public class QuestFireSubCommand extends BaseSubCommand {
             return true;
         }
 
-        Player target = Bukkit.getPlayerExact(playerName);
-        if (target == null) {
-            sendErrorMessage(sender, "Player not online: " + playerName);
-            return true;
-        }
-
+        // Component before player, deliberately. The component is a static question about the
+        // definition and the player is a runtime one, so checking config first means the whole
+        // argument-validation path can be exercised from console with nobody online — which is the
+        // situation these tools exist for. Player-first made "no such component" unreachable
+        // without a body in the world.
         Map<?, ?> component = findComponent(quest, componentId);
         if (component == null) {
             sendErrorMessage(sender, "Quest '" + questId + "' has no component '" + componentId + "'.");
@@ -91,6 +90,13 @@ public class QuestFireSubCommand extends BaseSubCommand {
             if (!known.isEmpty()) {
                 sendMessage(sender, "&7  Components: &f" + String.join(", ", known));
             }
+            return true;
+        }
+
+        Player target = Bukkit.getPlayerExact(playerName);
+        if (target == null) {
+            sendErrorMessage(sender, "Player not online: " + playerName);
+            sendMessage(sender, "&7  Component '" + componentId + "' resolved - only the player is missing.");
             return true;
         }
 

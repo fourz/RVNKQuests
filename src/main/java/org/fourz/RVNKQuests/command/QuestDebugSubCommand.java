@@ -220,7 +220,43 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         boolean rvnkCorePresent = Bukkit.getPluginManager().getPlugin("RVNKCore") != null;
         sendMessage(sender, "&7RVNKCore: " + (rvnkCorePresent ? "&aConnected" : "&cNot Found"));
 
+        reportWorldEvents(sender);
+
         return true;
+    }
+
+    /**
+     * WORLD_EVENT scheduler state and the beats it would arbitrate (#1017).
+     *
+     * <p>Without this the feature is invisible until a beat fires. A WORLD_EVENT quest that never
+     * triggers has several silent causes — the poll not running, the component in no
+     * {@code state_mapping} bucket so it is never discovered, or a sibling quest outranking it on
+     * priority — and none of them produce a log line. Listing the live beats in priority order
+     * makes the third cause readable at a glance and the first two checkable.</p>
+     */
+    private void reportWorldEvents(CommandSender sender) {
+        org.fourz.RVNKQuests.trigger.WorldEventScheduler scheduler = plugin.getWorldEventScheduler();
+        if (scheduler == null) {
+            sendMessage(sender, "&7WORLD_EVENT: &cscheduler not initialised");
+            return;
+        }
+
+        sendMessage(sender, "&7WORLD_EVENT poll: "
+                + (scheduler.isRunning() ? "&aRUNNING" : "&cSTOPPED"));
+
+        java.util.Map<String, List<String>> registered = scheduler.describeRegistered();
+        if (registered.isEmpty()) {
+            sendMessage(sender, "&7  No WORLD_EVENT beats are discoverable.");
+            sendMessage(sender, "&8  A declared component is only discoverable once it is in a"
+                    + " state_mapping bucket - check /quest debug preflight <quest>.");
+            return;
+        }
+        for (var entry : registered.entrySet()) {
+            sendMessage(sender, "&7  " + entry.getKey() + " &8(priority order)");
+            for (String line : entry.getValue()) {
+                sendMessage(sender, "&8    " + line);
+            }
+        }
     }
 
     /**
