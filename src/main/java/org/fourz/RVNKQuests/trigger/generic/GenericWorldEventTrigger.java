@@ -1,5 +1,6 @@
 package org.fourz.RVNKQuests.trigger.generic;
 
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -273,12 +274,43 @@ public class GenericWorldEventTrigger implements Listener {
                     return;
                 }
                 quest.advanceStateForPlayer(playerId, advanceState,
-                        PartyBeatContext.of(live.getLocation(), 0.0, requiredState));
-                announce(live);
-                logger.debug("WORLD_EVENT " + eventType + " fired for " + live.getName()
-                        + " in " + worldName + " (quest: " + quest.getId()
-                        + ", priority " + priority + ", -> " + advanceState + ")");
-                result.complete(true);
+                                PartyBeatContext.of(live.getLocation(), 0.0, requiredState))
+                        // Confirm before speaking. advanceStateForPlayer completes NORMALLY when a
+                        // gate drops the advance — four of the five exits in applyStateChange do
+                        // exactly that — so announcing on dispatch tells the player the quest
+                        // started when it may not have.
+                        //
+                        // Found by the tester, not by the log: they reported seeing the beat fire
+                        // in-game while the stored state still read NOT_STARTED. A notice a player
+                        // trusts must be gated on the write, not on the attempt.
+                        .thenCompose(ignored -> quest.getStateForPlayer(playerId))
+                        .thenAccept(landed -> {
+                            if (landed != advanceState) {
+                                logger.debug("WORLD_EVENT " + eventType + " dispatched for "
+                                        + live.getName() + " but the advance did not land - state is "
+                                        + landed + ", expected " + advanceState
+                                        + " (quest: " + quest.getId() + "). Player NOT notified.");
+                                result.complete(false);
+                                return;
+                            }
+                            Bukkit.getScheduler().runTask(plugin, () -> {
+                                Player stillHere = Bukkit.getPlayer(playerId);
+                                if (stillHere != null) {
+                                    announce(stillHere);
+                                }
+                                logger.debug("WORLD_EVENT " + eventType + " fired for "
+                                        + live.getName() + " in " + worldName
+                                        + " (quest: " + quest.getId() + ", priority " + priority
+                                        + ", -> " + advanceState + ")");
+                                result.complete(true);
+                            });
+                        })
+                        .exceptionally(ex -> {
+                            logger.warning("WORLD_EVENT " + eventType + " advance failed for "
+                                    + live.getName() + " on quest " + quest.getId() + ": " + ex);
+                            result.complete(false);
+                            return null;
+                        });
             });
         }).exceptionally(ex -> {
             logger.warning("WORLD_EVENT " + eventType + " state lookup failed for "
