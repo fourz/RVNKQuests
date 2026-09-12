@@ -161,8 +161,9 @@ public class QuestDriftSubCommand extends BaseSubCommand {
                 + (deleted > 0 ? "&c" : "&7") + deleted + " DELETED");
 
         if (deleted > 0) {
-            sendMessage(sender, "&c  " + deleted + " entr" + (deleted == 1 ? "y" : "ies")
-                    + " exist only in the database and would be lost.");
+            sendMessage(sender, "&c  " + deleted
+                    + (deleted == 1 ? " entry exists" : " entries exist")
+                    + " only in the database and would be lost.");
             sendMessage(sender, "&7  Export first if they are wanted: &f/quest export " + questId);
         }
     }
@@ -294,8 +295,21 @@ public class QuestDriftSubCommand extends BaseSubCommand {
 
     // ── Helpers ─────────────────────────────────────────────────────────────────
 
+    /**
+     * Shortens a subject to {@code max} characters by eliding the <b>middle</b>.
+     *
+     * <p>Tail truncation was wrong here and live QA showed why: reward ids are
+     * {@code <quest>_<type>_<n>}, so cutting the end rendered
+     * {@code qa1894_sited_experience_6258} as {@code qa1894_sited_exper} — dropping the
+     * {@code _6258} that is the only part distinguishing one reward from another on the same
+     * quest. Two rewards would print identically, which defeats a diff.</p>
+     */
     private static String truncate(String s, int max) {
-        return s.length() > max ? s.substring(0, max) : s;
+        if (s.length() <= max) return s;
+        if (max <= 3) return s.substring(0, max);
+        int tail = (max - 1) * 2 / 3;
+        int head = max - 1 - tail;
+        return s.substring(0, head) + "~" + s.substring(s.length() - tail);
     }
 
     /** Unwraps wrapper layers to the most useful message for the operator. */

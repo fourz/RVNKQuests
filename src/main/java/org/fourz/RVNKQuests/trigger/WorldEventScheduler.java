@@ -179,24 +179,29 @@ public class WorldEventScheduler implements Listener {
     private void pollTimed(GenericWorldEventTrigger.Type type, World world, long day, boolean inWindow) {
         if (!inWindow) return;
 
-        for (GenericWorldEventTrigger component : candidates(type, world.getName())) {
-            String key = latchKey(component, world.getName());
-            Long last = lastFiredDay.get(key);
-            if (last != null && last == day) continue;
+        List<GenericWorldEventTrigger> candidates = candidates(type, world.getName());
+        if (candidates.isEmpty()) return;
 
-            // Latch before firing, not after. A fire that throws must not leave the beat armed to
-            // retry sixty seconds later for the rest of the night.
-            lastFiredDay.put(key, day);
-            dispatch(component, world.getPlayers()).thenAccept(fired ->
-                    logger.debug(type + " day " + day + " in " + world.getName()
-                            + " for quest " + component.getQuest().getId()
-                            + " - fired for " + fired + " player(s)"));
-        }
-    }
+        // One latch for the whole (type, world) group, not one per component.
+        //
+        // This was per-component, with a comment claiming two quests watching the same nightfall
+        // are independent beats that must each fire. That was wrong: the specification says only
+        // the highest-priority quest fires per player per event, and per-component latching fired
+        // every eligible candidate with no arbitration at all. So TIME_NIGHT and TIME_DAY quietly
+        // ignored priority while STORM_*, PLAYER_JOIN and MOON_PHASE honoured it — and
+        // describeRegistered() printed "(priority order)" for the timed types, advertising a rule
+        // the code did not apply. Found by reading this method while building a live test for it.
+        String key = type + "|" + world.getName().toLowerCase(java.util.Locale.ROOT);
+        Long last = lastFiredDay.get(key);
+        if (last != null && last == day) return;
 
-    private String latchKey(GenericWorldEventTrigger component, String world) {
-        return component.getQuest().getId() + "|" + component.getEventType() + "|"
-                + world.toLowerCase(java.util.Locale.ROOT);
+        // Latch before firing, not after. A fire that throws must not leave the beat armed to
+        // retry sixty seconds later for the rest of the night.
+        lastFiredDay.put(key, day);
+
+        logger.debug(type + " day " + day + " in " + world.getName() + " - "
+                + candidates.size() + " candidate beat(s), arbitrating per player");
+        dispatchToPlayer(type, world, world.getPlayers());
     }
 
     // ── Dispatch and arbitration ────────────────────────────────────────────────
@@ -256,35 +261,6 @@ public class WorldEventScheduler implements Listener {
             // Fired: the highest-priority eligible beat has taken this event for this player, and
             // no further quest sees it.
         });
-    }
-
-    /**
-     * Fires a single component for every player in the list.
-     *
-     * @return a future completing with how many players actually advanced. Asynchronous because
-     *     eligibility now depends on an authoritative state read, so the count is not known at
-     *     call time — the poll logs it when it settles.
-     */
-    private java.util.concurrent.CompletableFuture<Integer> dispatch(
-            GenericWorldEventTrigger component, List<Player> players) {
-        World world = Bukkit.getWorld(component.getWorldName());
-        if (world != null && !component.matchesWorldState(world)) {
-            return java.util.concurrent.CompletableFuture.completedFuture(0);
-        }
-
-        List<java.util.concurrent.CompletableFuture<Boolean>> fires = new ArrayList<>();
-        for (Player player : players) {
-            fires.add(component.fire(player));
-        }
-        return java.util.concurrent.CompletableFuture
-                .allOf(fires.toArray(new java.util.concurrent.CompletableFuture[0]))
-                .thenApply(ignored -> {
-                    int fired = 0;
-                    for (java.util.concurrent.CompletableFuture<Boolean> f : fires) {
-                        if (Boolean.TRUE.equals(f.getNow(Boolean.FALSE))) fired++;
-                    }
-                    return fired;
-                });
     }
 
     // ── Discovery ───────────────────────────────────────────────────────────────
