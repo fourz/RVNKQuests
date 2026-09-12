@@ -20,33 +20,44 @@ import java.util.Optional;
  *
  * <h2>The two failures it is built to surface</h2>
  *
- * <p><b>Co-location.</b> Two components at the same coordinates fire in the same tick on arrival,
- * which is how #1853 happened: a trigger and a REACH objective both read the same stale state and
- * both wrote, so the persisted outcome was whichever landed last. The write chain now serialises
- * them, but co-location is still an authoring smell worth seeing before a player finds it.</p>
+ * <p><b>Overlapping trigger volumes.</b> Two components whose radii overlap both evaluate on the
+ * same arrival, which is how #1853 happened: a trigger and a REACH objective both read the same
+ * stale state and both wrote, so the persisted outcome was whichever landed last. The write chain
+ * now serialises them, so the outcome is deterministic — but overlap is still an authoring smell,
+ * and #1855 was exactly this shape: a trigger at the wrong anchor whose r50 swallowed another
+ * quest's endpoint.</p>
  *
- * <p><b>Missable point-radius triggers.</b> A small radius on a component a player passes at speed
- * simply never fires — the {@code tfah_zeal_tower} lesson (#1855). A tight radius is legitimate on
- * a lectern a player must stand at, and reckless on a corridor, so this reports the number and the
- * distance to its neighbours rather than pronouncing a verdict.</p>
+ * <p>The test is {@code distance < r1 + r2}, <b>not</b> centre-to-centre proximity. The first
+ * version of this command used a fixed 3-block centre distance and consequently reported
+ * {@code 0 co-located} for live Event content that overlapped by 39 blocks. Radii are the whole
+ * point; ignoring them made the check cosmetic.</p>
+ *
+ * <p><b>Tight radii.</b> A small radius on a component a player crosses at speed can simply never
+ * fire. This reports the number and warns, without pretending to know whether the component sits
+ * on a lectern or on a corridor.</p>
  */
 public class QuestCoordsSubCommand extends BaseSubCommand {
 
     /**
-     * Two components within this distance are treated as co-located.
+     * Two components this close are the same place, whatever their radii.
      *
      * <p>Not zero. Components authored a block or two apart share a tick on arrival just as surely
      * as components at identical coordinates, and the point is to catch the race, not to check for
      * string equality.</p>
+     *
+     * <p>This is the <b>narrow</b> case. The one that actually matters is radius overlap — see
+     * {@link #overlap}.</p>
      */
-    private static final double COLOCATION_DISTANCE = 3.0;
+    private static final double SAME_PLACE_DISTANCE = 3.0;
 
     /**
      * Radius at or below which a positional component is flagged as easy to miss.
      *
-     * <p>Chosen from {@code tfah_zeal_tower}: its radius was small enough that a player flying past
-     * never registered. Deliberately advisory — see the class note on tight radii being correct for
-     * a lectern and wrong for a corridor.</p>
+     * <p><b>Advisory and uncalibrated.</b> A tight radius is correct on a lectern a player must
+     * stand at and reckless on a corridor they cross at speed, and nothing here can tell those
+     * apart. Earlier versions of this class cited #1855 as the source of the number; that was a
+     * misreading — #1855 was a trigger at the wrong anchor with a radius that was too <i>large</i>,
+     * not too small. The threshold is a guess, so it warns rather than blocks.</p>
      */
     private static final double TIGHT_RADIUS = 5.0;
 
@@ -66,6 +77,30 @@ public class QuestCoordsSubCommand extends BaseSubCommand {
             double dy = y - other.y;
             double dz = z - other.z;
             return Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        /** Radius as a number, treating an absent radius as a point. */
+        double r() {
+            return radius == null ? 0.0 : radius;
+        }
+
+        /**
+         * How far the two trigger volumes overlap, or a negative number when they are disjoint.
+         *
+         * <p><b>This, not centre distance, is the test that matters.</b> An earlier version of this
+         * command compared centre-to-centre distance against a fixed 3 blocks and reported
+         * {@code 0 co-located} for {@code tfah_zeal_arrival} on Event — whose {@code arr_trigger}
+         * (r=30) and {@code arr_reach} (r=15) sit <b>5.9 blocks apart</b> and therefore overlap by
+         * roughly 39 blocks. A player entering that area is inside both volumes and both components
+         * evaluate on the same arrival, which is the #1853 same-tick race this command exists to
+         * surface. It found nothing, on live content, in exactly the shape it was written for.</p>
+         *
+         * <p>Two radius-0 components at the same point still overlap by 0, which is why the
+         * {@link #SAME_PLACE_DISTANCE} check is kept alongside this one rather than replaced by
+         * it.</p>
+         */
+        double overlap(Point other) {
+            return (r() + other.r()) - distanceTo(other);
         }
     }
 
@@ -174,9 +209,9 @@ public class QuestCoordsSubCommand extends BaseSubCommand {
             return;
         }
 
-        List<String> colocated = new ArrayList<>();
+        List<String> overlapping = new ArrayList<>();
         List<String> crossWorld = new ArrayList<>();
-        List<String> distances = new ArrayList<>();
+        List<String> clear = new ArrayList<>();
 
         for (int i = 0; i < points.size(); i++) {
             for (int j = i + 1; j < points.size(); j++) {
@@ -187,23 +222,35 @@ public class QuestCoordsSubCommand extends BaseSubCommand {
                     continue;
                 }
                 double d = a.distanceTo(b);
-                if (d <= COLOCATION_DISTANCE) {
-                    colocated.add(a.id() + " <-> " + b.id() + " - " + fmt(d) + " blocks apart");
+                double over = a.overlap(b);
+                boolean samePlace = d <= SAME_PLACE_DISTANCE;
+
+                if (over >= 0 || samePlace) {
+                    String why = samePlace && over < 0
+                            ? fmt(d) + " blocks apart (same place, both radius-less)"
+                            : "centres " + fmt(d) + " apart, r=" + fmt(a.r()) + "+" + fmt(b.r())
+                              + " -> overlap " + fmt(over) + " blocks";
+                    overlapping.add(String.format("%-22s", truncate(a.id(), 21))
+                            + "<-> " + String.format("%-22s", truncate(b.id(), 21)) + why);
                 } else {
-                    distances.add(String.format("%-22s", truncate(a.id(), 21))
-                            + "-> " + String.format("%-22s", truncate(b.id(), 21)) + fmt(d));
+                    clear.add(String.format("%-22s", truncate(a.id(), 21))
+                            + "-> " + String.format("%-22s", truncate(b.id(), 21))
+                            + fmt(d) + " (clear by " + fmt(-over) + ")");
                 }
             }
         }
 
         sendMessage(sender, "&7");
-        if (!colocated.isEmpty()) {
-            sendMessage(sender, "&cCO-LOCATED (" + colocated.size() + ") - these fire in the same tick:");
-            for (String line : colocated) {
+        if (!overlapping.isEmpty()) {
+            sendMessage(sender, "&cOVERLAPPING (" + overlapping.size()
+                    + ") - both evaluate on the same arrival:");
+            for (String line : overlapping) {
                 sendMessage(sender, "&c  " + line);
             }
-            sendMessage(sender, "&7  The write chain serialises them, so the outcome is"
-                    + " deterministic (#1853) - but check the order is the one you intended.");
+            sendMessage(sender, "&7  The write chain serialises them so the outcome is"
+                    + " deterministic (#1853) - but check the order is the one you intended,");
+            sendMessage(sender, "&7  and that a player cannot satisfy a later beat by walking into"
+                    + " an earlier one (#1855).");
         }
 
         if (!crossWorld.isEmpty()) {
@@ -213,15 +260,15 @@ public class QuestCoordsSubCommand extends BaseSubCommand {
             }
         }
 
-        if (!distances.isEmpty()) {
-            sendMessage(sender, "&7Distances:");
-            for (String line : distances) {
+        if (!clear.isEmpty()) {
+            sendMessage(sender, "&7Clear pairs:");
+            for (String line : clear) {
                 sendMessage(sender, "&8  " + line);
             }
         }
 
-        sendMessage(sender, (colocated.isEmpty() ? "&a" : "&c") + points.size() + " points, "
-                + colocated.size() + " co-located, " + crossWorld.size() + " cross-world");
+        sendMessage(sender, (overlapping.isEmpty() ? "&a" : "&c") + points.size() + " points, "
+                + overlapping.size() + " overlapping, " + crossWorld.size() + " cross-world");
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -265,7 +312,8 @@ public class QuestCoordsSubCommand extends BaseSubCommand {
         return List.of(
                 "/quest debug coords tfah_ch1_journey",
                 "  read-only - runs on Event and prod too, loads nothing",
-                "  CO-LOCATED means two components fire on the same arrival tick",
-                "  r= is the trigger radius; a tight one on a corridor is how #1855 was missed");
+                "  OVERLAPPING means distance < r1+r2, so both evaluate on one arrival",
+                "  that is the test - centre distance alone misses an r30 beside an r15",
+                "  r= is the trigger radius; a tight one on a corridor can never fire");
     }
 }
