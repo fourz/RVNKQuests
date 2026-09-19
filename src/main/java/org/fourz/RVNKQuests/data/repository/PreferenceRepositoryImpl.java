@@ -51,6 +51,13 @@ public class PreferenceRepositoryImpl implements IPreferenceRepository {
      * Called on repository creation to ensure schema is ready.
      */
     private void initializeTable() {
+        if (!databaseManager.isAvailable()) {
+            // YAML fallback has no SQL connection by design; say so once instead of logging a
+            // stack trace on every fallback start (#2103). /quest prefs is unavailable until the
+            // database recovers and the plugin restarts.
+            logger.warning("No database (YAML fallback) - quest preferences unavailable until the database recovers");
+            return;
+        }
         try {
             String tableName = databaseManager.table("quest_player_preferences");
             String sql = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
