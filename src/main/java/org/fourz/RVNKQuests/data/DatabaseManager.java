@@ -166,7 +166,9 @@ public class DatabaseManager implements IQuestDatabaseService {
                 dbConfig = DatabaseConfig.sqlite(file.getName());
             }
 
-            if (type == DatabaseType.MYSQL && !primaryReachable()) {
+            MySQLSettingsDTO probeTarget = type == DatabaseType.MYSQL
+                    ? plugin.getConfigManager().getDatabaseSettings().getMysqlSettings() : null;
+            if (probeTarget != null && !primaryReachable(probeTarget.getHost(), probeTarget.getPort())) {
                 // RVNKCore already probed the host and it is not answering; building the pool would
                 // only spend this plugin's own 30s HikariCP window reaching the same answer (#2103).
                 throw new SQLException("Primary MySQL host is unreachable (reported by RVNKCore)"
@@ -471,7 +473,7 @@ public class DatabaseManager implements IQuestDatabaseService {
      * reaching it, answers {@code true} so this plugin still tries its own connection. The service
      * can only save time; it never blocks a connection that would have worked.</p>
      */
-    private boolean primaryReachable() {
+    private boolean primaryReachable(String host, int port) {
         try {
             org.fourz.rvnkcore.RVNKCore core = org.fourz.rvnkcore.RVNKCore.getInstance();
             if (core == null || core.getServiceRegistry() == null) {
@@ -480,7 +482,7 @@ public class DatabaseManager implements IQuestDatabaseService {
             org.fourz.rvnkcore.api.service.DatabaseAvailabilityService availability =
                     core.getServiceRegistry().getService(
                             org.fourz.rvnkcore.api.service.DatabaseAvailabilityService.class);
-            return availability == null || availability.isPrimaryReachable();
+            return availability == null || availability.isReachable(host, port);
         } catch (Throwable ignored) {
             return true;
         }
