@@ -42,7 +42,9 @@ import java.util.stream.Collectors;
 public class QuestManager implements IQuestService {
     private final RVNKQuests plugin;
     private final LogManager logger;
-    private final Map<String, Quest> quests = new HashMap<>();
+    // ConcurrentHashMap (#2214): %rvnkquests_*% placeholders read quest names from whatever thread
+    // PlaceholderAPI resolves on. Writes stay on the main thread.
+    private final Map<String, Quest> quests = new ConcurrentHashMap<>();
     private final Map<Quest, List<Listener>> activeListeners = new HashMap<>();
     private final Map<String, Integer> scheduledTasks = new HashMap<>();
 
@@ -110,6 +112,21 @@ public class QuestManager implements IQuestService {
         } catch (Exception e) {
             logger.error("Failed to register listeners for quest: " + questId, e);
         }
+
+        // #2214: check NPC_INTERACT / TALK_TO keys against the NPC service. Debounced, so a batch
+        // load runs one check a few seconds after the last registration.
+        org.fourz.RVNKQuests.npc.NpcInteractionCoordinator npc = plugin.getNpcCoordinator();
+        if (npc != null) {
+            npc.requestKeyValidation();
+        }
+    }
+
+    /**
+     * A registered quest by id, without the debug log of {@link #getQuest}. Thread-safe; used by
+     * placeholders, which can resolve off the main thread and many times per second (#2214).
+     */
+    public Quest findQuestQuietly(String questId) {
+        return questId == null ? null : quests.get(questId);
     }
 
     @Override

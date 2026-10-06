@@ -153,7 +153,7 @@ public class QuestComponentFactory {
                 } catch (IllegalArgumentException e) {
                     return "Unknown trigger type: " + typeStr;
                 }
-                newTriggerListener(type, config);
+                return npcKeyProblem(newTriggerListener(type, config));
             } else {
                 ObjectiveType type;
                 try {
@@ -161,10 +161,22 @@ public class QuestComponentFactory {
                 } catch (IllegalArgumentException e) {
                     return "Unknown objective type: " + objectiveTypeStr;
                 }
-                newObjectiveListener(type, config);
+                return npcKeyProblem(newObjectiveListener(type, config));
             }
         } catch (Exception e) {
             return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+        }
+    }
+
+    /**
+     * An NPC component with a bad {@code npc_key} constructs cleanly (it goes inert and warns, so a
+     * quest load never fails on it), which would let {@code quest component add} accept it. Reject
+     * it here instead, at author time (#2214).
+     */
+    private static String npcKeyProblem(Listener listener) {
+        if (listener instanceof org.fourz.RVNKQuests.npc.NpcQuestComponent npc && !npc.hasValidKey()) {
+            return npc.getTypeName() + " needs npc_key matching "
+                + org.fourz.RVNKQuests.npc.NpcKeyRules.KEY_FORMAT;
         }
         return null;
     }
@@ -254,6 +266,10 @@ public class QuestComponentFactory {
             // them, and preflight/coords/fire enumerate them.
             case COMMAND -> new GenericCommandTrigger(plugin, quest, config);
             case WORLD_EVENT -> new GenericWorldEventTrigger(plugin, quest, config);
+            // #2214: RVNKCore NPC bridge. Guarded because an older RVNKCore jar lacks the event
+            // class, and registering a listener for it would throw NoClassDefFoundError.
+            case NPC_INTERACT -> npcApiPresent("NPC_INTERACT")
+                ? new GenericNpcInteractTrigger(plugin, quest, config) : null;
             // CUSTOM stays unimplemented: it is specified as "plugin-defined behavior" with no
             // handler contract, so there is nothing to construct. It remains a deliberate null.
             case CUSTOM -> null;
@@ -285,8 +301,21 @@ public class QuestComponentFactory {
             case ESCORT -> new GenericEscortObjective(plugin, quest, config);
             case ENCOUNTER -> new GenericEncounterObjective(plugin, quest, config);
             case COLLECT -> new GenericCollectObjective(plugin, quest, config);
+            // #2214: the #1018 subset - one click on the keyed NPC advances the objective.
+            case TALK_TO -> npcApiPresent("TALK_TO")
+                ? new GenericTalkToObjective(plugin, quest, config) : null;
             default -> null;
         };
+    }
+
+    /** False, with a warning naming the quest, when RVNKCore has no NPC bridge (pre-1.5.99). */
+    private boolean npcApiPresent(String typeName) {
+        if (org.fourz.RVNKQuests.npc.NpcApi.isPresent()) {
+            return true;
+        }
+        logger.warning("Quest '" + quest.getId() + "': " + typeName + " needs RVNKCore 1.5.99-alpha or newer"
+            + " (NPC bridge) - component skipped");
+        return false;
     }
 
     // ==================== Config Helper Methods ====================

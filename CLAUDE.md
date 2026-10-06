@@ -101,7 +101,7 @@ org.fourz.RVNKQuests
 │   │   ├── ObjectiveGroup.java
 │   │   ├── ObjectiveCondition.java
 │   │   ├── ObjectiveType.java
-│   │   ├── TriggerType.java            # Enum: LOCATION_PROXIMITY, PROXIMITY_MOB_SPAWN, ENTITY_PROXIMITY, ITEM_DISCOVERY, STRUCTURE_INTERACT, LECTERN_BOOK_ON, LECTERN_BOOK_IN_HAND, LECTERN_BOOK_REMOVED
+│   │   ├── TriggerType.java            # Enum: LOCATION_PROXIMITY, PROXIMITY_MOB_SPAWN, ENTITY_PROXIMITY, ITEM_DISCOVERY, STRUCTURE_INTERACT, LECTERN_BOOK_ON, LECTERN_BOOK_IN_HAND, LECTERN_BOOK_REMOVED, NPC_INTERACT
 │   │   ├── RewardDTO.java
 │   │   ├── RewardType.java
 │   │   ├── QuestChainDTO.java
@@ -172,13 +172,15 @@ org.fourz.RVNKQuests
 │       ├── GenericEncounterObjective.java
 │       ├── GenericInteractObjective.java
 │       ├── GenericDiscoverObjective.java
-│       └── GenericCollectObjective.java
+│       ├── GenericCollectObjective.java
+│       └── GenericTalkToObjective.java  # TALK_TO: click the RVNK-keyed NPC (#2214)
 ├── trigger/
 │   ├── ListenerQuestPillarStart.java
 │   └── generic/                     # Generic trigger components (data-driven)
 │       ├── GenericMobSpawnTrigger.java       # Name+type+world mob detection, safe spawn, beg mechanic
 │       ├── GenericStructureInteractTrigger.java
 │       ├── GenericEntityProximityTrigger.java
+│       ├── GenericNpcInteractTrigger.java    # NPC_INTERACT: click the RVNK-keyed NPC (#2214)
 │       └── GenericItemDiscoveryTrigger.java  # RIGHT_CLICK only, off-hand guard, Paper 1.21 mainhand fallback; config: item_type, custom_name (or item_name), world, required_state (default: NOT_STARTED), advance_state (default: TRIGGER_FOUND)
 ├── event/
 │   └── PlayerJoinQuitListener.java  # Progress load/save, stateCache preload/evict on join/quit
@@ -199,6 +201,14 @@ org.fourz.RVNKQuests
 ├── notification/
 │   ├── NotificationType.java
 │   └── NotificationChannel.java
+├── npc/                             # RVNKCore NPC bridge consumers (#2214)
+│   ├── NpcInteractionCoordinator.java  # ONE MONITOR listener: one dialogue line per click, key validation
+│   ├── NpcQuestComponent.java       # implemented by NPC_INTERACT and TALK_TO
+│   ├── NpcKeyRules.java / NpcClickFilter.java / DialogueContext.java / NpcApi.java
+├── placeholder/                     # %rvnkquests_*% (#2214)
+│   ├── PlaceholderRegistrar.java    # the ONLY class that touches the PAPI expansion
+│   ├── RVNKQuestsPlaceholderExpansion.java
+│   ├── QuestPlaceholderSource.java / QuestPlaceholderResolver.java / QuestStepModel.java
 ├── integration/
 │   ├── ILoreIntegration.java
 │   └── LoreIntegrationImpl.java     # Soft integration with RVNKLore
@@ -300,6 +310,28 @@ All 7 action types are wired into quest lifecycle events. `QuestJournalSubComman
 
 `LoreIntegrationImpl` provides optional integration with RVNKLore for quest item lore book generation. If RVNKLore is not present, quest items fall back to hardcoded descriptions. `QuestItem.populateFromLoreAsync()` seeds quest books asynchronously at startup.
 
+## NPC Bridge and Placeholders (1.1.66, #2214)
+
+Full reference: [docs/quest-engine.md](docs/quest-engine.md) — `NPC_INTERACT` in section 4, `TALK_TO`
+in section 5, Example 4, and section 13 (dialogue and placeholders). Sample quest:
+`quests/npc_courier_errand.yml`.
+
+- **NPC_INTERACT** trigger and **TALK_TO** objective take `npc_key` (RVNK key, case-insensitive) and
+  `click` (`right` default, `left`, `any`). They listen to RVNKCore's `RvnkNpcInteractEvent`.
+  RVNKQuests has **no Citizens dependency** — do not add Citizens to `depend`/`softdepend`.
+- Both advance through `advanceStateForPlayer`, so prerequisites, the monotonic guard and the
+  COMPLETED side effects behave as for every other component.
+- **Dialogue:** components never send chat. They report to `NpcInteractionCoordinator`, which runs
+  at `MONITOR` and sends one line per click from the RVNKLore entry `npc_<key>_<offer|active|done>`.
+  No entry or no RVNKLore means silence.
+- **Placeholders:** `%rvnkquests_active_name%` (alias `active`), `active_progress`,
+  `active_objective`, `completed_count`. Read from the in-memory progress cache only; `-` when there
+  is no data or the player is null (Citizens names and holograms).
+- **PAPI isolation:** reach PlaceholderAPI only through `placeholder/PlaceholderRegistrar`, after the
+  enabled check. `PlaceholderIsolationTest` fails if the main class links a `me.clip` type.
+- An RVNKCore older than 1.5.99-alpha disables both NPC component types with a warning
+  (`NpcApi.isPresent()`), instead of throwing `NoClassDefFoundError` during quest registration.
+
 ## Command Formatting Standards
 
 Use consistent message prefixes in command handlers:
@@ -317,7 +349,8 @@ Use consistent message prefixes in command handlers:
 | Dependency | Version | Purpose |
 |------------|---------|---------|
 | spigot-api | 1.21.4-R0.1-SNAPSHOT | Bukkit API |
-| rvnkcore | 1.3.0-alpha | Shared services, ServiceRegistry, LogManager (provided) |
+| rvnkcore | 1.5.99-alpha | Shared services, ServiceRegistry, LogManager, NPC bridge (provided) |
+| placeholderapi | 2.12.3 | `%rvnkquests_*%` expansion (provided, optional; softdepend) |
 | snakeyaml | 2.0 | YAML configuration |
 | gson | 2.8.9 | JSON serialization |
 

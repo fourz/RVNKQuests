@@ -181,6 +181,13 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
 
     private void checkComponent(String id, Map<?, ?> config, List<Finding> findings, boolean allowLoad,
                                 java.util.Set<String> declaredWorlds) {
+        String kindForNpc = str(config.get("type"));
+        if (kindForNpc == null) kindForNpc = str(config.get("objective_type"));
+        if ("NPC_INTERACT".equalsIgnoreCase(kindForNpc) || "TALK_TO".equalsIgnoreCase(kindForNpc)) {
+            checkNpcComponent(id, kindForNpc, config, findings);
+            return;
+        }
+
         String worldName = str(config.get("world"));
         if (worldName == null) {
             // Not every component is positional (item discovery, kill counts). Nothing to check.
@@ -449,5 +456,43 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
             if ("--force".startsWith(partial)) out.add("--force");
         }
         return out;
+    }
+
+    /**
+     * NPC_INTERACT / TALK_TO (#2214): the key must be well-formed and carried by an NPC. Runs on
+     * the command thread (main), which is where INpcService lookups must happen.
+     */
+    private void checkNpcComponent(String id, String kind, Map<?, ?> config, List<Finding> findings) {
+        String raw = str(config.get("npc_key"));
+        if (!org.fourz.RVNKQuests.npc.NpcKeyRules.isValid(raw)) {
+            findings.add(new Finding(Severity.BLOCKER, id, kind + " npc_key "
+                    + (raw == null ? "missing" : "'" + raw + "' invalid")
+                    + " - needs " + org.fourz.RVNKQuests.npc.NpcKeyRules.KEY_FORMAT));
+            return;
+        }
+        String key = org.fourz.RVNKQuests.npc.NpcKeyRules.normalize(raw);
+        if (!org.fourz.RVNKQuests.npc.NpcApi.isPresent()) {
+            findings.add(new Finding(Severity.BLOCKER, id,
+                    kind + " needs RVNKCore 1.5.99-alpha+ (NPC bridge) - npc '" + key + "' unchecked"));
+            return;
+        }
+        org.fourz.rvnkcore.api.service.INpcService npcs =
+                org.fourz.rvnkcore.RVNKCore.getServiceSafe(org.fourz.rvnkcore.api.service.INpcService.class);
+        if (npcs == null || !npcs.isAvailable()) {
+            findings.add(new Finding(Severity.UNVERIFIED, id,
+                    kind + " npc '" + key + "' - no NPC provider (is Citizens installed?)"));
+            return;
+        }
+        java.util.Optional<org.fourz.rvnkcore.api.model.NpcRef> ref = npcs.findByKey(key);
+        if (ref.isEmpty()) {
+            findings.add(new Finding(Severity.BLOCKER, id, kind + " npc '" + key
+                    + "' is not tagged - /rvnk npc tag " + key + " <npcId>"));
+            return;
+        }
+        org.fourz.rvnkcore.api.model.NpcRef npc = ref.get();
+        findings.add(new Finding(npc.isSpawned() ? Severity.OK : Severity.WARNING, id,
+                kind + " npc '" + key + "' = " + npc.getDisplayName()
+                        + (npc.getWorld() == null ? "" : " in '" + npc.getWorld() + "'")
+                        + (npc.isSpawned() ? "" : " (NOT spawned)")));
     }
 }

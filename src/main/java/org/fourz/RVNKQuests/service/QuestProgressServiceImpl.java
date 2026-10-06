@@ -253,6 +253,14 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
     }
 
     @Override
+    public Optional<java.util.Collection<QuestProgressDTO>> getCachedProgress(UUID playerUuid) {
+        if (playerUuid == null) return Optional.empty();
+        Map<String, QuestProgressDTO> playerProgress = progressCache.get(playerUuid);
+        // Copy: the map is live and written from the async pool while a placeholder reads it.
+        return playerProgress == null ? Optional.empty() : Optional.of(List.copyOf(playerProgress.values()));
+    }
+
+    @Override
     public CompletableFuture<List<QuestProgressDTO>> getAllProgress(UUID playerUuid) {
         Map<String, QuestProgressDTO> playerProgress = progressCache.get(playerUuid);
         if (playerProgress != null && !playerProgress.isEmpty()) {

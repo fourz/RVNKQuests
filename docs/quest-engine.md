@@ -3,7 +3,7 @@ title: Data-Driven Quest Engine
 tags: [rvnkquests, engine, reference, quests]
 board: rvnkquests
 status: active
-updated: 2026-05-15
+updated: 2026-10-06
 ---
 
 # Data-Driven Quest Engine
@@ -311,6 +311,41 @@ mechanics. All three share the same book-matching and config; they differ only i
 
 ---
 
+### NPC_INTERACT
+
+*(1.1.66, #2214)* Player clicks an NPC that carries an **RVNK key**. The quest references the key,
+never a Citizens numeric id. Staff attach the key with `/rvnk npc tag <key> [npcId]` (RVNKCore
+1.5.99-alpha+). RVNKQuests listens to RVNKCore's `RvnkNpcInteractEvent` and has no Citizens
+dependency.
+
+```json
+{
+  "type": "NPC_INTERACT",
+  "npc_key": "archivist",
+  "click": "right",
+  "advance_state": "QUEST_ACTIVE"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `npc_key` | String | **Required.** RVNK key, `[a-z0-9_-]{1,48}`. Any case; compared case-insensitively. |
+| `click` | String | `right` (default), `left` or `any`. A left click is an attack, so `right` is the default. |
+| `required_state` | String | Default `NOT_STARTED`. The `state_mapping` bucket overrides it (#1764). |
+| `advance_state` | String | Default `TRIGGER_FOUND`. Use `QUEST_ACTIVE` to start the quest on the click. |
+| `description` | String | Optional. Text for `%rvnkquests_active_objective%`. |
+
+Eligibility is the same as every other trigger: the state gate, then `advanceStateForPlayer`, which
+applies the prerequisite gate on `NOT_STARTED -> TRIGGER_FOUND`. A completed quest (including a
+repeatable quest in its cooldown) is not `NOT_STARTED`, so the trigger does not offer it again.
+
+An invalid or missing `npc_key` logs a warning that names the quest and leaves the component inert;
+the quest still loads. `/quest component add` rejects it. A few seconds after quests load, every
+NPC key is checked against RVNKCore's `INpcService`: a key no NPC carries gets a warning naming the
+quest. With no NPC provider (no Citizens), one warning is logged instead of one per component.
+
+---
+
 ## 5. Objective Types
 
 Objectives are components listed under `TRIGGER_FOUND`, `QUEST_ACTIVE`, or `OBJECTIVE_FOUND` in `state_mapping`. All objectives share the fields `required_state` (the state in which the objective is active) and `advance_state` (the state to transition to on completion).
@@ -436,6 +471,32 @@ Player right-clicks a block type. Optionally restricts to specific coordinates.
 | `world` | String | Optional world restriction |
 | `x`, `y`, `z`, `radius` | Number | Optional coordinate restriction |
 | `required_count` | Integer | Number of interactions required (default 1) |
+
+### TALK_TO
+
+*(1.1.66, #2214 — the one-click subset of #1018)* Player clicks the NPC with this RVNK key while the
+objective is active. It completes like every generic objective: `advanceStateForPlayer` to
+`advance_state`. Rewards, the completion notice and `QuestCompleteEvent` fire inside
+`AbstractQuest` when that reaches `COMPLETED`. Dialogue trees, choices and `/quest reply` stay in
+#1018.
+
+```json
+{
+  "objective_type": "TALK_TO",
+  "npc_key": "courier",
+  "advance_state": "COMPLETED",
+  "description": "Find the courier and pass on the archivist's message"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `npc_key` | String | **Required.** RVNK key, as on `NPC_INTERACT`. |
+| `click` | String | `right` (default), `left` or `any`. |
+| `required_state` | String | Default `QUEST_ACTIVE`; the `state_mapping` bucket overrides it. |
+| `advance_state` | String | Default `OBJECTIVE_FOUND`. Use `COMPLETED` to finish the quest. |
+| `requires_path` / `sets_path` | String | Optional branching, as on `INTERACT`. |
+| `description` | String | Optional. Text for `%rvnkquests_active_objective%`; default `Talk to <npc_key>`. |
 
 ### ENCOUNTER
 
@@ -911,6 +972,97 @@ VALUES
   ('dev_iron_salvage', 'salvage_xp',   'EXPERIENCE', NULL,         300),
   ('dev_iron_salvage', 'salvage_steel', 'ITEM',       'IRON_BLOCK', 1);
 ```
+
+---
+
+### Example 4 — npc_courier_errand (NPC quest, YAML)
+
+*(1.1.66, #2214)* An `archivist` NPC offers the quest on right-click; a `TALK_TO` on a `courier` NPC
+completes it. This file ships as `quests/npc_courier_errand.yml`. Copy it to
+`plugins/RVNKQuests/quests/` and run `/quest import npc_courier_errand`.
+
+```yaml
+quest_id: npc_courier_errand
+name: The Archivist's Errand
+description: The archivist needs a message carried. Find the courier and tell them the
+  archive is open again.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  components:
+    trig_archivist:
+      type: NPC_INTERACT
+      npc_key: archivist
+      click: right
+      advance_state: QUEST_ACTIVE
+    obj_courier:
+      objective_type: TALK_TO
+      npc_key: courier
+      advance_state: COMPLETED
+      description: Find the courier and pass on the archivist's message
+  state_mapping:
+    NOT_STARTED:
+    - trig_archivist
+    QUEST_ACTIVE:
+    - obj_courier
+rewards:
+  npc_courier_errand_experience:
+    type: EXPERIENCE
+    value: points
+    amount: 50
+```
+
+Optional dialogue (RVNKLore entries): `npc_archivist_offer`, `npc_archivist_active`,
+`npc_archivist_done`, `npc_courier_active`, `npc_courier_done`.
+
+---
+
+## 13. NPC Dialogue and Placeholders
+
+### NPC dialogue lines (#2214)
+
+When a player clicks a keyed NPC that an `NPC_INTERACT` or `TALK_TO` component references, the NPC
+says **one** line: the description of the RVNKLore entry `npc_<key>_<context>`, read through
+`ILoreIntegration.getNPCDialogue(key, context)`. It shows as `<NPC name>: <line>`, with `&` colour
+codes honoured.
+
+| Context | When |
+|---|---|
+| `offer` | an `NPC_INTERACT` trigger advanced the quest on this click |
+| `active` | a `TALK_TO` advanced the quest without completing it, **or** nothing advanced and the player has a quest with this NPC in progress |
+| `done` | the click completed the quest, **or** nothing advanced and the player completed a quest with this NPC |
+
+- One click gives one line, even when several quests use the same NPC. Components never speak;
+  they report to one central listener (`npc/NpcInteractionCoordinator`) that runs at `MONITOR`
+  priority after them and picks the highest context: `done` > `offer` > `active`.
+- An advance that did not commit (for example, the prerequisite gate refused the offer) does not
+  count, so a click never advertises a quest the player cannot take.
+- A quest the player has not started gives no line from its `TALK_TO` NPC.
+- No lore entry, no RVNKLore, or a cancelled click: no line. The quest action still happens.
+
+### PlaceholderAPI expansion `%rvnkquests_*%` (#2214)
+
+Registered when PlaceholderAPI is enabled (`softdepend`). `persist()` is true. Values come from the
+in-memory progress cache that loads on join; nothing reads the database on the PlaceholderAPI
+thread.
+
+| Placeholder | Value |
+|---|---|
+| `%rvnkquests_active_name%` (alias `%rvnkquests_active%`) | name of the active quest |
+| `%rvnkquests_active_progress%` | `n/m` objective steps of the active quest |
+| `%rvnkquests_active_objective%` | the `description` of the first component in the player's current state bucket that has one (`TALK_TO` defaults to `Talk to <npc_key>`) |
+| `%rvnkquests_completed_count%` | quests the player has completed |
+
+- **Active quest:** there is no "tracked quest" setting, so it is the **most recently started**
+  quest that is in progress (`TRIGGER_FOUND`, `QUEST_ACTIVE` or `OBJECTIVE_FOUND`) and registered on
+  this server. Ties go to the lower quest id.
+- **Objective steps:** each non-empty `state_mapping` bucket for `TRIGGER_FOUND`, `QUEST_ACTIVE` and
+  `OBJECTIVE_FOUND` is one step; `n` is the steps before the player's state. The sample quest
+  above reads `0/1` while active.
+- **Fallback:** `-` for no data — no player, progress not loaded, no active quest, a quest with no
+  steps, or an unknown key. Citizens resolves NPC names and holograms with a **null player**, so
+  every `%rvnkquests_*%` key reads `-` on an NPC name line. Use them in per-player text (scoreboards,
+  chat, tab list).
 
 ---
 

@@ -55,7 +55,9 @@ public class GenericStructureInteractTrigger implements Listener {
 
     private static Set<String> buildKnownKeys() {
         Set<String> keys = new java.util.HashSet<>(Set.of(
-            "type", "block_type", "world", "x", "y", "z", "radius", "required_state", "advance_state"));
+            "type", "block_type", "world", "x", "y", "z", "radius", "required_state", "advance_state",
+            // Read by %rvnkquests_active_objective% from the definition, not by this class (#2214).
+            "description"));
         keys.addAll(org.fourz.RVNKQuests.util.OutOfOrderFeedback.configKeys());
         keys.addAll(org.fourz.RVNKQuests.util.AdvanceFeedback.configKeys());
         return Set.copyOf(keys);
