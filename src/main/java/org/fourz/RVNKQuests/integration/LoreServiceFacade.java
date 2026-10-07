@@ -323,21 +323,32 @@ public class LoreServiceFacade {
     }
 
     /**
-     * Convert an RVNKLore LoreEntry to a LoreEntryDTO via reflection.
+     * Convert an RVNKLore LoreEntry to a LoreEntryDTO via reflection. Returns null on failure, so
+     * {@code Optional.map(this::convertToDTO)} yields empty: a lookup that fails reads as "no entry",
+     * never as a stand-in entry whose text would be shown to players.
      */
     private LoreEntryDTO convertToDTO(Object loreEntry) {
         try {
-            Class<?> entryClass = loreEntry.getClass();
-            UUID id = (UUID) entryClass.getMethod("getId").invoke(loreEntry);
-            String name = (String) entryClass.getMethod("getName").invoke(loreEntry);
-            String description = (String) entryClass.getMethod("getDescription").invoke(loreEntry);
-            Object typeEnum = entryClass.getMethod("getType").invoke(loreEntry);
-            String type = typeEnum != null ? typeEnum.toString() : "UNKNOWN";
-            return new LoreEntryDTO(id.toString(), name, description, type);
+            return toDto(loreEntry);
         } catch (Exception e) {
             logger.warning("Error converting lore entry to DTO: " + e.getMessage());
-            return new LoreEntryDTO("unknown", "Unknown", "Error loading lore", "UNKNOWN");
+            return null;
         }
+    }
+
+    /**
+     * Reflection read of a LoreEntry. {@code getId()} is taken as any object: RVNKLore's LoreEntry
+     * returns a String id, and the old {@code (UUID)} cast failed on every entry, so every lookup by
+     * name (NPC dialogue, quest lore) came back as an error stand-in (#2212).
+     */
+    static LoreEntryDTO toDto(Object loreEntry) throws ReflectiveOperationException {
+        Class<?> entryClass = loreEntry.getClass();
+        Object rawId = entryClass.getMethod("getId").invoke(loreEntry);
+        String name = (String) entryClass.getMethod("getName").invoke(loreEntry);
+        String description = (String) entryClass.getMethod("getDescription").invoke(loreEntry);
+        Object typeEnum = entryClass.getMethod("getType").invoke(loreEntry);
+        String type = typeEnum != null ? typeEnum.toString() : "UNKNOWN";
+        return new LoreEntryDTO(rawId != null ? rawId.toString() : "unknown", name, description, type);
     }
 
     // ── Discovery (#1650) ────────────────────────────────────────────────────────
