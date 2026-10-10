@@ -27,13 +27,7 @@ mvn dependency:tree
 
 **Output**: `target/RVNKQuests-1.1.0.jar`
 
-**Current Status**: Active development — For plugin status and history, search Graph Memory: `search_nodes("RVNKQuests")`
-
-## Task Management
-
-**GitHub Issues (primary)**: `gh issue list --repo fourz/Ravenkraft-Dev --label "board:rvnkquests" --json number,title,labels`
-
-**Status flow**: `open` → in progress (comment) → `closed`
+**Current Status**: Active development. Status and history: `python scripts/sql-memory/recall.py --bank ravenkraftdev --entity RVNKQuests` (run from the parent repo).
 
 ## Remote Testing Workflow
 
@@ -65,7 +59,8 @@ org.fourz.RVNKQuests
 ├── RVNKQuests.java              # Main plugin class, lifecycle management, RVNKCore registration
 ├── command/
 │   ├── CommandManager.java      # Command registration (singleton)
-│   ├── RVNKCommand.java         # Main /rvnkquests command dispatcher
+│   ├── QuestCommand.java        # Main /quest command dispatcher
+│   ├── RVNKCommand.java         # Legacy command interface (deprecated)
 │   ├── BaseCommand.java         # Base command abstraction
 │   ├── SubCommand.java          # Subcommand interface
 │   ├── QuestStartSubCommand.java
@@ -360,7 +355,7 @@ Use consistent message prefixes in command handlers:
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| spigot-api | 1.21.4-R0.1-SNAPSHOT | Bukkit API |
+| spigot-api | 26.1.2-R0.1-SNAPSHOT | Bukkit API |
 | rvnkcore | 1.5.99-alpha | Shared services, ServiceRegistry, LogManager, NPC bridge (provided) |
 | placeholderapi | 2.12.3 | `%rvnkquests_*%` expansion (provided, optional; softdepend) |
 | snakeyaml | 2.0 | YAML configuration |
@@ -375,11 +370,11 @@ Use consistent message prefixes in command handlers:
 ### Local Documentation
 - [README.md](README.md) - Features, commands, configuration, API usage
 - [ROADMAP.md](ROADMAP.md) - Development roadmap and milestone tracking
-- **Graph Memory** — For plugin status and history: `search_nodes("RVNKQuests")`
+- **sql-memory** — Status and history: `python scripts/sql-memory/recall.py --bank ravenkraftdev --entity RVNKQuests`
 
 ### Parent Board Standards (Cross-cutting)
 Documents on Ravenkraft Dev board (`4787f505-e92e-474d-ba54-f5ac7993ccfe`):
-- [Coding Standards](../../docs/standard/coding-standards.md) - Java 17+ conventions
+- [Coding Standards](../../docs/standard/coding-standards.md) - Java 21 conventions
 - [RVNKCore Integration](../../docs/standard/rvnkcore-integration.md) - ServiceRegistry usage patterns
 - [Database Patterns](../../docs/standard/database-patterns.md) - Repository pattern, HikariCP
 
@@ -391,5 +386,5 @@ Before committing changes:
 3. Verify console output for errors: `/rvnkdev-query <id> errors`
 4. Check plugin loads correctly: `/rvnkdev-query <id> plugin RVNKQuests`
 5. Validate RVNKCore service registration in logs (8 services)
-6. Test key commands: `/rvnkquests list`, `/rvnkquests start`, `/rvnkquests journal`
+6. Test key commands: `/quest list`, `/quest start`, `/quest journal`
 7. Verify database connectivity and fallback behavior if applicable
