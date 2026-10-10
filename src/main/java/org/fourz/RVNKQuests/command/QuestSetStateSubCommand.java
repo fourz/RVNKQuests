@@ -115,17 +115,7 @@ public class QuestSetStateSubCommand extends BaseSubCommand {
                         sendSuccessMessage(sender, "Set quest '" + quest.getName() + "' state for " + playerName);
                         sendMessage(sender, "&7   Previous state: &e" + previousState);
                         sendMessage(sender, "&7   New state: &a" + targetState);
-                        // #1884: this used to claim "no rewards triggered" unconditionally, which is
-                        // false for COMPLETED. AbstractQuest.performAdvance fires every completion
-                        // side-effect — onComplete() rewards, notifications, broadcast,
-                        // QuestCompleteEvent — "regardless of how COMPLETED is reached (trigger
-                        // component, admin command, or direct complete() call)". That is deliberate,
-                        // so trigger-driven completions still pay out; the message was simply lying.
-                        //
-                        // It is not cosmetic. On Event this handed a player a SECOND Ravenforge Shard
-                        // and fired a duplicate server-wide [Chapter I] broadcast for a quest he had
-                        // already completed two minutes earlier — item duplication and a false public
-                        // announcement, from a command an operator reasonably believed was inert.
+                        // COMPLETED fires every completion side-effect, so warn the operator (#1884).
                         if (targetState == QuestState.COMPLETED) {
                             sendMessage(sender, "&e   ⚠ COMPLETED fires rewards, notifications and the");
                             sendMessage(sender, "&e     completion broadcast - same as finishing it normally.");

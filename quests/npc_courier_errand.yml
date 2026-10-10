@@ -1,0 +1,36 @@
+quest_id: npc_courier_errand
+name: The Archivist's Errand
+description: The archivist needs a message carried. Find the courier and tell them the
+  archive is open again.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  # Sample for the RVNKCore NPC bridge (#2214). Both NPCs are referenced by RVNK key, never by a
+  # Citizens id. Tag them first: /rvnk npc tag archivist <id> and /rvnk npc tag courier <id>.
+  # Dialogue lines are optional RVNKLore entries: npc_archivist_offer, npc_archivist_active,
+  # npc_archivist_done, npc_courier_active, npc_courier_done. Without them the NPCs stay silent
+  # and the quest still works.
+  # A quest that lists this one under `prerequisites` can give its own NPC a locked line,
+  # npc_<key>_locked, for players who have not finished this errand (1.1.68, #2249). See
+  # npc_sealed_stacks.yml.
+  components:
+    trig_archivist:
+      type: NPC_INTERACT
+      npc_key: archivist
+      click: right
+      advance_state: QUEST_ACTIVE
+    obj_courier:
+      objective_type: TALK_TO
+      npc_key: courier
+      advance_state: COMPLETED
+      description: Find the courier and pass on the archivist's message
+  state_mapping:
+    NOT_STARTED:
+    - trig_archivist
+    QUEST_ACTIVE:
+    - obj_courier
+rewards:
+  npc_courier_errand_experience:
+    type: EXPERIENCE
+    value: points
+    amount: 50

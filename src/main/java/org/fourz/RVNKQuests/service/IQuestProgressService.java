@@ -192,4 +192,19 @@ public interface IQuestProgressService {
      * Shutdown the service.
      */
     void shutdown();
+
+    /**
+     * The player's progress rows from memory only, never from storage (#2214).
+     *
+     * <p>For callers that must not block or touch the database, such as PlaceholderAPI, which
+     * can resolve on the main thread once per viewer. Progress is loaded into memory on join and
+     * dropped on quit.</p>
+     *
+     * @param playerUuid the player
+     * @return the cached rows (possibly empty when loaded with no progress), or empty when the
+     *         player's progress is not in memory
+     */
+    default Optional<java.util.Collection<QuestProgressDTO>> getCachedProgress(UUID playerUuid) {
+        return Optional.empty();
+    }
 }

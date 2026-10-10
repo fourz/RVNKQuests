@@ -104,6 +104,9 @@ public class GenericMobSpawnTrigger implements Listener {
 
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
+
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
     private final Map<String, Object> config;
 
     private final EntityType entityType;
@@ -211,6 +214,7 @@ public class GenericMobSpawnTrigger implements Listener {
         boolean globalDetect = plugin.getConfigManager().isMobNameTypeMatchingEnabled();
         this.detectExisting = QuestComponentFactory.getBoolConfig(config, "detect_existing", globalDetect);
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
         this.scanIntervalMs = plugin.getConfigManager().getMobScanIntervalMs();
 
         logger.debug("Trigger created for quest " + quest.getId() +
@@ -305,11 +309,13 @@ public class GenericMobSpawnTrigger implements Listener {
                 // player who found the mob. The mob itself is already shared world state. This
                 // path only runs for NOT_STARTED players (gated above), so that is the beat's
                 // expected starting state.
-                quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                // Notify only after the advance commits (#2249).
+                advanceFeedback.notifyIfCommitted(player,
+                        quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                         org.fourz.RVNKQuests.party.PartyBeatContext.of(
                                 site != null ? site : player.getLocation(), triggerRadius,
-                                QuestState.NOT_STARTED));
-                advanceFeedback.notifyAdvanced(player);
+                                QuestState.NOT_STARTED)),
+                        mainThread);
                 logger.debug("Adopted existing " + entityType + " (" + customName +
                     ") for quest " + quest.getId() + " near " + player.getName());
                 return;
@@ -329,10 +335,11 @@ public class GenericMobSpawnTrigger implements Listener {
 
         // Advance state — party fan-out (#1982): checkpoint = the actual spawn location. Only
         // NOT_STARTED players reach this path (gated above).
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+        advanceFeedback.notifyIfCommitted(player,
+                quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(spawnLoc, triggerRadius,
-                        QuestState.NOT_STARTED));
-        advanceFeedback.notifyAdvanced(player);
+                        QuestState.NOT_STARTED)),
+                mainThread);
 
         logger.debug("Spawned " + entityType + " for quest " + quest.getId() + " near " + player.getName());
     }

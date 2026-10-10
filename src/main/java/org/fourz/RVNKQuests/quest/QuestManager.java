@@ -42,7 +42,9 @@ import java.util.stream.Collectors;
 public class QuestManager implements IQuestService {
     private final RVNKQuests plugin;
     private final LogManager logger;
-    private final Map<String, Quest> quests = new HashMap<>();
+    // ConcurrentHashMap (#2214): %rvnkquests_*% placeholders read quest names from whatever thread
+    // PlaceholderAPI resolves on. Writes stay on the main thread.
+    private final Map<String, Quest> quests = new ConcurrentHashMap<>();
     private final Map<Quest, List<Listener>> activeListeners = new HashMap<>();
     private final Map<String, Integer> scheduledTasks = new HashMap<>();
 
@@ -110,6 +112,21 @@ public class QuestManager implements IQuestService {
         } catch (Exception e) {
             logger.error("Failed to register listeners for quest: " + questId, e);
         }
+
+        // #2214: check NPC_INTERACT / TALK_TO keys against the NPC service. Debounced, so a batch
+        // load runs one check a few seconds after the last registration.
+        org.fourz.RVNKQuests.npc.NpcInteractionCoordinator npc = plugin.getNpcCoordinator();
+        if (npc != null) {
+            npc.requestKeyValidation();
+        }
+    }
+
+    /**
+     * A registered quest by id, without the debug log of {@link #getQuest}. Thread-safe; used by
+     * placeholders, which can resolve off the main thread and many times per second (#2214).
+     */
+    public Quest findQuestQuietly(String questId) {
+        return questId == null ? null : quests.get(questId);
     }
 
     @Override
@@ -359,9 +376,7 @@ public class QuestManager implements IQuestService {
      * @param playerUuid The player whose state changed
      */
     public void updateQuestListenersForPlayer(Quest quest, UUID playerUuid) {
-        // For now, this is a no-op since we register all listeners.
-        // In the future, this could be used to optimize listener registration
-        // based on which states have active players.
+        // Listeners stay registered for every state; this only tracks the active players per quest.
         logger.debug("Player " + playerUuid + " state changed for quest: " + quest.getId());
 
         // Track active players
@@ -816,11 +831,9 @@ public class QuestManager implements IQuestService {
 
         // No `if (isActive) continue` here, deliberately. Activating is only half the job: the world
         // must also be HELD, or RVNKWorlds' inactivity sweep reclaims it and writes it back to
-        // IMPORTED while the quest is mid-session (#1883). Skipping already-active worlds skipped
-        // the hold with them — and an already-active world is the COMMON case, because RVNKWorlds
-        // auto-loads previously-active worlds at boot. That is exactly how alphac was swept out from
-        // under two players running tfah_ch1_journey on 2026-08-02, despite the quest declaring it.
-        // ensureActive() short-circuits on a loaded world itself, so this costs nothing extra.
+        // IMPORTED while the quest is mid-session (#1883). An already-active world is the common
+        // case, because RVNKWorlds auto-loads previously-active worlds at boot, so it needs the hold
+        // too. ensureActive() short-circuits on a loaded world, so this costs nothing extra.
         for (String worldName : wanted) {
             worlds.ensureActive(worldName).thenAccept(ok -> {
                 if (ok) {

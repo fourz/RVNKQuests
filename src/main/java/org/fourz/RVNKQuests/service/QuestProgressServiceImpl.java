@@ -138,10 +138,7 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
             return CompletableFuture.completedFuture(null);
         }
 
-        // Build a single mutable list so all futures survive into allOf().
-        // Previously this used .toList() (unmodifiable) and then reassigned the
-        // variable inside the objectives loop — only the last objective future
-        // was ever passed to allOf(), silently discarding all earlier saves.
+        // One mutable list, so allOf() waits on every save.
         List<CompletableFuture<Boolean>> saveFutures = new ArrayList<>();
         for (QuestProgressDTO progress : playerProgress.values()) {
             saveFutures.add(getActiveRepo().saveProgress(progress));
@@ -250,6 +247,14 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
         // Delete from repository
         return getActiveRepo().deleteProgress(playerUuid, questId)
             .thenCompose(deleted -> getActiveRepo().deleteObjectiveProgress(playerUuid, questId));
+    }
+
+    @Override
+    public Optional<java.util.Collection<QuestProgressDTO>> getCachedProgress(UUID playerUuid) {
+        if (playerUuid == null) return Optional.empty();
+        Map<String, QuestProgressDTO> playerProgress = progressCache.get(playerUuid);
+        // Copy: the map is live and written from the async pool while a placeholder reads it.
+        return playerProgress == null ? Optional.empty() : Optional.of(List.copyOf(playerProgress.values()));
     }
 
     @Override

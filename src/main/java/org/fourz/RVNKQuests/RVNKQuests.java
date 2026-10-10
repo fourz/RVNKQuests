@@ -97,6 +97,12 @@ public class RVNKQuests extends JavaPlugin {
     /** Detects and dispatches WORLD_EVENT quest beats (#1017). */
     private org.fourz.RVNKQuests.trigger.WorldEventScheduler worldEventScheduler;
 
+    /** Central NPC listener: dialogue lines and key validation (#2214). Null without the RVNKCore NPC bridge. */
+    private org.fourz.RVNKQuests.npc.NpcInteractionCoordinator npcCoordinator;
+
+    /** Opaque PlaceholderAPI expansion handle; typed Object so this class never links PAPI (#2214). */
+    private Object placeholderExpansion;
+
     // RVNKCore integration
     private boolean rvnkCoreAvailable = false;
     private Object rvnkCoreInstance = null;
@@ -171,6 +177,9 @@ public class RVNKQuests extends JavaPlugin {
             // Register chain progress listener — bridges quest completion to chain service
             getServer().getPluginManager().registerEvents(new ChainProgressListener(this), this);
 
+            // NPC bridge (#2214) - before quests register, so their key check can be scheduled
+            initNpcBridge();
+
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
                 loreDatabase = new LoreDatabase(this, databaseManager);
@@ -206,6 +215,9 @@ public class RVNKQuests extends JavaPlugin {
             // Register services with RVNKCore if available
             registerWithRVNKCore();
 
+            // %rvnkquests_*% placeholders (#2214) - only when PlaceholderAPI is enabled
+            initPlaceholders();
+
             logger.info("RVNKQuests plugin enabled successfully");
         } catch (Exception e) {
             logger.error("Failed to initialize RVNKQuests plugin", e);
@@ -217,6 +229,9 @@ public class RVNKQuests extends JavaPlugin {
         logger.info("Disabling RVNKQuests plugin");
 
         try {
+            // Drop the PlaceholderAPI expansion before the services it reads go away (#2214)
+            shutdownPlaceholders();
+
             // Unregister from RVNKCore first
             unregisterFromRVNKCore();
 
@@ -308,6 +323,110 @@ public class RVNKQuests extends JavaPlugin {
      */
     public org.fourz.RVNKQuests.party.QuestPartyService getQuestPartyService() {
         return questPartyService;
+    }
+
+    /**
+     * The central NPC listener (#2214), or null when the running RVNKCore has no NPC bridge.
+     * NPC components fetch it at click time, never in their constructors.
+     */
+    public org.fourz.RVNKQuests.npc.NpcInteractionCoordinator getNpcCoordinator() {
+        return npcCoordinator;
+    }
+
+    /**
+     * Registers the central NPC listener (#2214).
+     *
+     * <p>Skipped with one warning when RVNKCore is older than 1.5.99-alpha: there the
+     * {@code RvnkNpcInteractEvent} class does not exist, and registering a listener for it throws
+     * {@code NoClassDefFoundError}, an Error that would abort the rest of onEnable.</p>
+     */
+    private void initNpcBridge() {
+        if (!org.fourz.RVNKQuests.npc.NpcApi.isPresent()) {
+            logger.warning("RVNKCore has no NPC bridge (needs 1.5.99-alpha+) - NPC_INTERACT and TALK_TO are disabled");
+            return;
+        }
+        try {
+            LogManager npcLog = LogManager.getInstance(this, "NpcInteraction");
+            npcCoordinator = new org.fourz.RVNKQuests.npc.NpcInteractionCoordinator(
+                () -> org.fourz.RVNKQuests.npc.NpcInteractionCoordinator.collect(
+                    questManager != null ? questManager.getAllQuests() : java.util.List.of()),
+                () -> org.fourz.rvnkcore.RVNKCore.getServiceSafe(org.fourz.rvnkcore.api.service.INpcService.class),
+                (key, context) -> {
+                    ILoreIntegration lore = loreIntegration;
+                    if (lore == null || !lore.isLoreAvailable()) {
+                        return java.util.concurrent.CompletableFuture.completedFuture(java.util.Optional.empty());
+                    }
+                    return lore.getNPCDialogue(key, context);
+                },
+                task -> {
+                    if (isEnabled()) getServer().getScheduler().runTask(this, task);
+                },
+                // 5 s: lets Citizens finish loading its NPCs after startup before keys are checked
+                task -> {
+                    if (isEnabled()) getServer().getScheduler().runTaskLater(this, task, 100L);
+                },
+                npcLog::warning,
+                npcLog::debug);
+            getServer().getPluginManager().registerEvents(npcCoordinator, this);
+            logger.info("NPC bridge listener registered (NPC_INTERACT, TALK_TO, npc_<key>_<context> dialogue)");
+        } catch (Throwable t) {
+            npcCoordinator = null;
+            logger.warning("NPC bridge listener failed to register: " + t.getClass().getSimpleName()
+                + ": " + t.getMessage());
+        }
+    }
+
+    /**
+     * Registers {@code %rvnkquests_*%} when PlaceholderAPI is enabled (#2214).
+     *
+     * <p>PlaceholderAPI classes are reached only through {@code PlaceholderRegistrar}, which is
+     * loaded after the enabled check, so RVNKQuests loads normally without PlaceholderAPI.
+     * Values come from in-memory progress, never the database.</p>
+     */
+    private void initPlaceholders() {
+        try {
+            Plugin papi = getServer().getPluginManager().getPlugin("PlaceholderAPI");
+            if (papi == null || !papi.isEnabled()) {
+                logger.info("PlaceholderAPI not enabled - %rvnkquests_*% placeholders not registered");
+                return;
+            }
+            org.fourz.RVNKQuests.placeholder.QuestPlaceholderSource source =
+                new org.fourz.RVNKQuests.placeholder.QuestPlaceholderSource(
+                    uuid -> {
+                        IQuestProgressService service = questProgressService;
+                        return service == null ? null : service.getCachedProgress(uuid).orElse(null);
+                    },
+                    questId -> {
+                        QuestManager manager = questManager;
+                        org.fourz.RVNKQuests.quest.Quest quest =
+                            manager == null ? null : manager.findQuestQuietly(questId);
+                        if (quest instanceof org.fourz.RVNKQuests.quest.DataDrivenQuest dq) {
+                            return dq.getStepModel();
+                        }
+                        return quest == null ? null
+                            : org.fourz.RVNKQuests.placeholder.QuestStepModel.nameOnly(quest.getName());
+                    });
+            Object handle = org.fourz.RVNKQuests.placeholder.PlaceholderRegistrar.register(this, source);
+            if (handle == null) {
+                logger.warning("PlaceholderAPI refused the rvnkquests expansion - placeholders not registered");
+                return;
+            }
+            placeholderExpansion = handle;
+            logger.info("PlaceholderAPI expansion registered - %rvnkquests_*%");
+        } catch (Throwable t) {
+            logger.warning("PlaceholderAPI expansion failed to register: "
+                + t.getClass().getSimpleName() + ": " + t.getMessage());
+        }
+    }
+
+    private void shutdownPlaceholders() {
+        if (placeholderExpansion == null) return;
+        try {
+            org.fourz.RVNKQuests.placeholder.PlaceholderRegistrar.unregister(placeholderExpansion);
+        } catch (Throwable t) {
+            logger.warning("Failed to unregister PlaceholderAPI expansion: " + t.getMessage());
+        }
+        placeholderExpansion = null;
     }
 
     /**

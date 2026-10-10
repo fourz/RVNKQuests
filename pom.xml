@@ -6,7 +6,7 @@
 
     <groupId>org.fourz.RVNKQuests</groupId>
     <artifactId>RVNKQuests</artifactId>
-    <version>1.1.65</version>
+    <version>1.1.68</version>
 
     <name>RVNKQuests</name>
     <description></description>
@@ -28,8 +28,9 @@
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
         <repository>
+            <!-- Same id and URL as RVNKEvents, so one cached PlaceholderAPI artifact serves both (#2214) -->
             <id>placeholderapi</id>
-            <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
+            <url>https://repo.helpch.at/releases/</url>
         </repository>
         <repository>
             <id>enginehub-maven</id>
@@ -78,8 +79,18 @@
         <dependency>
             <groupId>org.fourz</groupId>
             <artifactId>rvnkcore</artifactId>
-            <version>1.5.89-alpha</version>
+            <!-- 1.5.99-alpha: NPC bridge - INpcService, RvnkNpcInteractEvent (#2213, #2214) -->
+            <version>1.5.99-alpha</version>
             <scope>provided</scope>
+        </dependency>
+        <!-- Optional: %rvnkquests_*% expansion (#2214). Reached only through
+             placeholder.PlaceholderRegistrar, after PlaceholderAPI is confirmed enabled. -->
+        <dependency>
+            <groupId>me.clip</groupId>
+            <artifactId>placeholderapi</artifactId>
+            <version>2.12.3</version>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
         <!-- Test Dependencies -->

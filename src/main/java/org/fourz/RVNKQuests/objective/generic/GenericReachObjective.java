@@ -38,6 +38,9 @@ public class GenericReachObjective implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final String worldName;
     private final double targetX;
     private final double targetY;
@@ -63,6 +66,7 @@ public class GenericReachObjective implements Listener {
         this.contextLocationKey = QuestComponentFactory.getStringConfig(config, "context_location_key", null);
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
     }
 
@@ -97,9 +101,11 @@ public class GenericReachObjective implements Listener {
             }
             // Party fan-out (#1982): ctx from the RESOLVED target, so the dynamic
             // context_location_key case shares the actual checkpoint, not the static default.
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
-                    org.fourz.RVNKQuests.party.PartyBeatContext.of(target, radius, requiredState));
-            advanceFeedback.notifyAdvanced(player);
+            // Notify only after the advance commits (#2249).
+            advanceFeedback.notifyIfCommitted(player,
+                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                    org.fourz.RVNKQuests.party.PartyBeatContext.of(target, radius, requiredState)),
+                    mainThread);
             logger.debug(player.getName() + " reached target location for quest " + quest.getId());
         }
     }

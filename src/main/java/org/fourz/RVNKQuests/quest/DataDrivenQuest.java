@@ -47,6 +47,22 @@ public class DataDrivenQuest extends AbstractQuest {
         return definition;
     }
 
+    /** Built on first use; the definition is immutable, so the model never goes stale (#2214). */
+    private volatile org.fourz.RVNKQuests.placeholder.QuestStepModel stepModel;
+
+    /**
+     * The quest's objective steps for {@code %rvnkquests_*%} placeholders (#2214). Immutable and
+     * safe to read from any thread.
+     */
+    public org.fourz.RVNKQuests.placeholder.QuestStepModel getStepModel() {
+        org.fourz.RVNKQuests.placeholder.QuestStepModel model = stepModel;
+        if (model == null) {
+            model = org.fourz.RVNKQuests.placeholder.QuestStepModel.from(definition);
+            stepModel = model;
+        }
+        return model;
+    }
+
     /**
      * Gets the shared runtime context for inter-component communication.
      * Components can store/retrieve runtime state (e.g., spawned entity references).

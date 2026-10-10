@@ -36,6 +36,9 @@ public class GenericEntityProximityTrigger implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final EntityType entityType;
     private final String worldName;
     private final double radius;
@@ -49,6 +52,7 @@ public class GenericEntityProximityTrigger implements Listener {
         this.worldName = QuestComponentFactory.getStringConfig(config, "world", "world");
         this.radius = QuestComponentFactory.getDoubleConfig(config, "radius", 50.0);
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
     }
 
@@ -79,10 +83,12 @@ public class GenericEntityProximityTrigger implements Listener {
                 // plausibly shared the moment — the firing player is already within `radius` of it
                 // by construction, so measuring from the entity is the tighter, more honest test.
                 // requiredState is NOT_STARTED because that is the gate checked above.
-                quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+                // Notify only after the advance commits (#2249).
+                advanceFeedback.notifyIfCommitted(player,
+                        quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(
-                        entity.getLocation(), radius, QuestState.NOT_STARTED));
-                advanceFeedback.notifyAdvanced(player);
+                        entity.getLocation(), radius, QuestState.NOT_STARTED)),
+                        mainThread);
                 logger.debug("Entity proximity trigger fired for " + player.getName() + " near " + entityType);
                 return;
             }

@@ -26,6 +26,12 @@ For detailed workflow documentation, see [Development Workflow - MCP Integration
 
 ## Commands
 
+The tables below list the common commands. `/quest` has the aliases `/quests` and `/q`.
+Per-command pages are in [docs/plugins/commands/](../../docs/plugins/commands/README.md) (`quest-*.md`).
+These subcommands have no row here: `item`, `debug`, `objective`, `create`, `delete`, `edit`, `component`,
+`def-objective`, `reward`, `export`, `import`, `chain`, `probe`, `world`, `prefs`, `party`.
+Run `/quest help` or read `command/QuestCommand.java` for the full list.
+
 ### Player Commands
 
 | Command | Description | Permission |
@@ -67,7 +73,7 @@ For detailed workflow documentation, see [Development Workflow - MCP Integration
 | `/quest reload reset` | Reload config and reinitialize all quest listeners | `rvnkquests.admin.reload` |
 | `/quest reload reseed` | Re-seed quest definitions from config then reinitialize | `rvnkquests.admin.reload` |
 | `/quest reset <quest_id> [player]` | Reset quest progress | `rvnkquests.command.reset` |
-| `/quest seed` | Seed quest definitions from DB | `rvnkquests.command.seed` |
+| `/quest debug seed` | Seed quest definitions from DB | `rvnkquests.admin.seed` |
 
 ### Command Examples
 
@@ -504,7 +510,7 @@ A classic dungeon crawl scenario featuring a ghostly NPC and hidden treasure.
 | `/quest reload reset`                  | Reload + reinitialize quest listeners | `rvnkquests.admin.reload` |
 | `/quest reload reseed`                 | Re-seed DB definitions + reinitialize | `rvnkquests.admin.reload` |
 | `/quest reset <quest_id> [player]`     | Reset quest progress           | `rvnkquests.command.reset`  |
-| `/quest seed`                          | Seed quest definitions from DB | `rvnkquests.command.seed`   |
+| `/quest debug seed`                    | Seed quest definitions from DB | `rvnkquests.admin.seed`     |
 
 ## Configuration
 

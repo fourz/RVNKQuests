@@ -74,6 +74,9 @@ public class GenericEncounterObjective implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final EntityType entityType;
     private final int spawnCount;
     private final int requiredKills;
@@ -145,6 +148,7 @@ public class GenericEncounterObjective implements Listener {
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
 
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
     }
 
@@ -321,10 +325,12 @@ public class GenericEncounterObjective implements Listener {
             // over a ridge should still share the beat. Falls back to the death location only if
             // the spawn point cannot be resolved.
             Location postLoc = getSpawnLocation(owner);
-            quest.advanceStateForPlayer(playerId, advanceState,
+            // Notify only after the advance commits (#2249).
+            advanceFeedback.notifyIfCommitted(owner,
+                    quest.tryAdvanceStateForPlayer(playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
-                    postLoc != null ? postLoc : entity.getLocation(), triggerRadius, requiredState));
-            advanceFeedback.notifyAdvanced(owner);
+                    postLoc != null ? postLoc : entity.getLocation(), triggerRadius, requiredState)),
+                    mainThread);
             logger.debug(owner.getName() + " completed encounter objective for quest " + quest.getId());
         } else if (mobs.isEmpty()) {
             // Every mob is gone but the bar was not met. With ownership-based credit this is only

@@ -36,5 +36,11 @@ public enum TriggerType {
     LECTERN_BOOK_IN_HAND,
 
     /** Take a specific book off a lectern (Paper API only). Config: world, book_name|lore_book_id */
-    LECTERN_BOOK_REMOVED
+    LECTERN_BOOK_REMOVED,
+
+    /**
+     * Click an NPC that carries an RVNK key (RVNKCore NPC bridge, #2214).
+     * Config: npc_key (required), click (any|right|left, default right), advance_state
+     */
+    NPC_INTERACT
 }

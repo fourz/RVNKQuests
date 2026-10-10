@@ -43,6 +43,9 @@ public class GenericDiscoverObjective implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final String worldName;
     private final double detectionRadius;
     private final Set<Material> detectionMaterials;
@@ -67,6 +70,7 @@ public class GenericDiscoverObjective implements Listener {
         // Parse detection materials
         this.detectionMaterials = new HashSet<>();
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
         String materialsStr = QuestComponentFactory.getStringConfig(config, "detection_materials", "");
         for (String mat : materialsStr.split(",")) {
             mat = mat.trim().toUpperCase();
@@ -109,10 +113,12 @@ public class GenericDiscoverObjective implements Listener {
             if (setsPath != null) quest.setPathChoice(player, setsPath);
             // Party fan-out (#1986): with no detection materials this degrades to a plain reach,
             // so the checkpoint is where the player stands, scaled by the detection radius.
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+            // Notify only after the advance commits (#2249).
+            advanceFeedback.notifyIfCommitted(player,
+                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
-                    player.getLocation(), detectionRadius, requiredState));
-            advanceFeedback.notifyAdvanced(player);
+                    player.getLocation(), detectionRadius, requiredState)),
+                    mainThread);
             return;
         }
 
@@ -139,10 +145,11 @@ public class GenericDiscoverObjective implements Listener {
             // Party fan-out (#1986): a discovery has no authored coordinate — the structure is
             // found wherever the scan succeeded, so the finder's position IS the checkpoint.
             // detectionRadius is the right scale: it is how far the scan itself reached.
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+            advanceFeedback.notifyIfCommitted(player,
+                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
-                    player.getLocation(), detectionRadius, requiredState));
-            advanceFeedback.notifyAdvanced(player);
+                    player.getLocation(), detectionRadius, requiredState)),
+                    mainThread);
             logger.debug(player.getName() + " discovered structure for quest " + quest.getId());
         }
     }

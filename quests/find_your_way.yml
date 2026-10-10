@@ -1,0 +1,44 @@
+quest_id: find_your_way
+name: Find Your Way
+description: New to the realm? Follow the keepers from Skyblock to the Kingdom of Zeal hub and
+  on to the Sol Sanctum in Alpha Centauri.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  # Event wayfinding (#2212). New players start in skyblock. Wayfarer Ines (key wayfarer_greeter)
+  # offers the quest beside the skyblock portal to the Kingdom of Zeal. Warden Halvard (guide_koz)
+  # stands at the Kingdom of Zeal portal hub; Keeper Soli (guide_sol) in the Sol Sanctum, the
+  # Alpha Centauri portal plaza. Tag the NPCs first: /rvnk npc tag <key> <id>.
+  # Dialogue: RVNKLore entries npc_<key>_<offer|active|done>.
+  components:
+    trig_greeter:
+      type: NPC_INTERACT
+      npc_key: wayfarer_greeter
+      click: right
+      advance_state: QUEST_ACTIVE
+    obj_koz:
+      objective_type: TALK_TO
+      npc_key: guide_koz
+      advance_state: OBJECTIVE_FOUND
+      description: Find Warden Halvard at the Kingdom of Zeal portal hub
+    obj_sol:
+      objective_type: TALK_TO
+      npc_key: guide_sol
+      advance_state: COMPLETED
+      description: Take the Alpha Centauri portal and find Keeper Soli in the Sol Sanctum
+  state_mapping:
+    NOT_STARTED:
+    - trig_greeter
+    QUEST_ACTIVE:
+    - obj_koz
+    OBJECTIVE_FOUND:
+    - obj_sol
+rewards:
+  find_your_way_guide:
+    type: LORE_ITEM
+    value: "The Wayfarer's Guide"
+    amount: 1
+  find_your_way_experience:
+    type: EXPERIENCE
+    value: points
+    amount: 25

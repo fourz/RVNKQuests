@@ -49,6 +49,9 @@ public class GenericEscortObjective implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final String contextEntityKey;
     private final String contextLocationKey;
     private final String worldName;
@@ -89,6 +92,7 @@ public class GenericEscortObjective implements Listener {
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
     }
 
     @EventHandler
@@ -147,9 +151,11 @@ public class GenericEscortObjective implements Listener {
             // Party fan-out (#1986): checkpoint is the DESTINATION, not the escort entity or the
             // player. The destination is the fixed, authored point the beat is about — the entity
             // is within `radius` of it by the check above, and the player is trailing it.
-            quest.advanceStateForPlayer(playerId, advanceState,
-                org.fourz.RVNKQuests.party.PartyBeatContext.of(dest, radius, requiredState));
-            advanceFeedback.notifyAdvanced(player);
+            // Notify only after the advance commits (#2249).
+            advanceFeedback.notifyIfCommitted(player,
+                    quest.tryAdvanceStateForPlayer(playerId, advanceState,
+                org.fourz.RVNKQuests.party.PartyBeatContext.of(dest, radius, requiredState)),
+                    mainThread);
             logger.debug(player.getName() + " completed escort objective for quest " + quest.getId());
         }
     }

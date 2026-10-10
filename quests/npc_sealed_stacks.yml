@@ -1,0 +1,52 @@
+quest_id: npc_sealed_stacks
+name: The Sealed Stacks
+description: The keeper of the lower archive will not open the sealed stacks for a stranger.
+  Earn the archivist's trust first, then ask again.
+repeatable: false
+cooldown_minutes: 0
+# The prerequisite gate stops NOT_STARTED -> TRIGGER_FOUND/QUEST_ACTIVE until
+# npc_courier_errand is COMPLETED.
+prerequisites:
+- npc_courier_errand
+metadata:
+  # Sample for the LOCKED NPC dialogue context (1.1.68, #2249). Tag the NPC first:
+  # /rvnk npc tag keeper <id>
+  #
+  # Dialogue lines are optional RVNKLore entries:
+  #   npc_keeper_locked - the keeper's line while npc_courier_errand is not COMPLETED
+  #   npc_keeper_offer  - the line when the click starts this quest
+  #   npc_keeper_done   - the line after this quest is COMPLETED
+  #
+  # The locked rule: a click on the keeper plays npc_keeper_locked when this quest is
+  # NOT_STARTED for the player, a prerequisite is not COMPLETED, and no other quest gives
+  # the keeper a done/offer/active line. Without the npc_keeper_locked entry the keeper
+  # stays silent, as before 1.1.68.
+  #
+  # The NPC does not need to own the gated edge. A quest that opens on a LOCATION_PROXIMITY
+  # trigger and uses the NPC only on TRIGGER_FOUND -> QUEST_ACTIVE gets the locked line from
+  # that NPC as well, because a NOT_STARTED quest with an unmet prerequisite cannot reach any
+  # later edge.
+  #
+  # Use a different NPC key from the prerequisite quest. On a shared NPC the prerequisite
+  # quest's own offer/active/done line outranks locked.
+  components:
+    trig_keeper:
+      type: NPC_INTERACT
+      npc_key: keeper
+      click: right
+      advance_state: QUEST_ACTIVE
+    obj_archivist:
+      objective_type: TALK_TO
+      npc_key: archivist
+      advance_state: COMPLETED
+      description: Tell the archivist the sealed stacks are open
+  state_mapping:
+    NOT_STARTED:
+    - trig_keeper
+    QUEST_ACTIVE:
+    - obj_archivist
+rewards:
+  npc_sealed_stacks_experience:
+    type: EXPERIENCE
+    value: points
+    amount: 50
