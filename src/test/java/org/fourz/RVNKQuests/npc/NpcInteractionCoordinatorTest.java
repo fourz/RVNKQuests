@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.fourz.RVNKQuests.npc.NpcTestSupport.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -338,6 +339,209 @@ class NpcInteractionCoordinatorTest {
 
             assertDoesNotThrow(() -> failing.onNpcInteract(rightClick(player, "archivist")));
             verify(player, never()).sendMessage(anyString());
+        }
+    }
+
+    /** Makes the quest report unmet prerequisites, as getUnmetPrerequisites does for the gate. */
+    private static DataDrivenQuest withUnmet(DataDrivenQuest quest, String... unmet) {
+        when(quest.getUnmetPrerequisites(any(java.util.UUID.class)))
+            .thenReturn(CompletableFuture.completedFuture(List.of(unmet)));
+        return quest;
+    }
+
+    @Nested
+    @DisplayName("locked context (#2249)")
+    class Locked {
+
+        private void withLockedLore(String key) {
+            withLoreForAllContexts(key);
+            lore.put("npc_" + key + "_locked", key + " is not ready for you");
+        }
+
+        @Test
+        @DisplayName("NPC_INTERACT refused by an unmet prerequisite plays the locked line")
+        void triggerRefusedByPrerequisite() {
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.NOT_STARTED);
+            // commits=false: the prerequisite gate refuses NOT_STARTED -> TRIGGER_FOUND
+            trigger(withUnmet(quest("cavern", s, false), "aether"), "guide");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(QuestState.NOT_STARTED, s.get());
+            assertEquals(List.of("npc_guide_locked"), lookups);
+            assertEquals(1, sentLines().size());
+            assertTrue(sentLines().get(0).contains("guide is not ready for you"));
+        }
+
+        @Test
+        @DisplayName("NPC on a later edge (TRIGGER_FOUND -> QUEST_ACTIVE) of a NOT_STARTED gated quest is locked too")
+        void laterEdgeOfGatedQuest() {
+            // The cavern shape: a LOCATION_PROXIMITY trigger owns NOT_STARTED -> TRIGGER_FOUND and is
+            // the gated edge; the NPC only acts on TRIGGER_FOUND -> QUEST_ACTIVE.
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.NOT_STARTED);
+            trigger(withUnmet(quest("cavern", s, true), "aether"), "guide",
+                "required_state", "TRIGGER_FOUND", "advance_state", "QUEST_ACTIVE");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(QuestState.NOT_STARTED, s.get(), "the NPC's own gate did not fire");
+            assertEquals(List.of("npc_guide_locked"), lookups);
+            assertEquals(1, sentLines().size());
+        }
+
+        @Test
+        @DisplayName("TALK_TO of a NOT_STARTED gated quest is locked as well")
+        void talkToOfGatedQuest() {
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.NOT_STARTED);
+            talkTo(withUnmet(quest("cavern", s, true), "aether"), "guide");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_locked"), lookups);
+            assertEquals(1, sentLines().size());
+        }
+
+        @Test
+        @DisplayName("no npc_<key>_locked entry: silence, as before 1.1.68")
+        void noLockedEntryIsSilent() {
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.NOT_STARTED);
+            trigger(withUnmet(quest("cavern", s, false), "aether"), "guide");
+            withLoreForAllContexts("guide"); // offer/active/done, but no locked line
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_locked"), lookups, "only the locked entry is looked up");
+            assertTrue(sentLines().isEmpty(), "a quest with no locked line must not be advertised");
+        }
+
+        @Test
+        @DisplayName("NOT_STARTED with no prerequisite gate: silence, no lookup, even with a locked entry")
+        void notGatedIsSilent() {
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.NOT_STARTED);
+            talkTo(withUnmet(quest("errand", s, true)), "courier", "advance_state", "COMPLETED");
+            withLockedLore("courier");
+
+            dispatch(rightClick(player, "courier"));
+
+            assertTrue(lookups.isEmpty());
+            assertTrue(sentLines().isEmpty());
+        }
+
+        @Test
+        @DisplayName("prerequisite met: the trigger offers the quest, not the locked line")
+        void prerequisiteMetOffers() {
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.NOT_STARTED);
+            trigger(withUnmet(quest("cavern", s, true)), "guide");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_offer"), lookups);
+        }
+
+        @Test
+        @DisplayName("locked is lowest: another quest in progress with the NPC gives the active line")
+        void activeOutranksLocked() {
+            trigger(withUnmet(quest("cavern", new AtomicReference<>(QuestState.NOT_STARTED), false), "aether"), "guide");
+            talkTo(quest("ruins", new AtomicReference<>(QuestState.TRIGGER_FOUND), true), "guide");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_active"), lookups);
+            assertEquals(1, sentLines().size());
+        }
+
+        @Test
+        @DisplayName("locked is lowest: a completed quest with the NPC gives the done line")
+        void doneOutranksLocked() {
+            trigger(withUnmet(quest("cavern", new AtomicReference<>(QuestState.NOT_STARTED), false), "aether"), "guide");
+            trigger(quest("aether", new AtomicReference<>(QuestState.COMPLETED), true), "guide");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_done"), lookups);
+        }
+
+        @Test
+        @DisplayName("locked is lowest: an offer from another quest wins")
+        void offerOutranksLocked() {
+            trigger(withUnmet(quest("cavern", new AtomicReference<>(QuestState.NOT_STARTED), false), "aether"), "guide");
+            trigger(quest("aether", new AtomicReference<>(QuestState.NOT_STARTED), true), "guide");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_offer"), lookups);
+            assertEquals(1, sentLines().size());
+        }
+
+        @Test
+        @DisplayName("a quest past NOT_STARTED is never locked, whatever its prerequisites read")
+        void pastNotStartedIsNotLocked() {
+            // e.g. an admin setstate moved the player mid-chain with the prerequisite unmet
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.TRIGGER_FOUND);
+            talkTo(withUnmet(quest("cavern", s, true), "aether"), "guide",
+                "required_state", "QUEST_ACTIVE");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_active"), lookups);
+        }
+
+        @Test
+        @DisplayName("the locked rule respects the component's click filter")
+        void lockedRespectsClick() {
+            trigger(withUnmet(quest("cavern", new AtomicReference<>(QuestState.NOT_STARTED), false), "aether"), "guide");
+            withLockedLore("guide");
+
+            dispatch(click(player, "guide", ClickType.LEFT));
+
+            assertTrue(lookups.isEmpty());
+        }
+
+        @Test
+        @DisplayName("a prerequisite read that fails is treated as not locked: silence")
+        void failedPrerequisiteReadIsSilent() {
+            DataDrivenQuest q = quest("cavern", new AtomicReference<>(QuestState.NOT_STARTED), false);
+            when(q.getUnmetPrerequisites(any(java.util.UUID.class)))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("db down")));
+            trigger(q, "guide");
+            withLockedLore("guide");
+
+            assertDoesNotThrow(() -> dispatch(rightClick(player, "guide")));
+            assertTrue(lookups.isEmpty());
+            assertTrue(sentLines().isEmpty());
+        }
+
+        @Test
+        @DisplayName("two gated quests on one NPC still send one line")
+        void twoLockedQuestsOneLine() {
+            trigger(withUnmet(quest("cavern", new AtomicReference<>(QuestState.NOT_STARTED), false), "aether"), "guide");
+            talkTo(withUnmet(quest("depths", new AtomicReference<>(QuestState.NOT_STARTED), true), "cavern"), "guide");
+            withLockedLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(1, sentLines().size());
+            assertEquals(0, coordinator.pendingClicks());
+        }
+
+        @Test
+        @DisplayName("resolveLocked is a pure read: it never advances a quest")
+        void resolveLockedHasNoSideEffects() {
+            DataDrivenQuest q = withUnmet(quest("cavern", new AtomicReference<>(QuestState.NOT_STARTED), true), "aether");
+            trigger(q, "guide");
+
+            assertTrue(coordinator.resolveLocked(player, "guide", ClickType.RIGHT).join());
+            verify(q, never()).advanceStateForPlayer(any(java.util.UUID.class), any(QuestState.class));
+            verify(q, never()).advanceStateForPlayer(any(java.util.UUID.class), any(QuestState.class), any());
+            verify(q, never()).setStateForPlayer(any(java.util.UUID.class), any(QuestState.class));
         }
     }
 

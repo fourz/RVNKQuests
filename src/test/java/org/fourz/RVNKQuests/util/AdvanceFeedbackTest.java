@@ -175,4 +175,98 @@ class AdvanceFeedbackTest {
 
         verify(player, times(2)).sendMessage(anyString());
     }
+    @Nested
+    @DisplayName("Only on a committed advance (#1764, #2249)")
+    class OnlyOnCommit {
+
+        /** Records each task instead of running it, so the test can prove the hop happens. */
+        private final java.util.List<Runnable> mainThreadTasks = new java.util.ArrayList<>();
+        private final java.util.concurrent.Executor mainThread = mainThreadTasks::add;
+
+        private void drainMainThread() {
+            new java.util.ArrayList<>(mainThreadTasks).forEach(Runnable::run);
+            mainThreadTasks.clear();
+        }
+
+        @Test
+        @DisplayName("a committed advance sends the line, on the main thread")
+        void committedSends() throws Exception {
+            AdvanceFeedback feedback = AdvanceFeedback.from(
+                config("advance_message", "You arrive.", "advance_sound", "none"));
+
+            var outcome = feedback.notifyIfCommitted(player,
+                java.util.concurrent.CompletableFuture.completedFuture(true), mainThread);
+
+            verify(player, never()).sendMessage(anyString());
+            drainMainThread();
+            verify(player).sendMessage("You arrive.");
+            assertEquals(AdvanceFeedback.Outcome.SENT, outcome.get());
+        }
+
+        @Test
+        @DisplayName("a refused advance (prerequisite gate, already past) sends nothing")
+        void refusedIsSilent() throws Exception {
+            AdvanceFeedback feedback = AdvanceFeedback.from(config("advance_message", "You arrive."));
+
+            var outcome = feedback.notifyIfCommitted(player,
+                java.util.concurrent.CompletableFuture.completedFuture(false), mainThread);
+            drainMainThread();
+
+            verify(player, never()).sendMessage(anyString());
+            assertEquals(AdvanceFeedback.Outcome.SUPPRESSED_NOT_COMMITTED, outcome.get());
+        }
+
+        @Test
+        @DisplayName("a failed write sends nothing")
+        void failedWriteIsSilent() throws Exception {
+            AdvanceFeedback feedback = AdvanceFeedback.from(config("advance_message", "You arrive."));
+
+            var outcome = feedback.notifyIfCommitted(player,
+                java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("db down")),
+                mainThread);
+            drainMainThread();
+
+            verify(player, never()).sendMessage(anyString());
+            assertEquals(AdvanceFeedback.Outcome.SUPPRESSED_NOT_COMMITTED, outcome.get());
+        }
+
+        @Test
+        @DisplayName("a missing result (a mock, an unwired caller) sends nothing")
+        void nullResultIsSilent() throws Exception {
+            AdvanceFeedback feedback = AdvanceFeedback.from(config("advance_message", "You arrive."));
+
+            var outcome = feedback.notifyIfCommitted(player, null, mainThread);
+
+            verify(player, never()).sendMessage(anyString());
+            assertEquals(AdvanceFeedback.Outcome.SUPPRESSED_NOT_COMMITTED, outcome.get());
+        }
+
+        @Test
+        @DisplayName("the line waits for the commit: nothing is sent while the write is in flight")
+        void waitsForTheCommit() {
+            AdvanceFeedback feedback = AdvanceFeedback.from(
+                config("advance_message", "You arrive.", "advance_sound", "none"));
+            var pending = new java.util.concurrent.CompletableFuture<Boolean>();
+
+            feedback.notifyIfCommitted(player, pending, mainThread);
+            drainMainThread();
+            verify(player, never()).sendMessage(anyString());
+
+            pending.complete(true);
+            drainMainThread();
+            verify(player).sendMessage("You arrive.");
+        }
+
+        @Test
+        @DisplayName("a component with no line attaches nothing and schedules nothing")
+        void unconfiguredSchedulesNothing() throws Exception {
+            AdvanceFeedback feedback = AdvanceFeedback.from(config("world", "alphac"));
+
+            var outcome = feedback.notifyIfCommitted(player,
+                java.util.concurrent.CompletableFuture.completedFuture(true), mainThread);
+
+            assertTrue(mainThreadTasks.isEmpty());
+            assertEquals(AdvanceFeedback.Outcome.SUPPRESSED_NO_MESSAGE, outcome.get());
+        }
+    }
 }

@@ -86,6 +86,9 @@ public class GenericStructureInteractTrigger implements Listener {
     /** Optional per-beat line + cue sent when this trigger advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     public GenericStructureInteractTrigger(RVNKQuests plugin, DataDrivenQuest quest, Map<String, Object> config) {
         this.plugin = plugin;
         this.quest = quest;
@@ -119,6 +122,7 @@ public class GenericStructureInteractTrigger implements Listener {
         this.radiusSquared = radius * radius;
         this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
 
         warnUnknownKeys(config);
 
@@ -177,10 +181,12 @@ public class GenericStructureInteractTrigger implements Listener {
         // configured coordinate. On an unsited trigger there is no configured coordinate at all,
         // and even on a sited one the clicked block may be up to `radius` away — sharing from the
         // real block keeps the member presence test measured from where the beat happened.
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+        // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+        advanceFeedback.notifyIfCommitted(player,
+                quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
             org.fourz.RVNKQuests.party.PartyBeatContext.of(
-                block.getLocation(), radius, requiredState));
-        advanceFeedback.notifyAdvanced(player);
+                block.getLocation(), radius, requiredState)),
+                mainThread);
         logger.debug("Structure interact trigger fired for " + player.getName() + " on " + blockType
             + " at " + block.getX() + "," + block.getY() + "," + block.getZ());
     }

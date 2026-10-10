@@ -43,6 +43,9 @@ public class GenericCollectObjective implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final Map<Material, Integer> requiredItems;
     private final boolean consumeItems;
     private final String worldName;
@@ -81,6 +84,7 @@ public class GenericCollectObjective implements Listener {
         // Parse items map
         this.requiredItems = new LinkedHashMap<>();
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
         Object itemsObj = config.get("items");
         if (itemsObj instanceof Map) {
             Map<String, Object> itemsMap = (Map<String, Object>) itemsObj;
@@ -162,12 +166,14 @@ public class GenericCollectObjective implements Listener {
             // without it the beat is "have these items, anywhere", so fall back to the player at
             // radius 0 and let the service's min_share_radius floor govern.
             org.bukkit.Location checkpoint = getTargetLocation(player);
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            advanceFeedback.notifyIfCommitted(player,
+                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                 checkpoint != null
                     ? org.fourz.RVNKQuests.party.PartyBeatContext.of(checkpoint, radius, requiredState)
                     : org.fourz.RVNKQuests.party.PartyBeatContext.of(
-                        player.getLocation(), 0.0, requiredState));
-            advanceFeedback.notifyAdvanced(player);
+                        player.getLocation(), 0.0, requiredState)),
+                    mainThread);
             logger.debug(player.getName() + " completed collect objective for quest " + quest.getId());
         } else {
             // Show progress message (throttled)

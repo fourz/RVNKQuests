@@ -6,10 +6,17 @@ package org.fourz.RVNKQuests.npc;
  * <p>The line comes from the RVNKLore entry {@code npc_<key>_<context>}, read through
  * {@code ILoreIntegration.getNPCDialogue(key, context)}.</p>
  *
- * <p>Declared in priority order, lowest first. When one click advances several quests, the
- * highest-priority context wins and only that line is sent.</p>
+ * <p>Declared in priority order, lowest first: {@code locked} &lt; {@code active} &lt;
+ * {@code offer} &lt; {@code done}. When one click concerns several quests, the highest-priority
+ * context wins and only that line is sent.</p>
  */
 public enum DialogueContext {
+    /**
+     * The player cannot take a quest of this NPC yet: the quest is NOT_STARTED and a prerequisite
+     * is not COMPLETED (#2249). Lowest priority; it plays only when no other context applies, and
+     * only when the entry {@code npc_<key>_locked} exists.
+     */
+    LOCKED("locked"),
     /** A quest is in progress: a TALK_TO objective advanced it, or the player clicked an NPC of a quest they are on. */
     ACTIVE("active"),
     /** An NPC_INTERACT trigger offered (started) the quest. */

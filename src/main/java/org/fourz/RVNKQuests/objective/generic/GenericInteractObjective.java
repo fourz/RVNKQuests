@@ -39,6 +39,9 @@ public class GenericInteractObjective implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final Material blockType;
     private final Material itemType;
     private final int requiredCount;
@@ -67,6 +70,7 @@ public class GenericInteractObjective implements Listener {
         this.setsPath = QuestComponentFactory.getStringConfig(config, "sets_path", null);
         this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
     }
 
     @EventHandler
@@ -124,10 +128,12 @@ public class GenericInteractObjective implements Listener {
             // Party fan-out (#1986): checkpoint is the player, because an interact objective has no
             // configured location — it matches a block or item type anywhere in the world. Radius 0
             // lets the service's min_share_radius floor govern, same as a kill.
-            quest.advanceStateForPlayer(playerId, advanceState,
+            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            advanceFeedback.notifyIfCommitted(player,
+                    quest.tryAdvanceStateForPlayer(playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
-                    player.getLocation(), 0.0, requiredState));
-            advanceFeedback.notifyAdvanced(player);
+                    player.getLocation(), 0.0, requiredState)),
+                    mainThread);
             logger.debug(player.getName() + " completed interact objective for quest " + quest.getId());
         }
     }

@@ -27,13 +27,14 @@ import java.util.Map;
  * {@link OutOfOrderFeedback#notifyWrongBeat} would tell a player both that they were too early and
  * that they succeeded.</p>
  *
- * <h3>Known limit</h3>
- * <p>This fires where the component <i>decides</i> to advance, which is not quite the same as the
- * write landing. {@code AbstractQuest}'s monotonic guard can still reject a change that would move
- * the quest backwards — if two components fire in the same tick, the loser is rejected silently and
- * will have spoken anyway. That race is rare and the message is cosmetic, which is why this sits at
- * the call site rather than deep in the write chain where the per-component config is not
- * reachable.</p>
+ * <h3>Only on a committed advance (#1764, #2249)</h3>
+ * <p>Components call {@link #notifyIfCommitted} with the result of
+ * {@code AbstractQuest.tryAdvanceStateForPlayer}. The line goes out only when that result is
+ * {@code true}: the state write landed. Before 1.1.68 components called {@link #notifyAdvanced}
+ * right after dispatching the advance, so every refusal inside the write chain still spoke. The
+ * prerequisite gate is the visible case: a player blocked from a LOCATION_PROXIMITY trigger saw the
+ * arrival line on every block they moved, because the state never left NOT_STARTED and the
+ * component kept re-firing. The same-tick monotonic race spoke for the loser too.</p>
  *
  * @since 1.1.47
  */
@@ -138,12 +139,73 @@ public final class AdvanceFeedback {
         return Outcome.SENT;
     }
 
+    /**
+     * Sends the beat's line only if the advance committed (#1764, #2249).
+     *
+     * <p>{@code committed} is the future from {@code AbstractQuest.tryAdvanceStateForPlayer}. It
+     * completes on the database pool, so the send hops to the main thread through
+     * {@code mainThread}. A {@code false}, a {@code null}, a failed write or a missing future all
+     * mean the state did not change, and the player hears nothing.</p>
+     *
+     * <p>Nothing is attached when this component has no line to send, so the common silent case
+     * costs nothing on the advance path.</p>
+     *
+     * @param player     the player who fired the beat
+     * @param committed  whether the firer's state change committed
+     * @param mainThread runs a task on the server thread
+     * @return what was done; completes after the send, or at once when there is nothing to send
+     */
+    public java.util.concurrent.CompletableFuture<Outcome> notifyIfCommitted(
+            Player player,
+            java.util.concurrent.CompletableFuture<Boolean> committed,
+            java.util.concurrent.Executor mainThread) {
+        if (!isConfigured()) {
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                enabled ? Outcome.SUPPRESSED_NO_MESSAGE : Outcome.SUPPRESSED_DISABLED);
+        }
+        if (committed == null) {
+            return java.util.concurrent.CompletableFuture.completedFuture(Outcome.SUPPRESSED_NOT_COMMITTED);
+        }
+        java.util.concurrent.CompletableFuture<Outcome> outcome = new java.util.concurrent.CompletableFuture<>();
+        committed.whenComplete((landed, ex) -> {
+            if (ex != null || !Boolean.TRUE.equals(landed)) {
+                outcome.complete(Outcome.SUPPRESSED_NOT_COMMITTED);
+                return;
+            }
+            try {
+                mainThread.execute(() -> {
+                    try {
+                        outcome.complete(notifyAdvanced(player));
+                    } catch (RuntimeException e) {
+                        outcome.completeExceptionally(e);
+                    }
+                });
+            } catch (RuntimeException e) {
+                // The scheduler refuses tasks while the plugin disables. A line is cosmetic.
+                outcome.complete(Outcome.SUPPRESSED_NOT_COMMITTED);
+            }
+        });
+        return outcome;
+    }
+
+    /**
+     * A main-thread executor for {@link #notifyIfCommitted}: the Bukkit scheduler of the plugin.
+     *
+     * @param plugin the owning plugin
+     * @return an executor that runs each task on the next server tick
+     */
+    public static java.util.concurrent.Executor mainThread(org.bukkit.plugin.Plugin plugin) {
+        return task -> org.bukkit.Bukkit.getScheduler().runTask(plugin, task);
+    }
+
     /** What {@link #notifyAdvanced} did, for logging. */
     public enum Outcome {
         SENT,
         SENT_WITHOUT_SOUND,
         SUPPRESSED_DISABLED,
         SUPPRESSED_NO_PLAYER,
-        SUPPRESSED_NO_MESSAGE
+        SUPPRESSED_NO_MESSAGE,
+        /** The advance did not commit: a gate refused it, or the write failed (#1764, #2249). */
+        SUPPRESSED_NOT_COMMITTED
     }
 }

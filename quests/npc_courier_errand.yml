@@ -10,6 +10,9 @@ metadata:
   # Dialogue lines are optional RVNKLore entries: npc_archivist_offer, npc_archivist_active,
   # npc_archivist_done, npc_courier_active, npc_courier_done. Without them the NPCs stay silent
   # and the quest still works.
+  # A quest that lists this one under `prerequisites` can give its own NPC a locked line,
+  # npc_<key>_locked, for players who have not finished this errand (1.1.68, #2249). See
+  # npc_sealed_stacks.yml.
   components:
     trig_archivist:
       type: NPC_INTERACT

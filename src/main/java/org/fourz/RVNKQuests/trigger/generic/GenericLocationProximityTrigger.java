@@ -38,6 +38,9 @@ public class GenericLocationProximityTrigger implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final String worldName;
     private final double x;
     private final double y;
@@ -59,6 +62,7 @@ public class GenericLocationProximityTrigger implements Listener {
         this.radiusSquared = radius * radius;
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "NOT_STARTED"));
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
     }
 
@@ -93,9 +97,11 @@ public class GenericLocationProximityTrigger implements Listener {
 
         if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
             // Party fan-out (#1982): carry the checkpoint so qualifying members share the beat.
-            quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
-                    new org.fourz.RVNKQuests.party.PartyBeatContext(worldName, x, y, z, radius, requiredState));
-            advanceFeedback.notifyAdvanced(player);
+            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            advanceFeedback.notifyIfCommitted(player,
+                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                    new org.fourz.RVNKQuests.party.PartyBeatContext(worldName, x, y, z, radius, requiredState)),
+                    mainThread);
             logger.debug("Location proximity trigger fired for " + player.getName()
                     + " at " + worldName + " " + (int) x + "," + (int) y + "," + (int) z
                     + " (quest: " + quest.getId() + ")");

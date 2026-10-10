@@ -79,6 +79,10 @@ class StructureInteractGateTest {
         when(quest.advanceStateForPlayer(any(UUID.class), any(QuestState.class),
                 any(org.fourz.RVNKQuests.party.PartyBeatContext.class)))
             .thenReturn(CompletableFuture.completedFuture(null));
+        // #2249: and reads whether it committed, so the advance_message waits for the commit.
+        when(quest.tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class),
+                any(org.fourz.RVNKQuests.party.PartyBeatContext.class)))
+            .thenReturn(CompletableFuture.completedFuture(true));
     }
 
     /** The config {@code tfah_ch1_journey} actually ships, minus whatever a case overrides. */
@@ -120,14 +124,17 @@ class StructureInteractGateTest {
     }
 
     private void assertAdvanced() {
-        verify(quest).advanceStateForPlayer(eq(playerId), eq(QuestState.TRIGGER_FOUND),
+        // #2249: the party-aware advance that reports its commit.
+        verify(quest).tryAdvanceStateForPlayer(eq(playerId), eq(QuestState.TRIGGER_FOUND),
             any(org.fourz.RVNKQuests.party.PartyBeatContext.class));
     }
 
-    /** Covers both overloads — the gate must refuse regardless of which path a future edit uses. */
+    /** Covers every overload — the gate must refuse regardless of which path a future edit uses. */
     private void assertNotAdvanced() {
         verify(quest, never()).advanceStateForPlayer(any(UUID.class), any(QuestState.class));
         verify(quest, never()).advanceStateForPlayer(any(UUID.class), any(QuestState.class),
+            any(org.fourz.RVNKQuests.party.PartyBeatContext.class));
+        verify(quest, never()).tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class),
             any(org.fourz.RVNKQuests.party.PartyBeatContext.class));
     }
 
@@ -135,7 +142,7 @@ class StructureInteractGateTest {
     private org.fourz.RVNKQuests.party.PartyBeatContext capturedContext() {
         var captor = org.mockito.ArgumentCaptor.forClass(
             org.fourz.RVNKQuests.party.PartyBeatContext.class);
-        verify(quest).advanceStateForPlayer(any(UUID.class), any(QuestState.class), captor.capture());
+        verify(quest).tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class), captor.capture());
         return captor.getValue();
     }
 
@@ -306,7 +313,7 @@ class StructureInteractGateTest {
             trigger(config)
                 .onPlayerInteract(clickOn(blockAt(Material.LECTERN, SITE_X, SITE_Y, SITE_Z)));
 
-            verify(quest).advanceStateForPlayer(eq(playerId), eq(QuestState.QUEST_ACTIVE),
+            verify(quest).tryAdvanceStateForPlayer(eq(playerId), eq(QuestState.QUEST_ACTIVE),
                 any(org.fourz.RVNKQuests.party.PartyBeatContext.class));
         }
 

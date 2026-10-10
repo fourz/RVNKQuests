@@ -322,8 +322,20 @@ in section 5, Example 4, and section 13 (dialogue and placeholders). Sample ques
 - Both advance through `advanceStateForPlayer`, so prerequisites, the monotonic guard and the
   COMPLETED side effects behave as for every other component.
 - **Dialogue:** components never send chat. They report to `NpcInteractionCoordinator`, which runs
-  at `MONITOR` and sends one line per click from the RVNKLore entry `npc_<key>_<offer|active|done>`.
+  at `MONITOR` and sends one line per click from the RVNKLore entry
+  `npc_<key>_<offer|active|done|locked>`. Priority: `done` > `offer` > `active` > `locked`.
   No entry or no RVNKLore means silence.
+- **Locked (1.1.68, #2249):** when nothing else applies, the NPC plays `npc_<key>_locked` if a quest
+  with a component for that key is `NOT_STARTED` and has a prerequisite that is not `COMPLETED`.
+  This holds for **any** NPC component of the quest, not only one on the gated
+  `NOT_STARTED` -> `TRIGGER_FOUND` edge. The check reads `getUnmetPrerequisites` and changes nothing.
+  No `npc_<key>_locked` entry means silence, which is the leak guard. Rule: docs/quest-engine.md
+  section 13. Sample: `quests/npc_sealed_stacks.yml`.
+- **`advance_message` only on commit (1.1.68, #1764):** components call
+  `AbstractQuest.tryAdvanceStateForPlayer`, which returns `true` only when the state write landed,
+  and send the line through `AdvanceFeedback.notifyIfCommitted`. A refused advance (prerequisite
+  gate, monotonic guard, already at the target) sends nothing. The `Void` `advanceStateForPlayer`
+  overloads are unchanged. COMPLETED side effects stay in `performAdvance`.
 - **Placeholders:** `%rvnkquests_active_name%` (alias `active`), `active_progress`,
   `active_objective`, `completed_count`. Read from the in-memory progress cache only; `-` when there
   is no data or the player is null (Citizens names and holograms).

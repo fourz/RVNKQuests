@@ -38,6 +38,9 @@ public class GenericItemDiscoveryTrigger implements Listener {
     /** Optional per-beat line + cue sent when this component advances the quest (#2025). */
     private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
 
+    /** Runs the advance line on the server thread once the advance commits (#2249). */
+    private final java.util.concurrent.Executor mainThread;
+
     private final Material itemType;
     private final String itemName;
     private final String worldName;
@@ -60,6 +63,7 @@ public class GenericItemDiscoveryTrigger implements Listener {
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "TRIGGER_FOUND"));
         this.feedback = org.fourz.RVNKQuests.util.OutOfOrderFeedback.from(config);
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
     }
 
     @EventHandler
@@ -110,10 +114,12 @@ public class GenericItemDiscoveryTrigger implements Listener {
         // Party fan-out (#1986): a discovery has no place of its own — it happens wherever the
         // holder is standing. Radius 0 is deliberate and legal: the service applies its
         // min_share_radius floor, so this shares on the same footing as a kill.
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+        // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+        advanceFeedback.notifyIfCommitted(player,
+                quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
             org.fourz.RVNKQuests.party.PartyBeatContext.of(
-                player.getLocation(), 0.0, requiredState));
-        advanceFeedback.notifyAdvanced(player);
+                player.getLocation(), 0.0, requiredState)),
+                mainThread);
         logger.debug("Item discovery trigger fired for " + player.getName() + " on quest " + quest.getId() + " - advancing to " + advanceState);
     }
 

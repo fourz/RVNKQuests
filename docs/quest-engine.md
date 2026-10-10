@@ -174,6 +174,12 @@ Player walks within a fixed radius of specified coordinates.
 | `x`, `y`, `z` | Number | Centre coordinates |
 | `radius` | Number | Trigger radius in blocks |
 
+`advance_message` (and `advance_sound`, `advance_volume`, `advance_pitch`, `advance_feedback`) is
+sent only when the advance **commits**. Since 1.1.68 (#1764, #2249) a player that the prerequisite
+gate blocks, or whose state already moved, gets no line. Before 1.1.68 the line went out before the
+commit, so a blocked player saw it on every step. This applies to every component that takes
+`advance_message`.
+
 ### PROXIMITY_MOB_SPAWN
 
 A named custom mob spawns near the player. The engine spawns the mob at the nearest safe surface location. Supports detecting pre-existing mobs by name+type on startup (useful after server restarts).
@@ -1015,6 +1021,9 @@ rewards:
 Optional dialogue (RVNKLore entries): `npc_archivist_offer`, `npc_archivist_active`,
 `npc_archivist_done`, `npc_courier_active`, `npc_courier_done`.
 
+`quests/npc_sealed_stacks.yml` *(1.1.68, #2249)* lists `npc_courier_errand` under `prerequisites`
+and gives its `keeper` NPC a locked line, `npc_keeper_locked`. See the locked context in section 13.
+
 ---
 
 ## 13. NPC Dialogue and Placeholders
@@ -1031,14 +1040,41 @@ codes honoured.
 | `offer` | an `NPC_INTERACT` trigger advanced the quest on this click |
 | `active` | a `TALK_TO` advanced the quest without completing it, **or** nothing advanced and the player has a quest with this NPC in progress |
 | `done` | the click completed the quest, **or** nothing advanced and the player completed a quest with this NPC |
+| `locked` | *(1.1.68, #2249)* nothing above applies, and a quest with this NPC is `NOT_STARTED` for the player with a prerequisite that is not `COMPLETED` |
 
 - One click gives one line, even when several quests use the same NPC. Components never speak;
   they report to one central listener (`npc/NpcInteractionCoordinator`) that runs at `MONITOR`
-  priority after them and picks the highest context: `done` > `offer` > `active`.
+  priority after them and picks the highest context: `done` > `offer` > `active` > `locked`.
 - An advance that did not commit (for example, the prerequisite gate refused the offer) does not
-  count, so a click never advertises a quest the player cannot take.
-- A quest the player has not started gives no line from its `TALK_TO` NPC.
+  count as an offer. It can give the `locked` line, see below.
+- A quest the player has not started, and that has no unmet prerequisite, gives no line from its
+  NPC. This is unchanged.
 - No lore entry, no RVNKLore, or a cancelled click: no line. The quest action still happens.
+
+#### The locked rule (#2249)
+
+The NPC plays `npc_<key>_locked` when **all** of these are true:
+
+1. No component committed an advance on this click, and the fallback found no quest with this NPC
+   in progress or completed. (`locked` is the lowest context.)
+2. A quest has an `NPC_INTERACT` or `TALK_TO` component with this `npc_key`, and that component
+   accepts the click type.
+3. That quest is `NOT_STARTED` for the player.
+4. At least one of that quest's `prerequisites` is not `COMPLETED` for the player. This is the same
+   check the prerequisite gate uses (`getUnmetPrerequisites`). It only reads; it changes no state.
+5. The RVNKLore entry `npc_<key>_locked` exists. **No entry means silence**, as before 1.1.68. This
+   is the leak guard: a quest whose NPC has no locked line is never advertised.
+
+The component's own `required_state` is not consulted. The gate guards only
+`NOT_STARTED` -> `TRIGGER_FOUND`, and that edge often belongs to another component. A quest can open
+on a `LOCATION_PROXIMITY` trigger and use the NPC only on `TRIGGER_FOUND` -> `QUEST_ACTIVE`. While
+that quest is `NOT_STARTED` with an unmet prerequisite, the player cannot reach the NPC's edge, so
+the NPC still plays the locked line.
+
+Not locked: a quest past `NOT_STARTED` (including `ABANDONED`), a quest with no prerequisites, and a
+prerequisite read that fails. The locked line is per NPC key, not per quest: one NPC with two gated
+quests plays one `npc_<key>_locked` line. Give the gated quest its own NPC key; on an NPC that the
+prerequisite quest also uses, that quest's own `offer`/`active`/`done` line outranks `locked`.
 
 ### PlaceholderAPI expansion `%rvnkquests_*%` (#2214)
 

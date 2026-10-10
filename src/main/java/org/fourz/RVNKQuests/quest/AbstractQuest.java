@@ -217,7 +217,12 @@ public abstract class AbstractQuest implements Quest {
 
     @Override
     public CompletableFuture<Void> advanceStateForPlayer(UUID playerUuid, QuestState newState) {
-        return enqueueStateChange(playerUuid, newState, true, null, null);
+        return toVoid(enqueueStateChange(playerUuid, newState, true, null, null));
+    }
+
+    /** Drops the commit flag, for the {@code CompletableFuture<Void>} overloads callers already use. */
+    private static CompletableFuture<Void> toVoid(CompletableFuture<Boolean> committed) {
+        return committed.thenApply(ignored -> (Void) null);
     }
 
     /**
@@ -236,15 +241,39 @@ public abstract class AbstractQuest implements Quest {
      */
     public CompletableFuture<Void> advanceStateForPlayer(UUID playerUuid, QuestState newState,
                                                          org.fourz.RVNKQuests.party.PartyBeatContext ctx) {
+        return toVoid(tryAdvanceStateForPlayer(playerUuid, newState, ctx));
+    }
+
+    /**
+     * {@link #advanceStateForPlayer(UUID, QuestState, org.fourz.RVNKQuests.party.PartyBeatContext)}
+     * that also reports whether the firer's change <b>committed</b> (#2249, the #1764 message fix).
+     *
+     * <h3>Why a separate result</h3>
+     * <p>The {@code Void} future completes <b>normally</b> on every refusal: the state is already
+     * the target, the monotonic guard, the party in-step gate, and the prerequisite gate on
+     * NOT_STARTED to TRIGGER_FOUND. A caller that speaks when the future completes therefore
+     * speaks for advances that never happened. {@code GenericLocationProximityTrigger} did exactly
+     * that: a prerequisite-blocked player saw the arrival line on every step.</p>
+     *
+     * <p>The value is {@code true} only when the state write for the firer landed; then the
+     * COMPLETED side effects are already scheduled on the main thread, exactly as before. It is
+     * {@code false} for every refusal. A failed write completes exceptionally. Party members'
+     * advances are not part of the result.</p>
+     *
+     * @param ctx the beat checkpoint for party fan-out; null for a solo advance
+     * @return true when the change committed for the firer
+     */
+    public CompletableFuture<Boolean> tryAdvanceStateForPlayer(UUID playerUuid, QuestState newState,
+                                                               org.fourz.RVNKQuests.party.PartyBeatContext ctx) {
         if (ctx == null) {
-            return advanceStateForPlayer(playerUuid, newState);
+            return enqueueStateChange(playerUuid, newState, true, null, null);
         }
         // Enqueued directly rather than via advanceStateForPlayer(uuid, state) so the checkpoint
         // reaches the trace (#2093). Behaviour is identical — that overload is this call with a
         // null checkpoint — but a traced firer now shows WHERE the beat fired, which is the only
         // component attribution available inside the state machine.
         String checkpoint = describeCheckpoint(ctx);
-        CompletableFuture<Void> firer = enqueueStateChange(playerUuid, newState, true, null, checkpoint);
+        CompletableFuture<Boolean> firer = enqueueStateChange(playerUuid, newState, true, null, checkpoint);
         // Fetched lazily at fire time — quests are constructed during registration, before the
         // party service exists; a constructor-cached null would silently disable fan-out forever.
         org.fourz.RVNKQuests.party.QuestPartyService parties = plugin.getQuestPartyService();
@@ -314,7 +343,7 @@ public abstract class AbstractQuest implements Quest {
 
     @Override
     public CompletableFuture<Void> setStateForPlayer(UUID playerUuid, QuestState newState) {
-        return enqueueStateChange(playerUuid, newState, false, null, null);
+        return toVoid(enqueueStateChange(playerUuid, newState, false, null, null));
     }
 
     /**
@@ -335,15 +364,16 @@ public abstract class AbstractQuest implements Quest {
      * @param checkpoint where the beat fired, for {@code /quest debug trace} (#2093); null when the
      *                  caller is not a positional component. Carried through untouched — it never
      *                  affects a decision, only what a trace can report about one.
+     * @return true when the change committed; false when a gate refused it (#2249)
      */
-    private CompletableFuture<Void> enqueueStateChange(UUID playerUuid, QuestState newState, boolean monotonic,
-                                                       QuestState partyExpectedFrom, String checkpoint) {
+    private CompletableFuture<Boolean> enqueueStateChange(UUID playerUuid, QuestState newState, boolean monotonic,
+                                                          QuestState partyExpectedFrom, String checkpoint) {
         if (progressService == null) {
             logger.warning("QuestProgressService not available - cannot advance state");
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(false);
         }
 
-        CompletableFuture<Void> result = new CompletableFuture<>();
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
 
         CompletableFuture<Void> tail = writeChains.compute(playerUuid, (uuid, prior) -> {
             CompletableFuture<Void> base = (prior != null) ? prior : CompletableFuture.completedFuture(null);
@@ -351,11 +381,11 @@ public abstract class AbstractQuest implements Quest {
             // *Async so applyStateChange never runs while compute() holds the bin lock.
             base.handle((v, ex) -> (Void) null)
                 .thenComposeAsync(ignored -> applyStateChange(uuid, newState, monotonic, partyExpectedFrom, checkpoint))
-                .whenComplete((v, ex) -> {
+                .whenComplete((committed, ex) -> {
                     if (ex != null) {
                         result.completeExceptionally(ex);
                     } else {
-                        result.complete(null);
+                        result.complete(Boolean.TRUE.equals(committed));
                     }
                 });
             // The next link waits on this one regardless of outcome.
@@ -371,8 +401,10 @@ public abstract class AbstractQuest implements Quest {
     /**
      * Performs one state change. Runs inside the player's write chain, so the state read
      * here is still current when the write below lands — no other change can slip between.
+     *
+     * @return true when the write committed; false for every refusing exit (#2249)
      */
-    private CompletableFuture<Void> applyStateChange(UUID playerUuid, QuestState newState, boolean monotonic,
+    private CompletableFuture<Boolean> applyStateChange(UUID playerUuid, QuestState newState, boolean monotonic,
                                                      QuestState partyExpectedFrom, String checkpoint) {
         return getStateForPlayer(playerUuid)
             .thenCompose(currentState -> {
@@ -382,7 +414,7 @@ public abstract class AbstractQuest implements Quest {
                     trace(playerUuid, currentState, newState, QuestTrace.Decision.ALREADY,
                         "side effects not re-fired", checkpoint);
                     stateCache.put(playerUuid, currentState);
-                    return CompletableFuture.<Void>completedFuture(null);
+                    return CompletableFuture.completedFuture(Boolean.FALSE);
                 }
 
                 // Party in-step gate (#1982): a fan-out only moves members who are exactly at the
@@ -396,7 +428,7 @@ public abstract class AbstractQuest implements Quest {
                     trace(playerUuid, currentState, newState, QuestTrace.Decision.PARTY_OUT_OF_STEP,
                         "beat expects " + partyExpectedFrom + ", member is at " + currentState, checkpoint);
                     stateCache.put(playerUuid, currentState);
-                    return CompletableFuture.<Void>completedFuture(null);
+                    return CompletableFuture.completedFuture(Boolean.FALSE);
                 }
 
                 // Reject regressions from automatic (component-driven) advances. Explicit
@@ -408,7 +440,7 @@ public abstract class AbstractQuest implements Quest {
                         "rank " + progressRank(currentState) + " -> " + progressRank(newState)
                             + "; automatic advances cannot move backwards", checkpoint);
                     stateCache.put(playerUuid, currentState);
-                    return CompletableFuture.<Void>completedFuture(null);
+                    return CompletableFuture.completedFuture(Boolean.FALSE);
                 }
 
                 // Gate trigger-driven activation (NOT_STARTED -> TRIGGER_FOUND) on the quest's
@@ -453,7 +485,7 @@ public abstract class AbstractQuest implements Quest {
                                 });
                             }
                             stateCache.put(playerUuid, currentState);
-                            return CompletableFuture.<Void>completedFuture(null);
+                            return CompletableFuture.completedFuture(Boolean.FALSE);
                         }
                         return tracedAdvance(playerUuid, currentState, newState, checkpoint,
                             "prerequisites met");
@@ -576,9 +608,12 @@ public abstract class AbstractQuest implements Quest {
      * {@code ADVANCED} for a change that then failed — which is the exact ambiguity this command
      * exists to remove.</p>
      */
-    private CompletableFuture<Void> tracedAdvance(UUID playerUuid, QuestState currentState, QuestState newState,
-                                                  String checkpoint, String detail) {
-        CompletableFuture<Void> advance = performAdvance(playerUuid, currentState, newState);
+    private CompletableFuture<Boolean> tracedAdvance(UUID playerUuid, QuestState currentState, QuestState newState,
+                                                     String checkpoint, String detail) {
+        // performAdvance completes once the state write has landed; the COMPLETED side effects are
+        // already scheduled on the main thread by then. Reaching here is the one committing exit.
+        CompletableFuture<Boolean> advance = performAdvance(playerUuid, currentState, newState)
+            .thenApply(ignored -> Boolean.TRUE);
         if (!QuestTrace.isActive()) {
             return advance;
         }

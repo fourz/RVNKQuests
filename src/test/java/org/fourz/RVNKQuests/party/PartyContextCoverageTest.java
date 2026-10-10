@@ -48,7 +48,9 @@ class PartyContextCoverageTest {
      * the argument spanning lines, since several call sites wrap.</p>
      */
     private static final Pattern CONTEXT_LESS_ADVANCE =
-        Pattern.compile("advanceStateForPlayer\\s*\\(\\s*[^,()]+,\\s*[^,()]+\\)");
+        // [aA]: also matches tryAdvanceStateForPlayer (#2249), the commit-reporting overload most
+        // components now call. Without it this scan would pass them vacuously.
+        Pattern.compile("[aA]dvanceStateForPlayer\\s*\\(\\s*[^,()]+,\\s*[^,()]+\\)");
 
     private static List<Path> componentSources() throws IOException {
         Path moduleRoot = Path.of("").toAbsolutePath();
@@ -109,7 +111,7 @@ class PartyContextCoverageTest {
             String body = Files.readString(source, StandardCharsets.UTF_8);
             // Only components that advance state need it. A component that never advances (a pure
             // listener or helper) is legitimately exempt.
-            if (!body.contains("advanceStateForPlayer")) {
+            if (!body.contains("advanceStateForPlayer") && !body.contains("AdvanceStateForPlayer")) {
                 continue;
             }
             if (!body.contains("PartyBeatContext")) {

@@ -48,11 +48,19 @@ import java.util.function.Supplier;
  *       {@code done} &gt; {@code offer} &gt; {@code active}.</li>
  *   <li>With no committed advance, the fallback looks at every quest with a component for this
  *       key and click: {@code active} if the player has one in progress, else {@code done} if
- *       they completed one. A quest the player has not started gives nothing, so a click never
- *       advertises a quest the player cannot take yet.</li>
+ *       they completed one. A quest the player has not started gives nothing here, so a click
+ *       never advertises a quest the player cannot take yet.</li>
+ *   <li>With nothing from the steps above, the {@code locked} rule runs (#2249, see
+ *       {@link #resolveLocked}): {@code locked} when a quest with a component for this key and
+ *       click is NOT_STARTED for the player and has a prerequisite that is not COMPLETED.</li>
  *   <li>The line is the RVNKLore entry {@code npc_<key>_<context>}. No entry, or no RVNKLore,
- *       means silence; the quest action has already happened either way.</li>
+ *       means silence; the quest action has already happened either way. For {@code locked} this
+ *       is the leak guard: a quest whose NPC has no {@code npc_<key>_locked} entry stays silent,
+ *       exactly as before 1.1.68.</li>
  * </ol>
+ *
+ * <p>Priority, highest first: {@code done} &gt; {@code offer} &gt; {@code active} &gt;
+ * {@code locked}.</p>
  *
  * <h2>Key validation</h2>
  *
@@ -149,9 +157,11 @@ public class NpcInteractionCoordinator implements Listener {
         String key = NpcKeyRules.normalize(event.getNpcKey());
         if (player == null || key == null) return;
 
+        RvnkNpcInteractEvent.ClickType click = event.getClickType();
+        String npcName = event.getNpcName();
+
         if (claims == null || claims.isEmpty()) {
-            resolveFallback(player, key, event.getClickType())
-                .ifPresent(context -> speak(player, key, event.getNpcName(), context));
+            speakResolved(player, key, npcName, click, resolveFallback(player, key, click).orElse(null));
             return;
         }
 
@@ -159,12 +169,28 @@ public class NpcInteractionCoordinator implements Listener {
         CompletableFuture.allOf(futures).handle((v, ex) -> null).thenRun(() -> mainThread.execute(() -> {
             DialogueContext context = contextFromClaims(player, claims);
             if (context == null) {
-                context = resolveFallback(player, key, event.getClickType()).orElse(null);
+                context = resolveFallback(player, key, click).orElse(null);
             }
-            if (context != null) {
-                speak(player, key, event.getNpcName(), context);
-            }
+            speakResolved(player, key, npcName, click, context);
         }));
+    }
+
+    /**
+     * Speaks the resolved context, or, when there is none, the {@code locked} line if the
+     * {@link #resolveLocked} rule holds. Call on the main thread: the locked rule reads the
+     * cached quest states.
+     */
+    private void speakResolved(Player player, String key, String npcName,
+                               RvnkNpcInteractEvent.ClickType click, DialogueContext context) {
+        if (context != null) {
+            speak(player, key, npcName, context);
+            return;
+        }
+        resolveLocked(player, key, click).whenComplete((locked, ex) -> {
+            if (ex == null && Boolean.TRUE.equals(locked)) {
+                mainThread.execute(() -> speak(player, key, npcName, DialogueContext.LOCKED));
+            }
+        });
     }
 
     /**
@@ -190,7 +216,8 @@ public class NpcInteractionCoordinator implements Listener {
 
     /**
      * The context when no component advanced anything: {@code active} for a quest in progress,
-     * else {@code done} for a completed one, else empty.
+     * else {@code done} for a completed one, else empty. {@code locked} is not decided here; it
+     * needs an asynchronous prerequisite read, see {@link #resolveLocked}.
      */
     Optional<DialogueContext> resolveFallback(Player player, String key, RvnkNpcInteractEvent.ClickType click) {
         boolean active = false;
@@ -210,6 +237,77 @@ public class NpcInteractionCoordinator implements Listener {
         if (active) return Optional.of(DialogueContext.ACTIVE);
         if (done) return Optional.of(DialogueContext.DONE);
         return Optional.empty();
+    }
+
+    /**
+     * The {@code locked} rule (#2249): true when at least one quest with a component for this key
+     * and click is NOT_STARTED for the player and has a prerequisite that is not COMPLETED.
+     *
+     * <h3>Any NPC component of the quest, not only the gated edge</h3>
+     * <p>The prerequisite gate guards one edge, NOT_STARTED to TRIGGER_FOUND, and that edge is
+     * often not the NPC's. A quest can open on a LOCATION_PROXIMITY trigger and use the NPC only
+     * later, on TRIGGER_FOUND to QUEST_ACTIVE. While the quest is NOT_STARTED with an unmet
+     * prerequisite, the player cannot reach any later edge either, so every NPC component of that
+     * quest counts. The component's own {@code required_state} is deliberately not consulted.</p>
+     *
+     * <h3>Side-effect free</h3>
+     * <p>Reads only: the cached quest state, and {@link org.fourz.RVNKQuests.quest.Quest#getUnmetPrerequisites}
+     * for the prerequisites. That is the same evaluation the gate uses, since
+     * {@code AbstractQuest.arePrerequisitesMet} is {@code getUnmetPrerequisites(...).isEmpty()}.
+     * Nothing is advanced, written or journalled.</p>
+     *
+     * <h3>What it does not cover</h3>
+     * <ul>
+     *   <li>A quest with no prerequisites, NOT_STARTED: not locked. Silence, as before.</li>
+     *   <li>A quest in any state other than NOT_STARTED (ABANDONED included): not locked.</li>
+     *   <li>A prerequisite read that fails: not locked. Silence is the safe default.</li>
+     * </ul>
+     *
+     * @return completes with true when the rule holds; never completes exceptionally
+     */
+    CompletableFuture<Boolean> resolveLocked(Player player, String key, RvnkNpcInteractEvent.ClickType click) {
+        Set<DataDrivenQuest> candidates = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        for (NpcQuestComponent component : safeComponents()) {
+            if (!component.hasValidKey() || !NpcKeyRules.matches(component.getNpcKey(), key)) continue;
+            if (!component.acceptsClick(click)) continue;
+            DataDrivenQuest quest = component.getQuest();
+            if (quest == null) continue;
+            if (quest.getStateForPlayer(player) != QuestState.NOT_STARTED) continue;
+            candidates.add(quest);
+        }
+        if (candidates.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        java.util.UUID playerId = player.getUniqueId();
+        List<CompletableFuture<Boolean>> checks = new ArrayList<>(candidates.size());
+        for (DataDrivenQuest quest : candidates) {
+            checks.add(unmetPrerequisites(quest, playerId).thenApply(unmet -> {
+                if (unmet.isEmpty()) return false;
+                debug.accept("NPC '" + key + "': quest '" + quest.getId() + "' is locked for "
+                    + player.getName() + " - prerequisites not COMPLETED: " + String.join(", ", unmet));
+                return true;
+            }));
+        }
+        return CompletableFuture.allOf(checks.toArray(CompletableFuture[]::new))
+            .handle((v, ex) -> checks.stream().anyMatch(f -> Boolean.TRUE.equals(f.getNow(false))));
+    }
+
+    /**
+     * The quest's unmet prerequisites for the player; empty when none, or when the read fails or
+     * returns nothing. Never completes exceptionally.
+     */
+    private static CompletableFuture<List<String>> unmetPrerequisites(DataDrivenQuest quest, java.util.UUID playerId) {
+        CompletableFuture<List<String>> unmet;
+        try {
+            unmet = quest.getUnmetPrerequisites(playerId);
+        } catch (RuntimeException e) {
+            return CompletableFuture.completedFuture(List.of());
+        }
+        if (unmet == null) {
+            return CompletableFuture.completedFuture(List.of());
+        }
+        return unmet.handle((list, ex) -> ex == null && list != null ? list : List.<String>of());
     }
 
     /** TRIGGER_FOUND, QUEST_ACTIVE or OBJECTIVE_FOUND. */
