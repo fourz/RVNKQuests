@@ -361,6 +361,25 @@ Full reference: [docs/quest-engine.md](docs/quest-engine.md) sections 3, 5, 6 an
   claims through `data/IOnceRewardStore` (`quest_once_rewards`, migration V3, insert-ignore) before
   delivery. Fails closed. `/quest reward reset-once` clears records.
 
+## Objective waypoints (1.1.70, #2264)
+
+Full reference: [docs/quest-engine.md](docs/quest-engine.md) section 5 (`waypoint`).
+
+- **Package `waypoint/`.** Pure, unit-tested helpers: `WaypointParser` (the `waypoint` block and
+  `metadata.waypoints: auto`), `WaypointResolver` (active set from `state_mapping`, nearest
+  same-world pick, progress), `BearingArrow` (8 sectors from yaw), `TrackRequest`
+  (`/quest track` grammar), `WaypointPrefs`. Runtime: `WaypointService` (one 10-tick task, bars,
+  compass, trail) and `WorldDisplayNames` (RVNKWorlds names through RVNKCore's
+  `IRVNKWorldsApiService`, never blocking).
+- **No database in the tick.** Prefs (`waypoints_enabled`) and the tracked quest (`tracked_quest`)
+  live in `quest_player_preferences`, load async on join, and are cached in the tracker. Quest state
+  comes from `AbstractQuest`'s state cache; an uncached state is requested async and skipped.
+- **Hook:** `AbstractQuest.performAdvance` calls `WaypointService.onStateCommitted` on the main
+  thread after the listener refresh, in a try/catch: auto-track on a start from `NOT_STARTED`,
+  untrack on COMPLETED/ABANDONED/NOT_STARTED, re-resolve otherwise.
+- `DataDrivenQuest` parses waypoints once at construction (`getActiveWaypoints(state)`); waypoint
+  problems join `getEngineKeyProblems()`, so `/quest validate` lists them.
+
 ## Command Formatting Standards
 
 Use consistent message prefixes in command handlers:

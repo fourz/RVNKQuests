@@ -430,6 +430,90 @@ obj_gold_door:
 - `/quest debug fire` runs the component's `on_advance` on commit, so it can be QA'd from console.
 - When the advance also completes the quest, the completion side effects run first.
 
+### waypoint — objective waypoints (any trigger or objective, 1.1.70, #2264)
+
+A component can carry a `waypoint`: where the player should go while that component is active. The
+player sees it on a bossbar (label, distance, an arrow from their facing), on their compass, or as a
+short particle trail. It works from any world: in the wrong world the bar names the target's world.
+
+```yaml
+metadata:
+  waypoints: auto                # optional, default off (see Auto mode)
+  components:
+    obj_lodestone_key:
+      objective_type: INTERACT
+      block_type: LODESTONE
+      advance_state: OBJECTIVE_FOUND
+      waypoint:
+        world: sotw_sky_0
+        x: -421
+        y: 98
+        z: 19
+        label: The gold door     # optional
+        style: bossbar           # bossbar (default) | compass | particles
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `world` | — | **Required.** Target world name (any case) |
+| `x`, `y`, `z` | — | **Required.** Target block |
+| `label` | component `description`, then the component id | Text on the bar |
+| `style` | `bossbar` | `bossbar`, `compass` or `particles` |
+
+**Which waypoint the player sees**
+
+1. **Active set:** the components in `state_mapping` for the player's current state that have a
+   waypoint, in `state_mapping` order.
+2. **Shown:** the nearest of those in the player's world (straight-line distance). If none is in the
+   player's world, the first of the set.
+3. **One tracked quest per player.** Starting a quest that has a waypoint (a commit from
+   `NOT_STARTED`) tracks it when nothing else is tracked. `/quest track <quest_id>` switches;
+   `/quest track off` stops. The tracked quest is saved in `quest_player_preferences`
+   (`tracked_quest`) and survives relog. Completing, abandoning or resetting the quest untracks it.
+4. A state with no waypoint shows nothing; the quest stays tracked.
+
+**Styles**
+
+| Style | Same world | Other world |
+|---|---|---|
+| `bossbar` | `<label> - <N>m <arrow>`; progress `1 - min(1, dist / startDist)` | `<label> - in <world display name>` |
+| `compass` | Holding a compass (either hand): the compass points at the target and the bar hides. Not holding one: the bar | The bar |
+| `particles` | The bar. The author marks the trail as the aid: `/quest track <id> --trail` | The bar |
+
+- **Arrow:** one of `↑ ↗ → ↘ ↓ ↙ ← ↖` (8 sectors of 45 degrees, ahead = `↑`), from the player's yaw
+  to the target. `↕` when the target is within one block horizontally (straight above or below).
+- **startDist** is captured on the first update in the target's world after tracking starts or the
+  target changes.
+- **World display name:** from RVNKWorlds (`display_names` in its worlds.yml) through the RVNKCore
+  `IRVNKWorldsApiService`, cached and refreshed at most once a minute on a miss. Without RVNKWorlds,
+  the world name.
+- **Compass:** `Player.setCompassTarget` turns a normal compass only, same world only (vanilla
+  limit). A lodestone compass keeps pointing at its lodestone. Untracking or a new target gives the
+  compass its world spawn back.
+- **Trail (`--trail`, any style):** gold dust along the first 9 blocks toward the target, every
+  10 ticks for 5 seconds, sent only to that player. Same world only.
+
+**Auto mode.** `metadata.waypoints: auto` gives each `LOCATION_PROXIMITY` trigger and `REACH`
+objective that has no `waypoint` block one from its own `world/x/y/z`, with the component defaults
+(world `world`, y 64; `x` and `z` must be set). A `REACH` with `context_location_key` is skipped.
+`waypoint: off` opts one component out. **Auto is off by default**, so a quest that does not ask for
+it gets no waypoint it did not author.
+
+**Player switch.** `/quest prefs waypoints <on|off>` (default on, key `waypoints_enabled`). Off hides
+every bar and keeps the tracked quest.
+
+**Runtime.** One repeating task every 10 ticks, online tracked players only. It reads memory only:
+the tracker, the quest's waypoint sets (computed once at quest load), and the quest's per-player
+state cache. Prefs and the tracked quest load asynchronously on join. The bar title is rebuilt only
+when the whole metres or the arrow change. The bar is removed on complete, abandon, reset, a state
+without a waypoint, `/quest track off`, `prefs waypoints off`, quit and plugin disable.
+
+**Storage and validation.** The block is part of the component config in
+`quest_definitions.metadata`; `/quest import` and `/quest export` carry it with no schema change. A
+bad block (no world, a missing coordinate, not a map, an unknown style) is listed by `/quest validate`
+and the load log; that component has no waypoint and the quest still loads. Quests without a
+`waypoint` block and without `waypoints: auto` behave exactly as before.
+
 ### KILL
 
 Kill entities by type. Supports filtering by custom name to restrict tracking to quest mobs.
@@ -946,8 +1030,11 @@ This calls `QuestManager.cleanupQuests()` then `QuestManager.initializeQuests()`
 | `/quest debug fire <quest> <component> <player>` | `rvnkquests.admin` | Run one component's advance (and its `on_advance`). Dev/test: any target. Other tiers: only a target with `rvnkcore.qa.subject`. Unknown tier: refused. One INFO audit line per attempt (1.1.69, #2265) |
 | `/quest reward list <quest_id>` | `rvnkquests.admin.edit` | List rewards; `[once: server]` tags and fired records |
 | `/quest reward reset-once <quest_id> [reward_id]` | `rvnkquests.admin.edit` | Clear fired `once: server` records so they fire again (1.1.69, #2268) |
+| `/quest debug waypoint <player>` | `rvnkquests.admin` | Tracked quest, waypoints on/off, state, active set, resolved target, world, distance, arrow, progress and style. Read-only (1.1.70, #2264) |
+| `/quest track <quest_id\|off> [--trail] <player>` | `rvnkquests.admin` (for another player) | Track or untrack a started quest's waypoint for a player (1.1.70, #2264) |
 
-All commands support console execution — no player required.
+All commands support console execution — no player required. Exception: `/quest prefs` reads the
+sender's own preferences and is player-only.
 
 ### quest debug fire on Event (1.1.69, #2265)
 

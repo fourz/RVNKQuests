@@ -73,6 +73,32 @@ rewards:
     once: server
 ```
 
+## Authoring key added in 1.1.70
+
+**`waypoint`** on any trigger or objective (#2264) points the player at the place while that
+component is active: a bossbar with the label, the distance and an arrow, in any world. Full rules:
+[docs/quest-engine.md](../docs/quest-engine.md) section 5. Optional; a quest without it behaves
+exactly as before.
+
+```yaml
+    obj_lodestone_key:
+      objective_type: INTERACT
+      block_type: LODESTONE
+      advance_state: OBJECTIVE_FOUND
+      waypoint:
+        world: sotw_sky_0
+        x: -421
+        y: 98
+        z: 19
+        label: The gold door   # optional; default = description
+        style: bossbar         # bossbar (default) | compass | particles
+```
+
+`metadata.waypoints: auto` gives every `LOCATION_PROXIMITY` trigger and `REACH` objective without a
+block a waypoint at its own coordinates. It is off by default. `waypoint: off` opts one component
+out. Players use `/quest track <quest_id> [--trail]`, `/quest track off` and
+`/quest prefs waypoints <on|off>`.
+
 ## Not yet captured here
 
 Verified against `/quest validate` on RVNK Event, 2026-08-23: the server registers **14** quests, this
