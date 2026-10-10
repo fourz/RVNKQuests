@@ -3,8 +3,8 @@ package org.fourz.RVNKQuests.placeholder;
 import org.bukkit.plugin.Plugin;
 
 /**
- * The only class that touches {@link RVNKQuestsPlaceholderExpansion} (#2214), the same isolation
- * as RVNKEvents 1.1.48.
+ * The only class that touches {@link RVNKQuestsPlaceholderExpansion} (#2214). RVNKEvents uses the
+ * same isolation.
  *
  * <p>Its method signatures carry no PlaceholderAPI types, and RVNKQuests calls it only after
  * PlaceholderAPI is confirmed enabled. Without PlaceholderAPI the expansion class is never loaded,

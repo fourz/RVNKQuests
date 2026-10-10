@@ -113,7 +113,7 @@ public class GenericDiscoverObjective implements Listener {
             if (setsPath != null) quest.setPathChoice(player, setsPath);
             // Party fan-out (#1986): with no detection materials this degrades to a plain reach,
             // so the checkpoint is where the player stands, scaled by the detection radius.
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
                     quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
@@ -145,7 +145,6 @@ public class GenericDiscoverObjective implements Listener {
             // Party fan-out (#1986): a discovery has no authored coordinate — the structure is
             // found wherever the scan succeeded, so the finder's position IS the checkpoint.
             // detectionRadius is the right scale: it is how far the scan itself reached.
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
             advanceFeedback.notifyIfCommitted(player,
                     quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(

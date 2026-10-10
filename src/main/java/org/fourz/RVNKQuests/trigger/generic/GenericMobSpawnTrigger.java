@@ -309,7 +309,7 @@ public class GenericMobSpawnTrigger implements Listener {
                 // player who found the mob. The mob itself is already shared world state. This
                 // path only runs for NOT_STARTED players (gated above), so that is the beat's
                 // expected starting state.
-                // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+                // Notify only after the advance commits (#2249).
                 advanceFeedback.notifyIfCommitted(player,
                         quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                         org.fourz.RVNKQuests.party.PartyBeatContext.of(
@@ -335,7 +335,6 @@ public class GenericMobSpawnTrigger implements Listener {
 
         // Advance state — party fan-out (#1982): checkpoint = the actual spawn location. Only
         // NOT_STARTED players reach this path (gated above).
-        // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
         advanceFeedback.notifyIfCommitted(player,
                 quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(spawnLoc, triggerRadius,

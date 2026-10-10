@@ -122,9 +122,8 @@ public class WorldActivationService {
      *
      * <p>Loading is not keeping. {@code WorldCleanupScheduler} unloads any unprotected world left
      * empty past the inactivity threshold and writes it back to {@code IMPORTED} — and a world just
-     * activated for a quest has, by definition, nobody standing in it. Observed on Event
-     * 2026-08-01: {@code zeal} activated at 08:32 was {@code IMPORTED} and un-teleportable by 09:22,
-     * so the quest that asked for it had gone quietly unplayable again.</p>
+     * activated for a quest has, by definition, nobody standing in it. Without the hold the quest
+     * goes unplayable again within the hour.</p>
      *
      * <p>Best-effort by design. An older RVNKWorlds answers {@code NOT_SUPPORTED} via the interface
      * default; the world is still loaded and the quest still works, it is merely reclaimable again.

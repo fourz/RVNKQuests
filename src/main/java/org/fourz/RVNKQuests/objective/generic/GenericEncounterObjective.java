@@ -325,7 +325,7 @@ public class GenericEncounterObjective implements Listener {
             // over a ridge should still share the beat. Falls back to the death location only if
             // the spawn point cannot be resolved.
             Location postLoc = getSpawnLocation(owner);
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(owner,
                     quest.tryAdvanceStateForPlayer(playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(

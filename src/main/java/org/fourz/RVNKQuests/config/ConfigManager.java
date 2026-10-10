@@ -229,7 +229,7 @@ public class ConfigManager {
      * Whether quests activate the worlds they declare in {@code required_worlds} (#1877).
      *
      * <p>Off means a quest whose world is IMPORTED stays unplayable until an operator runs
-     * {@code /world load} — which is the pre-1.1.17 behaviour, kept as an escape hatch.</p>
+     * {@code /world load}. Keep it as an escape hatch.</p>
      *
      * @return true when declared worlds should be activated on quest load
      */

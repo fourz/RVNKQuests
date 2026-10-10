@@ -92,10 +92,9 @@ public final class QuestPartyService {
     /**
      * Floor under the share radius, so a tight trigger does not make a party impossible to keep.
      *
-     * <p>Raised 10 -> 20 on 2026-08-16 after live QA. With the 5x multiplier this puts the default
-     * share range at <b>100 blocks</b> rather than 50. 50 sounds generous written down and is not:
-     * a lectern trigger has radius 3, and two players exploring the same ruin routinely drift
-     * further apart than 50 blocks without either of them having stopped playing together.</p>
+     * <p>Default 20 (#1982). With the 5x multiplier the default share range is <b>100 blocks</b>.
+     * 50 is too small: a lectern trigger has radius 3, and two players exploring the same ruin
+     * routinely drift further apart than 50 blocks while they still play together.</p>
      *
      * <p>The floor is the right knob here rather than the multiplier. Raising the multiplier to
      * reach 100 would also scale every large trigger — a radius-30 proximity beat would start
@@ -296,9 +295,7 @@ public final class QuestPartyService {
             if (dx * dx + dy * dy + dz * dz > effSq) {
                 logger.debug("Party fan-out skip " + p.getName() + " - out of range (>"
                         + (int) effective + " blocks)");
-                // Tell them, throttled. This used to be silent, which from the player's chair is
-                // indistinguishable from the party feature being broken: everyone else advanced,
-                // they did not, and nothing said why (#1982).
+                // Tell out-of-range members why they did not advance, throttled (#1982).
                 outOfRangeFeedback.notifyPartyOutOfRange(p);
                 continue;
             }

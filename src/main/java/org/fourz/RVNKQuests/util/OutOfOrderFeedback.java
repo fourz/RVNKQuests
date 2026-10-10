@@ -40,10 +40,7 @@ public final class OutOfOrderFeedback {
         "&7Nothing here answers you - not yet.";
     private static final String DEFAULT_ALREADY_PAST =
         "&7Whatever was here, you have already taken it.";
-    // Reworded 2026-08-16: the previous line was "You are not yet ready for this path - a tale of
-    // yours remains unfinished." Accurate and completely unactionable — a player reads it, learns
-    // that something is wrong, and has no idea what to DO. Say where the story is and how to rejoin
-    // it. Flavour is fine; a riddle is not.
+    // Tell the player what to do: where the story is and how to rejoin it (#1982).
     private static final String DEFAULT_PREREQ_BLOCKED =
         "&7Your party's tale has run ahead of your own. Catch up to them, "
         + "find what they are following, and the path will open for you.";

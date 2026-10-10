@@ -138,10 +138,7 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
             return CompletableFuture.completedFuture(null);
         }
 
-        // Build a single mutable list so all futures survive into allOf().
-        // Previously this used .toList() (unmodifiable) and then reassigned the
-        // variable inside the objectives loop — only the last objective future
-        // was ever passed to allOf(), silently discarding all earlier saves.
+        // One mutable list, so allOf() waits on every save.
         List<CompletableFuture<Boolean>> saveFutures = new ArrayList<>();
         for (QuestProgressDTO progress : playerProgress.values()) {
             saveFutures.add(getActiveRepo().saveProgress(progress));

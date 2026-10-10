@@ -166,7 +166,7 @@ public class GenericCollectObjective implements Listener {
             // without it the beat is "have these items, anywhere", so fall back to the player at
             // radius 0 and let the service's min_share_radius floor govern.
             org.bukkit.Location checkpoint = getTargetLocation(player);
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
                     quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                 checkpoint != null

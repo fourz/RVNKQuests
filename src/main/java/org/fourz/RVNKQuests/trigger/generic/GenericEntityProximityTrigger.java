@@ -83,7 +83,7 @@ public class GenericEntityProximityTrigger implements Listener {
                 // plausibly shared the moment — the firing player is already within `radius` of it
                 // by construction, so measuring from the entity is the tighter, more honest test.
                 // requiredState is NOT_STARTED because that is the gate checked above.
-                // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+                // Notify only after the advance commits (#2249).
                 advanceFeedback.notifyIfCommitted(player,
                         quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(

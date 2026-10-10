@@ -181,7 +181,7 @@ public class GenericStructureInteractTrigger implements Listener {
         // configured coordinate. On an unsited trigger there is no configured coordinate at all,
         // and even on a sited one the clicked block may be up to `radius` away — sharing from the
         // real block keeps the member presence test measured from where the beat happened.
-        // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+        // Notify only after the advance commits (#2249).
         advanceFeedback.notifyIfCommitted(player,
                 quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
             org.fourz.RVNKQuests.party.PartyBeatContext.of(

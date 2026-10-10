@@ -97,7 +97,7 @@ public class GenericLocationProximityTrigger implements Listener {
 
         if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
             // Party fan-out (#1982): carry the checkpoint so qualifying members share the beat.
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
                     quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                     new org.fourz.RVNKQuests.party.PartyBeatContext(worldName, x, y, z, radius, requiredState)),

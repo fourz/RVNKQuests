@@ -55,8 +55,7 @@ import java.util.function.Supplier;
  *       click is NOT_STARTED for the player and has a prerequisite that is not COMPLETED.</li>
  *   <li>The line is the RVNKLore entry {@code npc_<key>_<context>}. No entry, or no RVNKLore,
  *       means silence; the quest action has already happened either way. For {@code locked} this
- *       is the leak guard: a quest whose NPC has no {@code npc_<key>_locked} entry stays silent,
- *       exactly as before 1.1.68.</li>
+ *       is the leak guard: a quest whose NPC has no {@code npc_<key>_locked} entry stays silent.</li>
  * </ol>
  *
  * <p>Priority, highest first: {@code done} &gt; {@code offer} &gt; {@code active} &gt;

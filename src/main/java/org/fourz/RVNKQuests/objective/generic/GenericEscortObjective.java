@@ -151,7 +151,7 @@ public class GenericEscortObjective implements Listener {
             // Party fan-out (#1986): checkpoint is the DESTINATION, not the escort entity or the
             // player. The destination is the fixed, authored point the beat is about — the entity
             // is within `radius` of it by the check above, and the player is trailing it.
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
                     quest.tryAdvanceStateForPlayer(playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(dest, radius, requiredState)),

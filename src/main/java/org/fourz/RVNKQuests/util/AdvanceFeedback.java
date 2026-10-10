@@ -30,11 +30,8 @@ import java.util.Map;
  * <h3>Only on a committed advance (#1764, #2249)</h3>
  * <p>Components call {@link #notifyIfCommitted} with the result of
  * {@code AbstractQuest.tryAdvanceStateForPlayer}. The line goes out only when that result is
- * {@code true}: the state write landed. Before 1.1.68 components called {@link #notifyAdvanced}
- * right after dispatching the advance, so every refusal inside the write chain still spoke. The
- * prerequisite gate is the visible case: a player blocked from a LOCATION_PROXIMITY trigger saw the
- * arrival line on every block they moved, because the state never left NOT_STARTED and the
- * component kept re-firing. The same-tick monotonic race spoke for the loser too.</p>
+ * {@code true}: the state write landed. A refused advance (prerequisite gate, monotonic race)
+ * stays silent, so a re-firing component does not repeat its line.</p>
  *
  * @since 1.1.47
  */

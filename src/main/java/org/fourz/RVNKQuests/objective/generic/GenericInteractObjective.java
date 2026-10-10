@@ -128,7 +128,7 @@ public class GenericInteractObjective implements Listener {
             // Party fan-out (#1986): checkpoint is the player, because an interact objective has no
             // configured location — it matches a block or item type anywhere in the world. Radius 0
             // lets the service's min_share_radius floor govern, same as a kill.
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
                     quest.tryAdvanceStateForPlayer(playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(

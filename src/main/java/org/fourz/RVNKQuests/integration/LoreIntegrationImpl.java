@@ -70,10 +70,7 @@ public class LoreIntegrationImpl implements ILoreIntegration {
             logger.debug("Cannot grant lore discovery - RVNKLore unavailable");
             return CompletableFuture.completedFuture(false);
         }
-        // #1650: this used to return true having written nothing, so a LORE reward reported success
-        // to the dispatcher and to the player while no row was ever created. A silent false success
-        // is worse than a failure, because nothing upstream can detect it. It now persists through
-        // RVNKLore's IDiscoveryService, which handles offline players too (RVNKQuests #1983).
+        // Report false when nothing persists; a silent true hid lost LORE rewards (#1650).
         if (!facade.isDiscoveryAvailable()) {
             logger.warning("LORE reward not persisted for " + playerId + " (" + loreId + ") - "
                     + "RVNKLore does not expose IDiscoveryService; needs RVNKLore 1.0.133+");

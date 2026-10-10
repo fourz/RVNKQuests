@@ -376,9 +376,7 @@ public class QuestManager implements IQuestService {
      * @param playerUuid The player whose state changed
      */
     public void updateQuestListenersForPlayer(Quest quest, UUID playerUuid) {
-        // For now, this is a no-op since we register all listeners.
-        // In the future, this could be used to optimize listener registration
-        // based on which states have active players.
+        // Listeners stay registered for every state; this only tracks the active players per quest.
         logger.debug("Player " + playerUuid + " state changed for quest: " + quest.getId());
 
         // Track active players
@@ -833,11 +831,9 @@ public class QuestManager implements IQuestService {
 
         // No `if (isActive) continue` here, deliberately. Activating is only half the job: the world
         // must also be HELD, or RVNKWorlds' inactivity sweep reclaims it and writes it back to
-        // IMPORTED while the quest is mid-session (#1883). Skipping already-active worlds skipped
-        // the hold with them — and an already-active world is the COMMON case, because RVNKWorlds
-        // auto-loads previously-active worlds at boot. That is exactly how alphac was swept out from
-        // under two players running tfah_ch1_journey on 2026-08-02, despite the quest declaring it.
-        // ensureActive() short-circuits on a loaded world itself, so this costs nothing extra.
+        // IMPORTED while the quest is mid-session (#1883). An already-active world is the common
+        // case, because RVNKWorlds auto-loads previously-active worlds at boot, so it needs the hold
+        // too. ensureActive() short-circuits on a loaded world, so this costs nothing extra.
         for (String worldName : wanted) {
             worlds.ensureActive(worldName).thenAccept(ok -> {
                 if (ok) {

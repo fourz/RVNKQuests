@@ -114,7 +114,7 @@ public class GenericItemDiscoveryTrigger implements Listener {
         // Party fan-out (#1986): a discovery has no place of its own — it happens wherever the
         // holder is standing. Radius 0 is deliberate and legal: the service applies its
         // min_share_radius floor, so this shares on the same footing as a kill.
-        // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+        // Notify only after the advance commits (#2249).
         advanceFeedback.notifyIfCommitted(player,
                 quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
             org.fourz.RVNKQuests.party.PartyBeatContext.of(

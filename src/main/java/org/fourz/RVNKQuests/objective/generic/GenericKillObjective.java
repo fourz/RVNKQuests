@@ -119,7 +119,7 @@ public class GenericKillObjective implements Listener {
             // the service's min_share_radius floor govern (default 10 x multiplier 5 = 50 blocks).
             // Kill counts stay PER-PLAYER in v1 — a qualifying member advances state without
             // their own count being complete; pooled party counts are a filed follow-up.
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(killer,
                     quest.tryAdvanceStateForPlayer(playerId, advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(killer.getLocation(), 0.0, requiredState)),

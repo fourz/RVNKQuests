@@ -101,7 +101,7 @@ public class GenericReachObjective implements Listener {
             }
             // Party fan-out (#1982): ctx from the RESOLVED target, so the dynamic
             // context_location_key case shares the actual checkpoint, not the static default.
-            // #1764/#2249: the line goes out only once the advance commits, never on a refusal.
+            // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
                     quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(target, radius, requiredState)),
