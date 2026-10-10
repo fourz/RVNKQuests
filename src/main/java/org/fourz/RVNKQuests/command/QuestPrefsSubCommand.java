@@ -23,6 +23,7 @@ import java.util.function.Supplier;
  *        /quest prefs quiet <startHour> <endHour>
  *        /quest prefs quiet disable
  *        /quest prefs channel <type> <channel> <on|off>
+ *        /quest prefs waypoints <on|off>       (objective waypoints, #2264)
  *
  * Writes go to PlayerPreferencesService when available, local repo otherwise.
  * Never writes to both simultaneously.
@@ -76,6 +77,9 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
                 return handleQuietHours(player, playerId, args);
             case "channel":
                 return handleChannel(player, playerId, args);
+            case "waypoints":
+            case "waypoint":
+                return handleWaypoints(player, playerId, args);
             default:
                 showUsage(player);
                 return true;
@@ -101,6 +105,7 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
         player.sendMessage(ChatColor.GRAY + "  quiet <hour1> <hour2> - Set quiet hours (24h format)");
         player.sendMessage(ChatColor.GRAY + "  quiet disable - Disable quiet hours");
         player.sendMessage(ChatColor.GRAY + "  channel <type> <channel> <on|off> - Toggle channel");
+        player.sendMessage(ChatColor.GRAY + "  waypoints <on|off> - Show quest waypoints (now: " + waypointsLabel(playerId) + ")");
         player.sendMessage(ChatColor.YELLOW + "Notification Types:");
         player.sendMessage(ChatColor.GRAY + "  quest_start, quest_complete, quest_failed");
         player.sendMessage(ChatColor.GRAY + "  objective_progress, objective_complete");
@@ -283,9 +288,37 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
         return true;
     }
 
+    /**
+     * {@code /quest prefs waypoints <on|off>} (#2264). Always the local preference table: the
+     * RVNKCore preference service has no slot for it. Off hides every waypoint and keeps the
+     * tracked quest; on shows it again.
+     */
+    private boolean handleWaypoints(Player player, UUID playerId, String[] args) {
+        org.fourz.RVNKQuests.waypoint.WaypointService svc = plugin.getWaypointService();
+        if (svc == null) {
+            player.sendMessage(ChatColor.RED + "✖ Waypoints are not running on this server");
+            return true;
+        }
+        Boolean on = args.length < 2 ? null : org.fourz.RVNKQuests.waypoint.WaypointPrefs.parseToggle(args[1]);
+        if (on == null) {
+            player.sendMessage(ChatColor.RED + "✖ Usage: /quest prefs waypoints <on|off>");
+            player.sendMessage(ChatColor.GRAY + "Waypoints are " + waypointsLabel(playerId));
+            return true;
+        }
+        svc.setEnabled(playerId, on);
+        player.sendMessage(ChatColor.GREEN + "✓ Quest waypoints " + (on ? "on" : "off")
+            + (svc.isPersistent() ? "" : ChatColor.GRAY + " (not saved on this server)"));
+        return true;
+    }
+
+    private String waypointsLabel(UUID playerId) {
+        org.fourz.RVNKQuests.waypoint.WaypointService svc = plugin.getWaypointService();
+        return svc == null ? "unavailable" : (svc.isEnabled(playerId) ? "on" : "off");
+    }
+
     private void showUsage(Player player) {
         player.sendMessage(ChatColor.RED + "✖ Unknown preference action");
-        player.sendMessage(ChatColor.YELLOW + "Usage: /quest prefs [toggle|enable|disable|quiet|channel]");
+        player.sendMessage(ChatColor.YELLOW + "Usage: /quest prefs [toggle|enable|disable|quiet|channel|waypoints]");
         player.sendMessage(ChatColor.GRAY + "Use /quest prefs for more information");
     }
 
@@ -299,6 +332,7 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
             completions.add("disable");
             completions.add("quiet");
             completions.add("channel");
+            completions.add("waypoints");
         } else if (args.length == 2) {
             if ("enable".equalsIgnoreCase(args[0]) || "disable".equalsIgnoreCase(args[0])) {
                 completions.add("quest_start");
@@ -316,6 +350,9 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
             } else if ("channel".equalsIgnoreCase(args[0])) {
                 completions.add("quest_start");
                 completions.add("quest_complete");
+            } else if ("waypoints".equalsIgnoreCase(args[0]) || "waypoint".equalsIgnoreCase(args[0])) {
+                completions.add("on");
+                completions.add("off");
             }
         } else if (args.length == 3) {
             if ("channel".equalsIgnoreCase(args[0])) {
@@ -350,6 +387,8 @@ public class QuestPrefsSubCommand extends BaseSubCommand {
                 "/quest prefs quiet 22 7",
                 "  quiet hours, start and end",
                 "/quest prefs quiet disable",
+                "/quest prefs waypoints off",
+                "  hide quest waypoints; the tracked quest is kept",
                 "Types: quest_start quest_complete quest_failed objective_progress",
                 "objective_complete quest_available milestone chain_progress");
     }

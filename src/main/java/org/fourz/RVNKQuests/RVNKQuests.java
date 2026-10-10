@@ -103,6 +103,9 @@ public class RVNKQuests extends JavaPlugin {
     /** Server-wide record of fired once:server rewards (#2268). */
     private org.fourz.RVNKQuests.data.IOnceRewardStore onceRewardStore;
 
+    /** Objective waypoints (#2264): tracked quest, bossbar, compass, trail. */
+    private org.fourz.RVNKQuests.waypoint.WaypointService waypointService;
+
     /** Opaque PlaceholderAPI expansion handle; typed Object so this class never links PAPI (#2214). */
     private Object placeholderExpansion;
 
@@ -234,6 +237,10 @@ public class RVNKQuests extends JavaPlugin {
             // %rvnkquests_*% placeholders (#2214) - only when PlaceholderAPI is enabled
             initPlaceholders();
 
+            // Objective waypoints (#2264) - after quests load, so the tick finds them
+            waypointService = org.fourz.RVNKQuests.waypoint.WaypointService.create(this);
+            waypointService.start();
+
             logger.info("RVNKQuests plugin enabled successfully");
         } catch (Exception e) {
             logger.error("Failed to initialize RVNKQuests plugin", e);
@@ -272,6 +279,12 @@ public class RVNKQuests extends JavaPlugin {
         try {
             // Drop the PlaceholderAPI expansion before the services it reads go away (#2214)
             shutdownPlaceholders();
+
+            // Remove every waypoint bar before the quests it reads go away (#2264)
+            if (waypointService != null) {
+                waypointService.shutdown();
+                waypointService = null;
+            }
 
             // Unregister from RVNKCore first
             unregisterFromRVNKCore();
@@ -519,6 +532,13 @@ public class RVNKQuests extends JavaPlugin {
      */
     public IPreferenceRepository getPreferenceRepository() {
         return preferenceRepository;
+    }
+
+    /**
+     * Objective waypoints (#2264). Null before enable finishes, after disable, and in unit tests.
+     */
+    public org.fourz.RVNKQuests.waypoint.WaypointService getWaypointService() {
+        return waypointService;
     }
 
     /**

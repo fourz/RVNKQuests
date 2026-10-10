@@ -39,8 +39,14 @@ public class DataDrivenQuest extends AbstractQuest {
     /** Each component's {@code on_advance} rewards, sorted by reward_id (#2267). Absent = none. */
     private final Map<String, List<RewardDTO>> onAdvanceRewards;
 
-    /** Problems found while reading notify / on_advance / once, logged at initialize. */
+    /** Problems found while reading notify / on_advance / once / waypoint, logged at initialize. */
     private final List<String> engineKeyProblems = new ArrayList<>();
+
+    /** Each component's waypoint (#2264), authored or derived by {@code waypoints: auto}. */
+    private final Map<String, org.fourz.RVNKQuests.waypoint.Waypoint> waypoints;
+
+    /** The waypoints active in each state, precomputed so the tick task never walks metadata (#2264). */
+    private final Map<QuestState, List<org.fourz.RVNKQuests.waypoint.Waypoint>> waypointSets;
 
     public DataDrivenQuest(RVNKQuests plugin, QuestDTO definition) {
         super(plugin, definition.questId(), definition.name());
@@ -49,6 +55,8 @@ public class DataDrivenQuest extends AbstractQuest {
         this.notifyPolicy = QuestNotifyPolicy.fromMetadata(definition.metadata());
         this.onAdvanceRewards = parseOnAdvance(definition.metadata(), engineKeyProblems);
         engineKeyProblems.addAll(QuestNotifyPolicy.problems(definition.metadata()));
+        this.waypoints = org.fourz.RVNKQuests.waypoint.WaypointParser.parseAll(definition.metadata(), engineKeyProblems);
+        this.waypointSets = org.fourz.RVNKQuests.waypoint.WaypointResolver.activeSets(definition.metadata(), waypoints);
         for (RewardDTO reward : definition.rewards()) {
             String once = reward.metadata().get(org.fourz.RVNKQuests.service.OnceRewards.METADATA_KEY);
             if (once != null && !org.fourz.RVNKQuests.service.OnceRewards.isOnceServer(reward)) {
@@ -82,8 +90,29 @@ public class DataDrivenQuest extends AbstractQuest {
         return notifyPolicy;
     }
 
+    /** True when any state of this quest has a component with a waypoint (#2264). */
+    public boolean hasWaypoints() {
+        return !waypointSets.isEmpty();
+    }
+
+    /** Every component's waypoint, by component id (#2264). Immutable. */
+    public Map<String, org.fourz.RVNKQuests.waypoint.Waypoint> getWaypoints() {
+        return waypoints;
+    }
+
     /**
-     * Author-facing problems with {@code notify}, {@code on_advance} and {@code once} (#2266-#2268).
+     * The waypoints of the components active in {@code state}, in state_mapping order (#2264).
+     * Immutable and cheap: computed once when the quest loads.
+     */
+    public List<org.fourz.RVNKQuests.waypoint.Waypoint> getActiveWaypoints(QuestState state) {
+        if (state == null) return List.of();
+        List<org.fourz.RVNKQuests.waypoint.Waypoint> set = waypointSets.get(state);
+        return set != null ? set : List.of();
+    }
+
+    /**
+     * Author-facing problems with {@code notify}, {@code on_advance}, {@code once} (#2266-#2268) and
+     * {@code waypoint} (#2264).
      * None of them stops the quest loading; each falls back to the old behaviour.
      */
     public List<String> getEngineKeyProblems() {

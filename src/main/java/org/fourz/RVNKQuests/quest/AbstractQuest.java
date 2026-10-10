@@ -676,6 +676,19 @@ public abstract class AbstractQuest implements Quest {
                             // registerEvents/unregisterAll require main thread for all state transitions
                             questManager.updateQuestListenersForPlayer(this, playerUuid);
 
+                            // Objective waypoints (#2264): re-resolve the tracked target, untrack on
+                            // complete/abandon/reset, auto-track a quest that just started. Guarded so
+                            // a waypoint fault can never cost the completion side effects below.
+                            org.fourz.RVNKQuests.waypoint.WaypointService waypoints = plugin.getWaypointService();
+                            if (waypoints != null) {
+                                try {
+                                    waypoints.onStateCommitted(playerUuid, questId, currentState, newState);
+                                } catch (RuntimeException e) {
+                                    logger.warning("Waypoint update after " + questId + " " + currentState
+                                        + " -> " + newState + " failed: " + e.getMessage());
+                                }
+                            }
+
                             // Fire all completion side-effects regardless of how COMPLETED is reached
                             // (trigger component, admin command, or direct complete() call)
                             if (newState == QuestState.COMPLETED) {

@@ -31,7 +31,9 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup", "preflight", "party",
         // #2093 — the five tools #1867 specified but never shipped. Read-only first, then the
         // three that mutate: trace and session are Dev only (ServerTier); fire uses QaFireGate (#2265).
-        "coords", "drift", "fire", "trace", "session"
+        "coords", "drift", "fire", "trace", "session",
+        // #2264 objective waypoints, read-only
+        "waypoint"
     );
 
     private SeedSubCommand seedSubCommand;
@@ -120,6 +122,9 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 return traceSubCommand.execute(sender, subArgs);
             case "session":
                 return sessionSubCommand.execute(sender, subArgs);
+            case "waypoint":
+            case "wp":
+                return executeWaypoint(sender, subArgs);
             default:
                 sendErrorMessage(sender, "Unknown debug command: " + subCommand);
                 showUsage(sender);
@@ -143,6 +148,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&8/quest debug fire <quest> <component> <player> &8- Exercise one advance (Dev, or a QA subject)");
         sendMessage(sender, "&8/quest debug trace <player|off|status> &8- Stream state decisions (Dev)");
         sendMessage(sender, "&8/quest debug session <start|end|status> [player] &8- Bracket a QA run (Dev)");
+        sendMessage(sender, "&7/quest debug waypoint <player> &8- Tracked quest, resolved waypoint, distance, style");
         sendMessage(sender, "&8   coords/drift are read-only and run on any tier. trace/session are Dev only.");
         sendMessage(sender, "&8   fire runs on Dev, and elsewhere only on a target with rvnkcore.qa.subject.");
     }
@@ -426,7 +432,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
             String subCmd = args[0].toLowerCase();
             String partial = args[1].toLowerCase();
 
-            if (subCmd.equals("player") || subCmd.equals("p")) {
+            if (subCmd.equals("player") || subCmd.equals("p") || subCmd.equals("waypoint") || subCmd.equals("wp")) {
                 // Complete with online player names
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     if (player.getName().toLowerCase().startsWith(partial)) {
@@ -617,6 +623,35 @@ public class QuestDebugSubCommand extends BaseSubCommand {
                 }
                 sendMessage(sender, line.toString());
             }
+        }
+        return true;
+    }
+
+    /**
+     * {@code /quest debug waypoint <player>} (#2264): the tracked quest, the resolved waypoint, its
+     * world, distance and style. Read-only, memory only, console-safe.
+     */
+    private boolean executeWaypoint(CommandSender sender, String[] args) {
+        org.fourz.RVNKQuests.waypoint.WaypointService svc = plugin.getWaypointService();
+        if (svc == null) {
+            sendErrorMessage(sender, "Waypoint service is not running.");
+            return true;
+        }
+        Player target;
+        if (args.length > 0) {
+            target = Bukkit.getPlayerExact(args[0]);
+            if (target == null) {
+                sendErrorMessage(sender, "Player not online: " + args[0]);
+                return true;
+            }
+        } else if (sender instanceof Player self) {
+            target = self;
+        } else {
+            sendErrorMessage(sender, "Usage: /quest debug waypoint <player>");
+            return true;
+        }
+        for (String line : svc.describe(target)) {
+            sendMessage(sender, line);
         }
         return true;
     }
