@@ -54,6 +54,17 @@ CREATE TABLE IF NOT EXISTS quest_rewards_claimed (
 
 CREATE INDEX IF NOT EXISTS idx_rewards_player_quest ON quest_rewards_claimed(player_uuid, quest_id);
 
+-- Run-once world rewards (#2268, migration V3): one row per quest_id + reward key that has
+-- fired on this server. INSERT OR IGNORE against the primary key decides a race.
+CREATE TABLE IF NOT EXISTS quest_once_rewards (
+    quest_id TEXT NOT NULL,
+    reward_id TEXT NOT NULL,
+    fired_by TEXT NOT NULL,
+    fired_at INTEGER NOT NULL,
+
+    PRIMARY KEY (quest_id, reward_id)
+);
+
 -- ==================== Quest Definition Tables ====================
 
 -- Quest definitions - the template/blueprint for each quest

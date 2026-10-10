@@ -53,7 +53,8 @@ public class GenericNpcInteractTrigger implements Listener, NpcQuestComponent {
     public static final String TYPE_NAME = "NPC_INTERACT";
 
     private static final Set<String> KNOWN_KEYS = Set.of(
-        "type", "npc_key", "click", "required_state", "advance_state", "description");
+        "type", "npc_key", "click", "required_state", "advance_state", "description",
+        org.fourz.RVNKQuests.reward.OnAdvanceRewards.CONFIG_KEY);
 
     private final RVNKQuests plugin;
     private final DataDrivenQuest quest;
@@ -120,7 +121,7 @@ public class GenericNpcInteractTrigger implements Listener, NpcQuestComponent {
         }
 
         Location checkpoint = event.getLocation() != null ? event.getLocation() : player.getLocation();
-        CompletableFuture<Void> advance = quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+        CompletableFuture<Void> advance = org.fourz.RVNKQuests.quest.ComponentAdvance.advance(quest, this, player.getUniqueId(), advanceState,
             checkpoint != null
                 ? org.fourz.RVNKQuests.party.PartyBeatContext.of(checkpoint, 0.0, requiredState)
                 : null);

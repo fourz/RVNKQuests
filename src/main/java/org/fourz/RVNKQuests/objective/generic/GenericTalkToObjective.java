@@ -46,7 +46,8 @@ public class GenericTalkToObjective implements Listener, NpcQuestComponent {
 
     private static final Set<String> KNOWN_KEYS = Set.of(
         "objective_type", "npc_key", "click", "required_state", "advance_state",
-        "requires_path", "sets_path", "description");
+        "requires_path", "sets_path", "description",
+        org.fourz.RVNKQuests.reward.OnAdvanceRewards.CONFIG_KEY);
 
     private final RVNKQuests plugin;
     private final DataDrivenQuest quest;
@@ -121,7 +122,7 @@ public class GenericTalkToObjective implements Listener, NpcQuestComponent {
             quest.setPathChoice(player, setsPath);
         }
         Location checkpoint = event.getLocation() != null ? event.getLocation() : player.getLocation();
-        CompletableFuture<Void> advance = quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+        CompletableFuture<Void> advance = org.fourz.RVNKQuests.quest.ComponentAdvance.advance(quest, this, player.getUniqueId(), advanceState,
             checkpoint != null
                 ? org.fourz.RVNKQuests.party.PartyBeatContext.of(checkpoint, 0.0, requiredState)
                 : null);

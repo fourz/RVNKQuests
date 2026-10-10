@@ -265,24 +265,69 @@ public abstract class AbstractQuest implements Quest {
      */
     public CompletableFuture<Boolean> tryAdvanceStateForPlayer(UUID playerUuid, QuestState newState,
                                                                org.fourz.RVNKQuests.party.PartyBeatContext ctx) {
+        return tryAdvanceStateForPlayer(playerUuid, newState, ctx, null);
+    }
+
+    /**
+     * {@link #tryAdvanceStateForPlayer(UUID, QuestState, org.fourz.RVNKQuests.party.PartyBeatContext)}
+     * that also runs {@code onCommit} for every player whose change committed (#2267).
+     *
+     * <p>This is the hook for a component's {@code on_advance} list. It runs once for the firer
+     * when the firer's write lands, and once for each party member whose fan-out advance lands
+     * (each member's advance passes every gate on its own). It never runs for a refused advance.
+     * The commit is the idempotency key: the write chain makes read-decide-write atomic per player,
+     * and a second fire of the same component finds the state already moved, so it cannot commit
+     * twice for one transition.</p>
+     *
+     * <p>{@code onCommit} runs on the database pool thread right after the write; it must hop to
+     * the main thread for any Bukkit work. It is attached beside the returned future, not chained
+     * into it, so a throwing hook cannot change what the caller is told.</p>
+     *
+     * @param onCommit called with each player whose change committed; null for none
+     * @return true when the change committed for the firer
+     */
+    public CompletableFuture<Boolean> tryAdvanceStateForPlayer(UUID playerUuid, QuestState newState,
+                                                               org.fourz.RVNKQuests.party.PartyBeatContext ctx,
+                                                               java.util.function.Consumer<UUID> onCommit) {
         if (ctx == null) {
-            return enqueueStateChange(playerUuid, newState, true, null, null);
+            return afterCommit(playerUuid, enqueueStateChange(playerUuid, newState, true, null, null), onCommit);
         }
         // Enqueued directly rather than via advanceStateForPlayer(uuid, state) so the checkpoint
         // reaches the trace (#2093). Behaviour is identical — that overload is this call with a
         // null checkpoint — but a traced firer now shows WHERE the beat fired, which is the only
         // component attribution available inside the state machine.
         String checkpoint = describeCheckpoint(ctx);
-        CompletableFuture<Boolean> firer = enqueueStateChange(playerUuid, newState, true, null, checkpoint);
+        CompletableFuture<Boolean> firer = afterCommit(playerUuid,
+            enqueueStateChange(playerUuid, newState, true, null, checkpoint), onCommit);
         // Fetched lazily at fire time — quests are constructed during registration, before the
         // party service exists; a constructor-cached null would silently disable fan-out forever.
         org.fourz.RVNKQuests.party.QuestPartyService parties = plugin.getQuestPartyService();
         if (parties != null && parties.isEnabled()) {
             for (UUID member : parties.qualifyingMembers(playerUuid, ctx)) {
-                enqueueStateChange(member, newState, true, ctx.requiredState(), checkpoint);
+                afterCommit(member, enqueueStateChange(member, newState, true, ctx.requiredState(), checkpoint),
+                    onCommit);
             }
         }
         return firer;
+    }
+
+    /**
+     * Runs {@code onCommit} for {@code playerUuid} when {@code committed} completes with true.
+     * Returns {@code committed} itself, untouched.
+     */
+    private CompletableFuture<Boolean> afterCommit(UUID playerUuid, CompletableFuture<Boolean> committed,
+                                                   java.util.function.Consumer<UUID> onCommit) {
+        if (onCommit != null) {
+            committed.thenAccept(landed -> {
+                if (!Boolean.TRUE.equals(landed)) return;
+                try {
+                    onCommit.accept(playerUuid);
+                } catch (RuntimeException e) {
+                    logger.error("on-commit hook failed for " + playerUuid + " on " + questId, e);
+                }
+            });
+        }
+        return committed;
     }
 
     /**
@@ -638,13 +683,23 @@ public abstract class AbstractQuest implements Quest {
                                 if (onlinePlayer != null) {
                                     onComplete(onlinePlayer);
 
-                                    if (notifService != null) {
-                                        notifService.notifyQuestComplete(onlinePlayer, name);
+                                    // Per-quest notify block (#2266). Defaults are all true, so a
+                                    // quest without one behaves exactly as before. The player's own
+                                    // /quest prefs still apply inside notifyQuestComplete.
+                                    QuestNotifyPolicy policy = getNotifyPolicy();
+                                    if (policy.completePopup()) {
+                                        if (notifService != null) {
+                                            notifService.notifyQuestComplete(onlinePlayer, name);
+                                        } else {
+                                            onlinePlayer.sendMessage("§a[Quest Completed] §f" + name);
+                                        }
                                     } else {
-                                        onlinePlayer.sendMessage("§a[Quest Completed] §f" + name);
+                                        logger.debug("Complete popup muted by notify.complete_popup for " + questId);
                                     }
 
-                                    if (configManager.getConfig().getBoolean("quests.announce_completion", true)) {
+                                    // The global switch stays the master: both must be true.
+                                    if (policy.shouldBroadcast(
+                                            configManager.getConfig().getBoolean("quests.announce_completion", true))) {
                                         plugin.getServer().broadcastMessage(
                                             "§6" + onlinePlayer.getName() + " §ehas completed the quest §6" + name + "§e!"
                                         );
@@ -701,6 +756,17 @@ public abstract class AbstractQuest implements Quest {
     }
 
     /**
+     * This quest's notification policy (#2266). Hardcoded quests have no metadata, so they get
+     * {@link QuestNotifyPolicy#DEFAULT}, which is today's behaviour; {@code DataDrivenQuest} reads
+     * its {@code notify} block.
+     *
+     * @return the policy, never null
+     */
+    public QuestNotifyPolicy getNotifyPolicy() {
+        return QuestNotifyPolicy.DEFAULT;
+    }
+
+    /**
      * Starts the quest for the given player.
      * Handles common start logic and delegates specific behavior to onStart().
      *
@@ -729,7 +795,10 @@ public abstract class AbstractQuest implements Quest {
                 if (success) {
                     return advanceStateForPlayer(playerUuid, QuestState.QUEST_ACTIVE)
                         .thenApply(v -> {
-                            if (notifService != null) {
+                            // notify.start_popup (#2266); the player's prefs still apply inside.
+                            if (!getNotifyPolicy().startPopup()) {
+                                logger.debug("Start popup muted by notify.start_popup for " + questId);
+                            } else if (notifService != null) {
                                 notifService.notifyQuestStart(player, name, null);
                             } else {
                                 player.sendMessage("§a[Quest Started] §f" + name);

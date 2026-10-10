@@ -168,7 +168,7 @@ public class GenericCollectObjective implements Listener {
             org.bukkit.Location checkpoint = getTargetLocation(player);
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
-                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
                 checkpoint != null
                     ? org.fourz.RVNKQuests.party.PartyBeatContext.of(checkpoint, radius, requiredState)
                     : org.fourz.RVNKQuests.party.PartyBeatContext.of(

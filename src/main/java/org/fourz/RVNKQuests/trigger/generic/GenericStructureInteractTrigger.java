@@ -60,6 +60,7 @@ public class GenericStructureInteractTrigger implements Listener {
             "description"));
         keys.addAll(org.fourz.RVNKQuests.util.OutOfOrderFeedback.configKeys());
         keys.addAll(org.fourz.RVNKQuests.util.AdvanceFeedback.configKeys());
+        keys.add(org.fourz.RVNKQuests.reward.OnAdvanceRewards.CONFIG_KEY); // read by DataDrivenQuest (#2267)
         return Set.copyOf(keys);
     }
 
@@ -183,7 +184,7 @@ public class GenericStructureInteractTrigger implements Listener {
         // real block keeps the member presence test measured from where the beat happened.
         // Notify only after the advance commits (#2249).
         advanceFeedback.notifyIfCommitted(player,
-                quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
             org.fourz.RVNKQuests.party.PartyBeatContext.of(
                 block.getLocation(), radius, requiredState)),
                 mainThread);

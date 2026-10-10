@@ -33,10 +33,148 @@ public class DataDrivenQuest extends AbstractQuest {
     /** Cached listeners per state, created during initialize(). */
     private final Map<QuestState, List<Listener>> stateListeners = new EnumMap<>(QuestState.class);
 
+    /** Parsed from the {@code notify} metadata block (#2266); the definition is immutable. */
+    private final QuestNotifyPolicy notifyPolicy;
+
+    /** Each component's {@code on_advance} rewards, sorted by reward_id (#2267). Absent = none. */
+    private final Map<String, List<RewardDTO>> onAdvanceRewards;
+
+    /** Problems found while reading notify / on_advance / once, logged at initialize. */
+    private final List<String> engineKeyProblems = new ArrayList<>();
+
     public DataDrivenQuest(RVNKQuests plugin, QuestDTO definition) {
         super(plugin, definition.questId(), definition.name());
         this.definition = definition;
         this.componentFactory = new QuestComponentFactory(plugin, this);
+        this.notifyPolicy = QuestNotifyPolicy.fromMetadata(definition.metadata());
+        this.onAdvanceRewards = parseOnAdvance(definition.metadata(), engineKeyProblems);
+        engineKeyProblems.addAll(QuestNotifyPolicy.problems(definition.metadata()));
+        for (RewardDTO reward : definition.rewards()) {
+            String once = reward.metadata().get(org.fourz.RVNKQuests.service.OnceRewards.METADATA_KEY);
+            if (once != null && !org.fourz.RVNKQuests.service.OnceRewards.isOnceServer(reward)) {
+                engineKeyProblems.add("reward '" + reward.rewardId() + "' once '" + once
+                    + "' is not 'server' - ignored, fires on every completion");
+            }
+        }
+    }
+
+    /** Reads every component's {@code on_advance} list. */
+    private static Map<String, List<RewardDTO>> parseOnAdvance(Map<String, Object> metadata, List<String> problems) {
+        Map<String, List<RewardDTO>> out = new LinkedHashMap<>();
+        if (metadata == null || !(metadata.get("components") instanceof Map<?, ?> components)) {
+            return out;
+        }
+        for (Map.Entry<?, ?> e : components.entrySet()) {
+            if (!(e.getValue() instanceof Map<?, ?> config)) continue;
+            Object raw = config.get(org.fourz.RVNKQuests.reward.OnAdvanceRewards.CONFIG_KEY);
+            if (raw == null) continue;
+            String componentId = String.valueOf(e.getKey());
+            List<RewardDTO> rewards = org.fourz.RVNKQuests.reward.OnAdvanceRewards.parse(componentId, raw, problems);
+            if (!rewards.isEmpty()) {
+                out.put(componentId, List.copyOf(rewards));
+            }
+        }
+        return out;
+    }
+
+    @Override
+    public QuestNotifyPolicy getNotifyPolicy() {
+        return notifyPolicy;
+    }
+
+    /**
+     * Author-facing problems with {@code notify}, {@code on_advance} and {@code once} (#2266-#2268).
+     * None of them stops the quest loading; each falls back to the old behaviour.
+     */
+    public List<String> getEngineKeyProblems() {
+        return List.copyOf(engineKeyProblems);
+    }
+
+    /**
+     * The {@code on_advance} rewards of a component, sorted by reward_id (#2267).
+     *
+     * @param componentId the component id, any case
+     * @return the rewards; empty when the component has none
+     */
+    public List<RewardDTO> getOnAdvanceRewards(String componentId) {
+        if (componentId == null) return List.of();
+        List<RewardDTO> exact = onAdvanceRewards.get(componentId);
+        if (exact != null) return exact;
+        for (Map.Entry<String, List<RewardDTO>> e : onAdvanceRewards.entrySet()) {
+            if (e.getKey().equalsIgnoreCase(componentId)) return e.getValue();
+        }
+        return List.of();
+    }
+
+    /**
+     * The commit hook for a live component listener, or null when it has no {@code on_advance}
+     * (#2267). Components pass it to
+     * {@link #tryAdvanceStateForPlayer(UUID, QuestState, org.fourz.RVNKQuests.party.PartyBeatContext, java.util.function.Consumer)}
+     * through {@link ComponentAdvance}.
+     */
+    public java.util.function.Consumer<UUID> onAdvanceHook(Listener component) {
+        return onAdvanceHook(componentFactory.componentIdOf(component));
+    }
+
+    /**
+     * The commit hook for a component id, or null when it has no {@code on_advance} (#2267).
+     *
+     * <p>The hook runs once for each player whose advance on this component committed. It hops to
+     * the main thread, claims any {@code once: server} entries, and delivers the rest through the
+     * reward service, in reward_id order. An offline player gets nothing, and it is logged.</p>
+     */
+    public java.util.function.Consumer<UUID> onAdvanceHook(String componentId) {
+        List<RewardDTO> rewards = getOnAdvanceRewards(componentId);
+        if (rewards.isEmpty()) return null;
+        String id = componentId;
+        return playerUuid -> runOnMain(() -> deliverOnAdvance(id, playerUuid, rewards));
+    }
+
+    private void runOnMain(Runnable task) {
+        try {
+            plugin.getServer().getScheduler().runTask(plugin, task);
+        } catch (RuntimeException e) {
+            // The scheduler refuses tasks while the plugin disables.
+            logger.warning("on_advance for quest " + questId + " not run - scheduler unavailable: " + e.getMessage());
+        }
+    }
+
+    private void deliverOnAdvance(String componentId, UUID playerUuid, List<RewardDTO> rewards) {
+        Player player = plugin.getServer().getPlayer(playerUuid);
+        if (player == null) {
+            logger.warning("on_advance for quest " + questId + " component " + componentId
+                + " skipped - player " + playerUuid + " went offline after the advance committed");
+            return;
+        }
+        IRewardService rewardService = plugin.getRewardService();
+        if (rewardService == null) {
+            logger.warning("on_advance for quest " + questId + " component " + componentId
+                + " skipped - reward service unavailable");
+            return;
+        }
+        org.fourz.RVNKQuests.service.OnceRewards.claimAndFilter(plugin.getOnceRewardStore(), questId,
+                componentId, playerUuid, rewards, logger::warning)
+            .thenAccept(toDeliver -> {
+                if (toDeliver.isEmpty()) return;
+                runOnMain(() -> rewardService.deliverRewards(playerUuid, questId, toDeliver, true)
+                    .thenAccept(result -> {
+                        logger.debug("on_advance " + questId + "/" + componentId + " for " + player.getName()
+                            + ": " + result.successCount() + " delivered, " + result.failureCount() + " failed");
+                        if (result.successCount() > 0) {
+                            IJournalService journal = plugin.getJournalService();
+                            if (journal != null && journal.isAvailable()) {
+                                journal.recordRewardClaimed(playerUuid, questId,
+                                    "on_advance " + componentId + ": " + result.successCount() + " reward(s) delivered");
+                            }
+                        }
+                    })
+                    .exceptionally(ex -> {
+                        logger.error("on_advance delivery failed for " + player.getName() + " on quest "
+                            + questId + " component " + componentId,
+                            ex instanceof Exception x ? x : new RuntimeException(ex));
+                        return null;
+                    }));
+            });
     }
 
     /**
@@ -101,6 +239,9 @@ public class DataDrivenQuest extends AbstractQuest {
         for (String issue : validateStateNames()) {
             logger.warning("Quest " + questId + " has invalid state reference: " + issue);
         }
+        for (String issue : engineKeyProblems) {
+            logger.warning("Quest " + questId + ": " + issue);
+        }
 
         // Build listeners for each state from the state_mapping metadata
         for (QuestState state : QuestState.values()) {
@@ -150,27 +291,52 @@ public class DataDrivenQuest extends AbstractQuest {
         List<RewardDTO> rewards = definition.rewards();
         if (!rewards.isEmpty()) {
             IRewardService rewardService = plugin.getRewardService();
-            if (rewardService != null) {
-                rewardService.deliverRewards(player.getUniqueId(), questId, rewards, true)
-                    .thenAccept(result -> {
-                        logger.debug("Rewards delivered for " + player.getName() + " on quest " + questId +
-                            ": " + result.successCount() + " successful, " + result.failureCount() + " failed");
-                        if (result.successCount() > 0) {
-                            IJournalService journal = plugin.getJournalService();
-                            if (journal != null && journal.isAvailable()) {
-                                journal.recordRewardClaimed(player.getUniqueId(), questId,
-                                    result.successCount() + " reward(s) delivered");
+            if (rewardService != null && org.fourz.RVNKQuests.service.OnceRewards.anyOnceServer(rewards)) {
+                // once: server (#2268): claim first, then deliver what this completion won, in the
+                // same order. A quest with no once reward takes the unchanged path below.
+                UUID playerUuid = player.getUniqueId();
+                org.fourz.RVNKQuests.service.OnceRewards.claimAndFilter(plugin.getOnceRewardStore(), questId,
+                        null, playerUuid, rewards, logger::warning)
+                    .thenAccept(toDeliver -> {
+                        for (RewardDTO r : rewards) {
+                            if (org.fourz.RVNKQuests.service.OnceRewards.isOnceServer(r)) {
+                                logger.info("once:server reward " + questId + " " + r.rewardId()
+                                    + (toDeliver.contains(r) ? " fired by " + player.getName()
+                                        : " already fired on this server - skipped for " + player.getName()));
                             }
                         }
-                    })
-                    .exceptionally(ex -> {
-                        logger.error("Failed to deliver rewards for " + player.getName() + " on quest " + questId, (Exception) ex);
-                        return null;
+                        if (!toDeliver.isEmpty()) {
+                            runOnMain(() -> deliverCompletionRewards(player, rewardService, toDeliver));
+                        }
                     });
+                return true;
+            }
+            if (rewardService != null) {
+                deliverCompletionRewards(player, rewardService, rewards);
             }
         }
 
         return true;
+    }
+
+    /** The unchanged completion delivery: batch, journal on success. */
+    private void deliverCompletionRewards(Player player, IRewardService rewardService, List<RewardDTO> rewards) {
+        rewardService.deliverRewards(player.getUniqueId(), questId, rewards, true)
+            .thenAccept(result -> {
+                logger.debug("Rewards delivered for " + player.getName() + " on quest " + questId +
+                    ": " + result.successCount() + " successful, " + result.failureCount() + " failed");
+                if (result.successCount() > 0) {
+                    IJournalService journal = plugin.getJournalService();
+                    if (journal != null && journal.isAvailable()) {
+                        journal.recordRewardClaimed(player.getUniqueId(), questId,
+                            result.successCount() + " reward(s) delivered");
+                    }
+                }
+            })
+            .exceptionally(ex -> {
+                logger.error("Failed to deliver rewards for " + player.getName() + " on quest " + questId, (Exception) ex);
+                return null;
+            });
     }
 
     @Override

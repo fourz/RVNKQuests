@@ -30,7 +30,7 @@ public class QuestDebugSubCommand extends BaseSubCommand {
     private static final List<String> SUB_COMMANDS = Arrays.asList(
         "diagnostics", "list", "player", "loglevel", "seed", "setstate", "setup", "preflight", "party",
         // #2093 — the five tools #1867 specified but never shipped. Read-only first, then the
-        // three that mutate and are gated to Dev by ServerTier.
+        // three that mutate: trace and session are Dev only (ServerTier); fire uses QaFireGate (#2265).
         "coords", "drift", "fire", "trace", "session"
     );
 
@@ -140,10 +140,11 @@ public class QuestDebugSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7/quest debug party [player] &8- Show live quest parties and member positions");
         sendMessage(sender, "&7/quest debug coords <quest> &8- Coordinates, distances, co-location");
         sendMessage(sender, "&7/quest debug drift <quest> &8- Diff on-disk YAML against the live definition");
-        sendMessage(sender, "&8/quest debug fire <quest> <component> <player> &8- Exercise one advance (Dev)");
+        sendMessage(sender, "&8/quest debug fire <quest> <component> <player> &8- Exercise one advance (Dev, or a QA subject)");
         sendMessage(sender, "&8/quest debug trace <player|off|status> &8- Stream state decisions (Dev)");
         sendMessage(sender, "&8/quest debug session <start|end|status> [player] &8- Bracket a QA run (Dev)");
-        sendMessage(sender, "&8   coords/drift are read-only and run on any tier; the last three are Dev only.");
+        sendMessage(sender, "&8   coords/drift are read-only and run on any tier. trace/session are Dev only.");
+        sendMessage(sender, "&8   fire runs on Dev, and elsewhere only on a target with rvnkcore.qa.subject.");
     }
 
     /**

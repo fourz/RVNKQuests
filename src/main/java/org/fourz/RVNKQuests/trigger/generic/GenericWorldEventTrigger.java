@@ -273,7 +273,7 @@ public class GenericWorldEventTrigger implements Listener {
                     result.complete(false);
                     return;
                 }
-                quest.advanceStateForPlayer(playerId, advanceState,
+                org.fourz.RVNKQuests.quest.ComponentAdvance.advance(quest, this, playerId, advanceState,
                                 PartyBeatContext.of(live.getLocation(), 0.0, requiredState))
                         // Confirm before speaking. advanceStateForPlayer completes NORMALLY when a
                         // gate drops the advance — four of the five exits in applyStateChange do
@@ -348,6 +348,10 @@ public class GenericWorldEventTrigger implements Listener {
             return;
         }
         if (requiredState != QuestState.NOT_STARTED) {
+            return;
+        }
+        // notify.start_popup (#2266): a quest authored silent stays silent here too.
+        if (!quest.getNotifyPolicy().startPopup()) {
             return;
         }
         // Fetched at fire time, not cached in the constructor. Quest components are built during

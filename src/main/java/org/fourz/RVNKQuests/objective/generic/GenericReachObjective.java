@@ -103,7 +103,7 @@ public class GenericReachObjective implements Listener {
             // context_location_key case shares the actual checkpoint, not the static default.
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
-                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(target, radius, requiredState)),
                     mainThread);
             logger.debug(player.getName() + " reached target location for quest " + quest.getId());

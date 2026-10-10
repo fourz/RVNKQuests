@@ -327,7 +327,7 @@ public class GenericEncounterObjective implements Listener {
             Location postLoc = getSpawnLocation(owner);
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(owner,
-                    quest.tryAdvanceStateForPlayer(playerId, advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
                     postLoc != null ? postLoc : entity.getLocation(), triggerRadius, requiredState)),
                     mainThread);

@@ -121,7 +121,7 @@ public class GenericKillObjective implements Listener {
             // their own count being complete; pooled party counts are a filed follow-up.
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(killer,
-                    quest.tryAdvanceStateForPlayer(playerId, advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, playerId, advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(killer.getLocation(), 0.0, requiredState)),
                     mainThread);
         }

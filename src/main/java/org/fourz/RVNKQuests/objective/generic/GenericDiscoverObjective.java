@@ -115,7 +115,7 @@ public class GenericDiscoverObjective implements Listener {
             // so the checkpoint is where the player stands, scaled by the detection radius.
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
-                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
                     player.getLocation(), detectionRadius, requiredState)),
                     mainThread);
@@ -146,7 +146,7 @@ public class GenericDiscoverObjective implements Listener {
             // found wherever the scan succeeded, so the finder's position IS the checkpoint.
             // detectionRadius is the right scale: it is how far the scan itself reached.
             advanceFeedback.notifyIfCommitted(player,
-                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
                     player.getLocation(), detectionRadius, requiredState)),
                     mainThread);

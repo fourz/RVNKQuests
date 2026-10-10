@@ -8,6 +8,7 @@ import org.fourz.RVNKQuests.party.PartyBeatContext;
 import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.RVNKQuests.quest.Quest;
 import org.fourz.RVNKQuests.quest.QuestState;
+import org.fourz.RVNKQuests.util.QaFireGate;
 import org.fourz.RVNKQuests.util.ServerTier;
 
 import java.util.ArrayList;
@@ -20,9 +21,11 @@ import java.util.Optional;
  * {@code /quest debug fire <quest> <component> <player>} — exercise one component's advance from
  * console, without walking or teleporting (#2093).
  *
- * <p><b>Mutating, and Dev only.</b> It writes real quest state and can deliver real rewards, so the
- * tier gate refuses outright rather than asking for a {@code --force} the way {@code preflight}
- * does. {@code preflight} only loads a chunk and puts it back; this pays a player.</p>
+ * <p><b>Mutating, so gated (#2265).</b> It writes real quest state and can deliver real rewards.
+ * {@link QaFireGate} decides: Dev ({@code dev} or {@code test}) allows any online target; every
+ * other tier allows only a target that holds {@code rvnkcore.qa.subject}; an unknown tier refuses.
+ * The sender needs {@code rvnkquests.admin} on every tier. Every attempt that names a quest,
+ * component and online player writes one INFO audit line.</p>
  *
  * <h2>What it does and does not prove</h2>
  *
@@ -45,20 +48,20 @@ import java.util.Optional;
 public class QuestFireSubCommand extends BaseSubCommand {
 
     public QuestFireSubCommand(RVNKQuests plugin) {
-        super(plugin, "fire", "Exercise one component's advance for a player (Dev only)",
+        super(plugin, "fire", "Exercise one component's advance for a player (Dev, or a QA subject)",
                 "/quest debug fire <quest> <component> <player>", "rvnkquests.admin", false);
     }
 
     @Override
     protected boolean executeSubCommand(CommandSender sender, String[] args) {
         String tier = ServerTier.resolve();
-        if (!ServerTier.isDev(tier)) {
-            // Refuse, and say which tier, so a correctly-gated production run is distinguishable
-            // from a Dev box whose identity failed to resolve.
-            sendErrorMessage(sender, "Refused: fire mutates player quest state and is Dev only."
-                    + " This tier is '" + (tier == null ? "unknown" : tier) + "'.");
-            sendMessage(sender, "&7  Read-only alternatives that run anywhere: &f/quest debug preflight"
-                    + "&7, &f/quest debug coords&7, &f/quest debug drift");
+        if (QaFireGate.isUnknownTier(tier)) {
+            // Refused before anything else: no target can make an unknown tier safe. Say which
+            // value was read, so a misconfigured Dev box is distinguishable from a gated tier.
+            QaFireGate.Decision unknown = QaFireGate.evaluate(tier, true, false);
+            sendErrorMessage(sender, "Refused: " + unknown.reason());
+            audit(sender, args.length > 2 ? args[2] : "-", args.length > 0 ? args[0] : "-",
+                    args.length > 1 ? args[1] : "-", tier, "REFUSED: " + unknown.reason());
             return true;
         }
 
@@ -97,6 +100,19 @@ public class QuestFireSubCommand extends BaseSubCommand {
         if (target == null) {
             sendErrorMessage(sender, "Player not online: " + playerName);
             sendMessage(sender, "&7  Component '" + componentId + "' resolved - only the player is missing.");
+            return true;
+        }
+
+        // The gate needs the target, so it runs after the target resolves (#2265). The sender's own
+        // permissions never stand in for the target's: on Event the TARGET must be a QA subject.
+        QaFireGate.Decision gate = QaFireGate.evaluate(tier,
+                sender.hasPermission(QaFireGate.PERM_ADMIN) || sender.isOp(),
+                target.hasPermission(QaFireGate.PERM_QA_SUBJECT));
+        if (!gate.allowed()) {
+            sendErrorMessage(sender, "Refused: " + gate.reason());
+            sendMessage(sender, "&7  Read-only alternatives that run anywhere: &f/quest debug preflight"
+                    + "&7, &f/quest debug coords&7, &f/quest debug drift");
+            audit(sender, target.getName(), questId, componentId, tier, "REFUSED: " + gate.reason());
             return true;
         }
 
@@ -139,12 +155,27 @@ public class QuestFireSubCommand extends BaseSubCommand {
         sendMessage(sender, "&7  Tip: &f/quest debug trace " + target.getName()
                 + "&7 in another window shows the gate decision as it happens.");
 
-        quest.advanceStateForPlayer(target.getUniqueId(), advance, ctx)
-            .whenComplete((v, ex) -> Bukkit.getScheduler().runTask(plugin, () -> {
+        // The component's on_advance list (#2267) rides the same commit as a real fire, so a QA
+        // pass can prove a mid-quest give on the tier where the content lives.
+        java.util.function.Consumer<java.util.UUID> onAdvance = quest.onAdvanceHook(componentId);
+        if (onAdvance != null) {
+            sendMessage(sender, "&7  on_advance &f" + quest.getOnAdvanceRewards(componentId).size()
+                    + " reward(s) &7fire if this advance commits");
+        }
+        final String gateReason = gate.reason();
+        quest.tryAdvanceStateForPlayer(target.getUniqueId(), advance, ctx, onAdvance)
+            .whenComplete((committed, ex) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (ex != null) {
                     sendErrorMessage(sender, "Advance failed: " + ex);
+                    audit(sender, target.getName(), questId, componentId, tier,
+                            "ALLOWED (" + gateReason + "), WRITE FAILED: " + ex);
                     return;
                 }
+                QuestState landed = quest.getStateForPlayer(target);
+                audit(sender, target.getName(), questId, componentId, tier, "ALLOWED (" + gateReason + "), "
+                        + (Boolean.TRUE.equals(committed)
+                            ? "advanced " + before + " -> " + landed
+                            : "no change, still " + landed));
                 // Re-read rather than assume. Four of the five exits in applyStateChange complete
                 // normally without changing anything, so "the future completed" is not evidence
                 // that the state moved — reporting it as success is the ambiguity trace exists for.
@@ -178,6 +209,18 @@ public class QuestFireSubCommand extends BaseSubCommand {
             }));
 
         return true;
+    }
+
+    /**
+     * One INFO line per fire attempt (#2265), through the plugin's own logger so it is written
+     * whatever RVNKQuests' configured log level is. An audit line that a WARNING level swallows
+     * is not an audit trail.
+     */
+    private void audit(CommandSender sender, String target, String questId, String componentId,
+                       String tier, String result) {
+        plugin.getLogger().info("[quest debug fire] sender=" + sender.getName() + " target=" + target
+                + " quest=" + questId + " component=" + componentId
+                + " tier=" + (tier == null ? "unknown" : tier) + " result=" + result);
     }
 
     // ── Lookup ──────────────────────────────────────────────────────────────────
@@ -309,7 +352,9 @@ public class QuestFireSubCommand extends BaseSubCommand {
     public List<String> getExamples() {
         return List.of(
                 "/quest debug fire tfah_ch1_journey lectern_trigger Shad0melt",
-                "  Dev only - it writes real state and can pay real rewards",
+                "  Dev: any target. Event/prod: only a target with rvnkcore.qa.subject",
+                "  (lp user <player> parent add qa). Unknown tier: refused. Every try is audited.",
+                "  It writes real state and can pay real rewards, including on_advance gives",
                 "  exercises the ADVANCE, not the component's own detection:",
                 "  a missing lectern still fires. Use preflight for block checks.",
                 "  fire two co-located components back to back for the #1853 repro",

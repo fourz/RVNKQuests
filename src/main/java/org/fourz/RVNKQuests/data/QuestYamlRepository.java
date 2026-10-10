@@ -136,14 +136,18 @@ public class QuestYamlRepository implements IQuestRepository {
                     type = RewardType.CUSTOM;
                 }
 
-                Map<String, String> rwdMeta = Map.of();
+                Map<String, String> rwdMeta = new LinkedHashMap<>();
                 ConfigurationSection rwdMetaSection = rwd.getConfigurationSection("metadata");
                 if (rwdMetaSection != null) {
-                    rwdMeta = new LinkedHashMap<>();
                     for (String mk : rwdMetaSection.getKeys(false)) {
                         rwdMeta.put(mk, rwdMetaSection.getString(mk, ""));
                     }
-                    rwdMeta = Map.copyOf(rwdMeta);
+                }
+                // `once: server` (#2268) is written on the reward itself and stored as the
+                // metadata key `once`; saveQuestToFile writes it back the same way.
+                String once = rwd.getString(org.fourz.RVNKQuests.service.OnceRewards.METADATA_KEY);
+                if (once != null && !once.isBlank()) {
+                    rwdMeta.put(org.fourz.RVNKQuests.service.OnceRewards.METADATA_KEY, once.trim());
                 }
 
                 rewards.add(new RewardDTO(
@@ -225,8 +229,11 @@ public class QuestYamlRepository implements IQuestRepository {
             yaml.set(path + ".value", rwd.value());
             yaml.set(path + ".amount", rwd.amount());
             yaml.set(path + ".description", rwd.description());
-            if (!rwd.metadata().isEmpty()) {
-                for (Map.Entry<String, String> entry : rwd.metadata().entrySet()) {
+            for (Map.Entry<String, String> entry : rwd.metadata().entrySet()) {
+                if (org.fourz.RVNKQuests.service.OnceRewards.METADATA_KEY.equals(entry.getKey())) {
+                    // The reward flag `once: server` (#2268) goes back where the author wrote it.
+                    yaml.set(path + "." + entry.getKey(), entry.getValue());
+                } else {
                     yaml.set(path + ".metadata." + entry.getKey(), entry.getValue());
                 }
             }
