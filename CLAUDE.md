@@ -339,6 +339,28 @@ in section 5, Example 4, and section 13 (dialogue and placeholders). Sample ques
 - An RVNKCore older than 1.5.99-alpha disables both NPC component types with a warning
   (`NpcApi.isPresent()`), instead of throwing `NoClassDefFoundError` during quest registration.
 
+## Guided-quest engine keys (1.1.69, #2263)
+
+Full reference: [docs/quest-engine.md](docs/quest-engine.md) sections 3, 5, 6 and 11.
+
+- **`quest debug fire` gate (#2265):** `util/QaFireGate` is a pure copy of RVNKCore's `NpcClickGate`
+  rules. Do not link `NpcClickGate`: RVNK Event ran RVNKCore 1.5.101, which lacks it. Dev/test allow
+  any target; other tiers need the TARGET to hold `rvnkcore.qa.subject`; an unknown tier refuses.
+  Each attempt writes one INFO audit line through `plugin.getLogger()` (not LogManager, whose level
+  can hide INFO). The node is declared at startup, default false, only when RVNKCore has not
+  declared it — not in plugin.yml, which would log a duplicate-permission warning on 1.5.102+.
+- **`metadata.notify` (#2266):** `quest/QuestNotifyPolicy`. Defaults all true (old behaviour). Read
+  in `AbstractQuest.performAdvance` / `start()` and `GenericWorldEventTrigger.announce`. Player
+  prefs still apply inside `NotificationServiceImpl`; `announce_completion` stays the master switch.
+- **`on_advance` (#2267):** components advance through `quest/ComponentAdvance`, which makes the
+  pre-1.1.69 call when the component has no `on_advance`, and otherwise passes
+  `DataDrivenQuest.onAdvanceHook` to the 4-argument `tryAdvanceStateForPlayer`. The hook runs per
+  committed player (firer and party members), never for a refused advance. New components must
+  call `ComponentAdvance`, not the quest directly.
+- **`once: server` (#2268):** reward metadata `once=server`; `service/OnceRewards.claimAndFilter`
+  claims through `data/IOnceRewardStore` (`quest_once_rewards`, migration V3, insert-ignore) before
+  delivery. Fails closed. `/quest reward reset-once` clears records.
+
 ## Command Formatting Standards
 
 Use consistent message prefixes in command handlers:

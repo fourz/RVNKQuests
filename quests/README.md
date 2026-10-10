@@ -33,6 +33,46 @@ canonical shape.
 | `survey_choice.yml` | Wanderer or Historian | Surveyor |
 | `survey_sanctum.yml` | The Sanctum Remembers | Surveyor |
 
+## Authoring keys added in 1.1.69
+
+Full rules: [docs/quest-engine.md](../docs/quest-engine.md) sections 3, 5 and 6. All three are
+optional; a quest without them behaves exactly as before.
+
+**`metadata.notify`** (#2266) mutes this quest's popups or its server-wide broadcast. Defaults are
+all `true`. The player's `/quest prefs` still win for popups, and `quests.announce_completion` stays
+the master switch for the broadcast.
+
+```yaml
+metadata:
+  notify:
+    broadcast: false
+```
+
+**`on_advance`** on any trigger or objective (#2267) gives rewards when that component's advance
+commits, once per player. Entries use the reward types of `rewards:` and run in `reward_id` order.
+
+```yaml
+    obj_gold_door:
+      objective_type: INTERACT
+      block_type: GOLD_BLOCK
+      advance_state: OBJECTIVE_FOUND
+      on_advance:
+      - reward_id: a_key
+        type: COMMAND
+        value: lore item give %player% Lodestone Key
+```
+
+**`once: server`** on a reward (#2268) fires it on the first completion on the server only. Clear
+it with `/quest reward reset-once <quest_id> [reward_id]`.
+
+```yaml
+rewards:
+  cavern_wake:
+    type: COMMAND
+    value: fill 10 60 10 12 62 10 minecraft:air
+    once: server
+```
+
 ## Not yet captured here
 
 Verified against `/quest validate` on RVNK Event, 2026-08-23: the server registers **14** quests, this
