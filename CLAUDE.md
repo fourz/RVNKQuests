@@ -314,8 +314,9 @@ in section 5, Example 4, and section 13 (dialogue and placeholders). Sample ques
 - **NPC_INTERACT** trigger and **TALK_TO** objective take `npc_key` (RVNK key, case-insensitive) and
   `click` (`right` default, `left`, `any`). They listen to RVNKCore's `RvnkNpcInteractEvent`.
   RVNKQuests has **no Citizens dependency** — do not add Citizens to `depend`/`softdepend`.
-- Both advance through `advanceStateForPlayer`, so prerequisites, the monotonic guard and the
-  COMPLETED side effects behave as for every other component.
+- Both advance through `tryAdvanceStateForPlayer` (via `ComponentAdvance.tryAdvance`), so
+  prerequisites, the monotonic guard and the COMPLETED side effects behave as for every other
+  component. The coordinator counts a click's advance only when that call returned `true` (#2277).
 - **Dialogue:** components never send chat. They report to `NpcInteractionCoordinator`, which runs
   at `MONITOR` and sends one line per click from the RVNKLore entry
   `npc_<key>_<offer|active|done|locked>`. Priority: `done` > `offer` > `active` > `locked`.
