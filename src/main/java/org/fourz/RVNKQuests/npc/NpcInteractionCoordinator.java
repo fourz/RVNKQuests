@@ -41,8 +41,9 @@ import java.util.function.Supplier;
  * <h2>Which line</h2>
  *
  * <ol>
- *   <li>The advances recorded for the click are awaited. An advance that did not commit (the
- *       prerequisite gate refused it, or the state already moved) does not count.</li>
+ *   <li>The advances recorded for the click are awaited. Only an advance whose own result says it
+ *       committed counts (#2277); a refused one (the prerequisite gate, or the state already
+ *       there or moved) does not, even when the cached state happens to equal its target.</li>
  *   <li>Each committed advance gives a context: {@code done} if it reached COMPLETED, else
  *       {@code offer} for a trigger and {@code active} for an objective. The highest wins:
  *       {@code done} &gt; {@code offer} &gt; {@code active}.</li>
@@ -77,7 +78,7 @@ public class NpcInteractionCoordinator implements Listener {
     }
 
     /** One advance a component started for a click. */
-    private record Claim(NpcQuestComponent component, QuestState target, CompletableFuture<Void> advance) {}
+    private record Claim(NpcQuestComponent component, QuestState target, CompletableFuture<Boolean> advance) {}
 
     private final Supplier<? extends Collection<? extends NpcQuestComponent>> components;
     private final Supplier<INpcService> npcService;
@@ -122,18 +123,18 @@ public class NpcInteractionCoordinator implements Listener {
 
     /**
      * Records that a component started an advance for this click. Call from the component's
-     * event handler, on the main thread, right after {@code advanceStateForPlayer}.
+     * event handler, on the main thread, right after {@code tryAdvanceStateForPlayer}.
      *
      * @param event     the click
      * @param component the component that fired
      * @param target    the state the component advanced to
-     * @param advance   the future {@code advanceStateForPlayer} returned
+     * @param advance   the future {@code tryAdvanceStateForPlayer} returned: true when it committed
      */
     public void recordAdvance(RvnkNpcInteractEvent event, NpcQuestComponent component,
-                              QuestState target, CompletableFuture<Void> advance) {
+                              QuestState target, CompletableFuture<Boolean> advance) {
         if (event == null || component == null || target == null) return;
         pending.computeIfAbsent(event, e -> new ArrayList<>(2))
-            .add(new Claim(component, target, advance != null ? advance : CompletableFuture.completedFuture(null)));
+            .add(new Claim(component, target, advance != null ? advance : CompletableFuture.completedFuture(false)));
     }
 
     /** Number of clicks with unresolved claims. Visible for tests: must be 0 after each click. */
@@ -193,15 +194,15 @@ public class NpcInteractionCoordinator implements Listener {
     }
 
     /**
-     * The context of the committed advances, or null when none committed. An advance committed
-     * when the player's cached state is now its target; a refused advance leaves the old state.
+     * The context of the committed advances, or null when none committed. Commit is the advance's
+     * own result, not the cached state (#2277): a refused advance whose target the state already
+     * equals (required_state == advance_state, or a second same-click advance to the same state)
+     * must not be announced.
      */
     DialogueContext contextFromClaims(Player player, List<Claim> claims) {
         DialogueContext best = null;
         for (Claim claim : claims) {
-            if (claim.advance().isCompletedExceptionally()) continue;
-            DataDrivenQuest quest = claim.component().getQuest();
-            if (quest == null || quest.getStateForPlayer(player) != claim.target()) continue;
+            if (!committed(claim.advance())) continue;
             DialogueContext context;
             if (claim.target() == QuestState.COMPLETED) {
                 context = DialogueContext.DONE;
@@ -211,6 +212,12 @@ public class NpcInteractionCoordinator implements Listener {
             best = DialogueContext.max(best, context);
         }
         return best;
+    }
+
+    /** True when the advance completed normally with true. Call after the future is done. */
+    private static boolean committed(CompletableFuture<Boolean> advance) {
+        if (!advance.isDone() || advance.isCompletedExceptionally()) return false;
+        return Boolean.TRUE.equals(advance.getNow(false));
     }
 
     /**

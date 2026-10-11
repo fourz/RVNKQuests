@@ -113,6 +113,19 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
             .thenRun(() -> logger.debug("Loaded progress for player: " + playerUuid));
     }
 
+    /** Clears every cache and the dirty flag for a player who left. */
+    private void evictPlayer(UUID playerUuid) {
+        progressCache.remove(playerUuid);
+        objectiveCache.remove(playerUuid);
+        dirtyPlayers.remove(playerUuid);
+        rewardCache.remove(playerUuid);
+
+        // If using YAML, unload from there too
+        if (getActiveRepo() instanceof QuestProgressYamlRepository yamlRepo) {
+            yamlRepo.unloadPlayerData(playerUuid);
+        }
+    }
+
     private CompletableFuture<Void> loadObjectivesForQuest(UUID playerUuid, String questId) {
         return getActiveRepo().getAllObjectiveProgress(playerUuid, questId)
             .thenAccept(objectives -> {
@@ -135,6 +148,9 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
         // Save all cached progress
         Map<String, QuestProgressDTO> playerProgress = progressCache.get(playerUuid);
         if (playerProgress == null || playerProgress.isEmpty()) {
+            // Nothing to save, but still evict (#2278): a kept empty map reads as "online with no
+            // progress", so offline placeholders showed 0 instead of '-', and it never left memory.
+            evictPlayer(playerUuid);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -156,17 +172,7 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
 
         return CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]))
             .thenRun(() -> {
-                // Clear caches and dirty flag
-                progressCache.remove(playerUuid);
-                objectiveCache.remove(playerUuid);
-                dirtyPlayers.remove(playerUuid);
-                rewardCache.remove(playerUuid);
-
-                // If using YAML, unload from there too
-                if (getActiveRepo() instanceof QuestProgressYamlRepository yamlRepo) {
-                    yamlRepo.unloadPlayerData(playerUuid);
-                }
-
+                evictPlayer(playerUuid);
                 logger.debug("Saved and unloaded progress for player: " + playerUuid);
             });
     }
@@ -205,8 +211,34 @@ public class QuestProgressServiceImpl implements IQuestProgressService {
                 dirtyPlayers.add(playerUuid);
 
                 // Save to repository
-                return getActiveRepo().saveProgress(updated).thenApply(success -> updated);
+                return getActiveRepo().saveProgress(updated)
+                    .thenCompose(saved -> confirmSaved(updated, saved));
             });
+    }
+
+    /**
+     * Makes a {@code false} state save visible to the caller (#2277). The advance's commit report
+     * and its COMPLETED side effects rest on this write, so a dropped write must not complete
+     * normally.
+     *
+     * <p>The MySQL repository returns false without throwing in two cases. Fallback mode switched
+     * on between {@link #getActiveRepo()} and its own check: one retry through the active repo
+     * lands the write in the YAML store. Or the row already held these values: MySQL's
+     * {@code ON DUPLICATE KEY UPDATE} reports 0 affected rows for an unchanged row, which is
+     * stored, so it counts as saved.</p>
+     */
+    private CompletableFuture<QuestProgressDTO> confirmSaved(QuestProgressDTO updated, Boolean saved) {
+        if (Boolean.TRUE.equals(saved)) {
+            return CompletableFuture.completedFuture(updated);
+        }
+        return getActiveRepo().saveProgress(updated).thenApply(retried -> {
+            if (Boolean.TRUE.equals(retried) || !primaryRepo.isInFallbackMode()) {
+                return updated;
+            }
+            throw new java.util.concurrent.CompletionException(new IllegalStateException(
+                "Quest progress not saved: " + updated.playerUuid() + " " + updated.questId()
+                    + " -> " + updated.state()));
+        });
     }
 
     @Override

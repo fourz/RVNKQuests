@@ -48,12 +48,13 @@ class NpcInteractTriggerTest {
     }
 
     private void assertAdvancedTo(QuestState target) {
-        verify(quest).advanceStateForPlayer(eq(player.getUniqueId()), eq(target), any(PartyBeatContext.class));
+        verify(quest).tryAdvanceStateForPlayer(eq(player.getUniqueId()), eq(target), any(PartyBeatContext.class));
     }
 
     private void assertNotAdvanced() {
         verify(quest, never()).advanceStateForPlayer(any(UUID.class), any(QuestState.class), any());
         verify(quest, never()).advanceStateForPlayer(any(UUID.class), any(QuestState.class));
+        verify(quest, never()).tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class), any());
     }
 
     @Test
@@ -141,7 +142,7 @@ class NpcInteractTriggerTest {
     void partyCheckpointIsNpcLocation() {
         trigger("npc_key", "archivist").onNpcInteract(rightClick(player, "archivist"));
         var captor = org.mockito.ArgumentCaptor.forClass(PartyBeatContext.class);
-        verify(quest).advanceStateForPlayer(any(UUID.class), any(QuestState.class), captor.capture());
+        verify(quest).tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class), captor.capture());
         assertEquals(10.0, captor.getValue().x(), 0.001);
         assertEquals(QuestState.NOT_STARTED, captor.getValue().requiredState());
     }

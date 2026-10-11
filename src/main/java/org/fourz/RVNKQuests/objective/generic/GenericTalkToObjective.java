@@ -122,7 +122,7 @@ public class GenericTalkToObjective implements Listener, NpcQuestComponent {
             quest.setPathChoice(player, setsPath);
         }
         Location checkpoint = event.getLocation() != null ? event.getLocation() : player.getLocation();
-        CompletableFuture<Void> advance = org.fourz.RVNKQuests.quest.ComponentAdvance.advance(quest, this, player.getUniqueId(), advanceState,
+        CompletableFuture<Boolean> advance = org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
             checkpoint != null
                 ? org.fourz.RVNKQuests.party.PartyBeatContext.of(checkpoint, 0.0, requiredState)
                 : null);
