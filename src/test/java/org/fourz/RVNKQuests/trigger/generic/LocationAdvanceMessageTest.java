@@ -128,13 +128,13 @@ class LocationAdvanceMessageTest {
         advanceResult(false); // the prerequisite gate refuses NOT_STARTED -> TRIGGER_FOUND
         GenericLocationProximityTrigger trigger = trigger();
 
-        // The state stays NOT_STARTED, so the trigger re-fires on every arrival. Before the fix
-        // each one sent the line.
+        // The state stays NOT_STARTED. Before #2249 each arrival sent the line; before #1938 each
+        // arrival also re-tried the refused advance. Now three quick arrivals try it once.
         arrive(trigger);
         arrive(trigger);
         arrive(trigger);
 
-        verify(quest, times(3)).tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class), any(PartyBeatContext.class));
+        verify(quest, times(1)).tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class), any(PartyBeatContext.class));
         verify(player, never()).sendMessage(anyString());
     }
 
