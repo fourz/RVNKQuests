@@ -25,6 +25,8 @@ import java.util.Map;
  *   <li>{@code x} — X coordinate (required)</li>
  *   <li>{@code y} — Y coordinate (required)</li>
  *   <li>{@code z} — Z coordinate (required)</li>
+ *   <li>{@code site} — A named site of the world instead of x/y/z, e.g. {@code drowned:spawn} (#2316): its position
+ *       comes from the plugin that generated the world ({@link org.fourz.RVNKQuests.util.SiteResolver})</li>
  *   <li>{@code radius} — Detection radius in blocks (default: 20)</li>
  *   <li>{@code required_state} — State required for this trigger to fire (default: "NOT_STARTED")</li>
  *   <li>{@code advance_state} — State to advance to (default: "TRIGGER_FOUND")</li>
@@ -45,6 +47,7 @@ public class GenericLocationProximityTrigger implements Listener {
     private final double x;
     private final double y;
     private final double z;
+    private final String site;
     private final double radius;
     private final double radiusSquared;
     private final QuestState requiredState;
@@ -58,6 +61,7 @@ public class GenericLocationProximityTrigger implements Listener {
         this.x = QuestComponentFactory.getDoubleConfig(config, "x", 0.0);
         this.y = QuestComponentFactory.getDoubleConfig(config, "y", 64.0);
         this.z = QuestComponentFactory.getDoubleConfig(config, "z", 0.0);
+        this.site = QuestComponentFactory.getStringConfig(config, "site", null);
         this.radius = QuestComponentFactory.getDoubleConfig(config, "radius", 20.0);
         this.radiusSquared = radius * radius;
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "NOT_STARTED"));
@@ -91,19 +95,27 @@ public class GenericLocationProximityTrigger implements Listener {
 
         if (!destination.getWorld().getName().equalsIgnoreCase(worldName)) return;
 
-        double dx = destination.getX() - x;
-        double dy = destination.getY() - y;
-        double dz = destination.getZ() - z;
+        double tx = x, ty = y, tz = z;
+        if (site != null) {
+            double[] p = org.fourz.RVNKQuests.util.SiteResolver.resolve(worldName, site);
+            if (p == null) return;                       // the site is not known (yet): nothing to reach
+            tx = p[0];
+            ty = p[1];
+            tz = p[2];
+        }
+        double dx = destination.getX() - tx;
+        double dy = destination.getY() - ty;
+        double dz = destination.getZ() - tz;
 
         if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
             // Party fan-out (#1982): carry the checkpoint so qualifying members share the beat.
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
                     org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
-                    new org.fourz.RVNKQuests.party.PartyBeatContext(worldName, x, y, z, radius, requiredState)),
+                    new org.fourz.RVNKQuests.party.PartyBeatContext(worldName, tx, ty, tz, radius, requiredState)),
                     mainThread);
             logger.debug("Location proximity trigger fired for " + player.getName()
-                    + " at " + worldName + " " + (int) x + "," + (int) y + "," + (int) z
+                    + " at " + worldName + " " + (int) tx + "," + (int) ty + "," + (int) tz
                     + " (quest: " + quest.getId() + ")");
         }
     }
