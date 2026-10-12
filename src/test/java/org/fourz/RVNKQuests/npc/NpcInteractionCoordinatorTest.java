@@ -205,6 +205,22 @@ class NpcInteractionCoordinatorTest {
         }
 
         @Test
+        @DisplayName("#2277: a refused advance whose target the state already equals is not an offer")
+        void refusedAdvanceAtTargetIsNotAnOffer() {
+            // required_state == advance_state: the gate passes, the advance is refused (ALREADY),
+            // and the cached state equals the target. The old state-equality check spoke "offer".
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.QUEST_ACTIVE);
+            trigger(quest("q1", s, false), "archivist",
+                "required_state", "QUEST_ACTIVE", "advance_state", "QUEST_ACTIVE");
+            withLoreForAllContexts("archivist");
+
+            dispatch(rightClick(player, "archivist"));
+
+            assertEquals(List.of("npc_archivist_active"), lookups,
+                "only the in-progress fallback may speak; the refused advance is not attributed");
+        }
+
+        @Test
         @DisplayName("an NPC no quest references says nothing")
         void unrelatedNpcIsSilent() {
             AtomicReference<QuestState> s = new AtomicReference<>(QuestState.QUEST_ACTIVE);

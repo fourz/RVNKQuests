@@ -40,6 +40,16 @@ metadata:
       npc_key: archivist
       advance_state: COMPLETED
       description: Tell the archivist the sealed stacks are open
+      # Objective waypoint (1.1.70, #2264). An NPC stands at a different place on each server,
+      # so this sample leaves the block commented out. Put the archivist's block position here
+      # and remove the '#' marks to show a bossbar to it while this objective is active:
+      # waypoint:
+      #   world: world
+      #   x: 0
+      #   y: 64
+      #   z: 0
+      #   label: The archivist
+      #   style: bossbar
   state_mapping:
     NOT_STARTED:
     - trig_keeper

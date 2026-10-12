@@ -53,7 +53,8 @@ public class DatabaseManager implements IQuestDatabaseService {
         "quest_tag_assignments",
         "quest_leaderboard_entries",
         "quest_leaderboard_cache",
-        "quest_repeat_config"
+        "quest_repeat_config",
+        "quest_once_rewards"
     };
 
     private final RVNKQuests plugin;

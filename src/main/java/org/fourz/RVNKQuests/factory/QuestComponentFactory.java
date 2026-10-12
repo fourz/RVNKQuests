@@ -123,6 +123,21 @@ public class QuestComponentFactory {
     }
 
     /**
+     * The component id a live listener was built for, or null when this factory did not build it
+     * (#2267). Identity comparison: two components with equal configs are still two components.
+     *
+     * @param listener a listener returned by {@link #createListenersForState}
+     * @return the component id, or null
+     */
+    public String componentIdOf(Listener listener) {
+        if (listener == null) return null;
+        for (Map.Entry<String, Listener> e : componentCache.entrySet()) {
+            if (e.getValue() == listener) return e.getKey();
+        }
+        return null;
+    }
+
+    /**
      * Components that threw during listener construction, keyed by component ID.
      * Populated as {@link #createListenersForState} runs; surfaced by {@code quest validate}.
      */

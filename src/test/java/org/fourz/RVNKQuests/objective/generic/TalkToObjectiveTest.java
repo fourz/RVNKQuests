@@ -50,17 +50,18 @@ class TalkToObjectiveTest {
     private void assertNotAdvanced() {
         verify(quest, never()).advanceStateForPlayer(any(UUID.class), any(QuestState.class), any());
         verify(quest, never()).advanceStateForPlayer(any(UUID.class), any(QuestState.class));
+        verify(quest, never()).tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class), any());
     }
 
     @Test
-    @DisplayName("clicking the target NPC completes the quest through advanceStateForPlayer(COMPLETED)")
+    @DisplayName("clicking the target NPC completes the quest through tryAdvanceStateForPlayer(COMPLETED)")
     void rightKeyCompletes() {
         talkTo("npc_key", "courier", "advance_state", "COMPLETED")
             .onNpcInteract(rightClick(player, "courier"));
 
         // COMPLETED via the advance path is what fires rewards, the notice and QuestCompleteEvent
         // (AbstractQuest.performAdvance). complete(Player) must never be the path (#1137).
-        verify(quest).advanceStateForPlayer(eq(player.getUniqueId()), eq(QuestState.COMPLETED),
+        verify(quest).tryAdvanceStateForPlayer(eq(player.getUniqueId()), eq(QuestState.COMPLETED),
             any(PartyBeatContext.class));
         verify(quest, never()).complete(any(Player.class));
         assertEquals(QuestState.COMPLETED, state.get());
@@ -70,7 +71,7 @@ class TalkToObjectiveTest {
     @DisplayName("default advance is OBJECTIVE_FOUND, like INTERACT")
     void defaultAdvance() {
         talkTo("npc_key", "courier").onNpcInteract(rightClick(player, "courier"));
-        verify(quest).advanceStateForPlayer(eq(player.getUniqueId()), eq(QuestState.OBJECTIVE_FOUND),
+        verify(quest).tryAdvanceStateForPlayer(eq(player.getUniqueId()), eq(QuestState.OBJECTIVE_FOUND),
             any(PartyBeatContext.class));
     }
 
@@ -94,7 +95,7 @@ class TalkToObjectiveTest {
     @DisplayName("click: any accepts a left click")
     void anyClickCompletes() {
         talkTo("npc_key", "courier", "click", "any").onNpcInteract(click(player, "courier", ClickType.LEFT));
-        verify(quest).advanceStateForPlayer(eq(player.getUniqueId()), eq(QuestState.OBJECTIVE_FOUND),
+        verify(quest).tryAdvanceStateForPlayer(eq(player.getUniqueId()), eq(QuestState.OBJECTIVE_FOUND),
             any(PartyBeatContext.class));
     }
 

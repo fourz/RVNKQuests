@@ -311,7 +311,7 @@ public class GenericMobSpawnTrigger implements Listener {
                 // expected starting state.
                 // Notify only after the advance commits (#2249).
                 advanceFeedback.notifyIfCommitted(player,
-                        quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                        org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
                         org.fourz.RVNKQuests.party.PartyBeatContext.of(
                                 site != null ? site : player.getLocation(), triggerRadius,
                                 QuestState.NOT_STARTED)),
@@ -336,7 +336,7 @@ public class GenericMobSpawnTrigger implements Listener {
         // Advance state — party fan-out (#1982): checkpoint = the actual spawn location. Only
         // NOT_STARTED players reach this path (gated above).
         advanceFeedback.notifyIfCommitted(player,
-                quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(spawnLoc, triggerRadius,
                         QuestState.NOT_STARTED)),
                 mainThread);

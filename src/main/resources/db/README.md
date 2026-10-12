@@ -10,8 +10,10 @@ This directory contains SQL migration scripts for the RVNKQuests plugin database
 db/
 ├── README.md                           # This file
 ├── V2__add_leaderboard_cache.sql       # MySQL migration
+├── V3__add_once_rewards.sql            # MySQL migration (#2268)
 └── sqlite/
-    └── V2__add_leaderboard_cache.sql   # SQLite migration
+    ├── V2__add_leaderboard_cache.sql   # SQLite migration
+    └── V3__add_once_rewards.sql        # SQLite migration (#2268)
 ```
 
 ## Migration Naming Convention
@@ -64,6 +66,26 @@ The base schema is located in `src/main/resources/schema/` and includes:
 - Reduces leaderboard query time from ~500ms to <100ms
 - No changes to existing tables
 - Backward compatible
+
+### V3: Add Run-Once Reward Records (2026-10-10, RVNKQuests 1.1.69, #2268)
+
+**Purpose:** a reward flagged `once: server` fires on the first completion on the server only.
+
+**Files:**
+- `V3__add_once_rewards.sql` (MySQL)
+- `sqlite/V3__add_once_rewards.sql` (SQLite)
+
+**Changes:**
+- Added `quest_once_rewards` (`quest_id`, `reward_id`, `fired_by`, `fired_at` epoch millis),
+  primary key `(quest_id, reward_id)`.
+- The same `CREATE TABLE IF NOT EXISTS` is in `schema/mysql.sql` and `schema/sqlite.sql`, which run
+  on every start, and the table is in `DatabaseManager.BASE_TABLE_NAMES`, so the table prefix
+  applies. No manual step is needed.
+- The claim is `INSERT IGNORE` (MySQL) / `INSERT OR IGNORE` (SQLite); an update count of 1 means
+  this completion fired the reward.
+
+**Rollback:** `DROP TABLE IF EXISTS quest_once_rewards;` — every `once: server` reward then fires
+again on its next completion.
 
 ## Database Platform Differences
 

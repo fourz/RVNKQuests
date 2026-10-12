@@ -51,6 +51,18 @@ CREATE TABLE IF NOT EXISTS quest_rewards_claimed (
     INDEX idx_player_quest (player_uuid, quest_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Run-once world rewards (#2268, migration V3): one row per quest_id + reward key that has
+-- fired on this server. The primary key is the guard: INSERT IGNORE inserts for exactly one
+-- of two racing completions. reward_id is the reward's id, or <component>/<id> for on_advance.
+CREATE TABLE IF NOT EXISTS quest_once_rewards (
+    quest_id VARCHAR(100) NOT NULL,
+    reward_id VARCHAR(200) NOT NULL,
+    fired_by VARCHAR(36) NOT NULL,
+    fired_at BIGINT NOT NULL,
+
+    PRIMARY KEY (quest_id, reward_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ==================== Quest Definition Tables ====================
 
 -- Quest definitions - the template/blueprint for each quest

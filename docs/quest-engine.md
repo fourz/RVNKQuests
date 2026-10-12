@@ -3,7 +3,7 @@ title: Data-Driven Quest Engine
 tags: [rvnkquests, engine, reference, quests]
 board: rvnkquests
 status: active
-updated: 2026-10-06
+updated: 2026-10-10
 ---
 
 # Data-Driven Quest Engine
@@ -111,6 +111,33 @@ The `metadata` column drives everything. The two required keys are `state_mappin
 `state_mapping` maps each `QuestState` name to a list of component IDs. When the engine activates a state for a player, it instantiates the listed components as Bukkit `Listener` instances.
 
 Components with `"type"` are triggers. Components with `"objective_type"` are objectives.
+
+### notify block (1.1.69, #2266)
+
+Optional per-quest control of the start/complete popups and the server-wide completion broadcast.
+
+```yaml
+metadata:
+  notify:
+    start_popup: true      # "Quest Started" title + chat line
+    complete_popup: true   # "Quest Complete!" title + chat line
+    broadcast: false       # "<player> has completed the quest <name>!" to the whole server
+```
+
+| Key | Default | Effect when `false` |
+|---|---|---|
+| `start_popup` | `true` | No start title/chat line (from `start()` and from a `WORLD_EVENT` opening beat) |
+| `complete_popup` | `true` | No completion title/chat line |
+| `broadcast` | `true` | No server-wide completion line for this quest |
+
+- **Defaults are the old behaviour.** No block, a missing key, or a value that is not `true`/`false`
+  reads as `true`. `/quest validate` and the load log name a bad key or value.
+- **The player's own `/quest prefs` still win for popups.** The block decides only whether the
+  notification service is asked; the service still applies the player's opt-out.
+- **`quests.announce_completion` stays the master switch.** The broadcast goes out only when it AND
+  `notify.broadcast` are true.
+- Rewards, the journal and `QuestCompleteEvent` are not affected. Use this for a beat designed to be
+  silent (the TFAH spire, #2244).
 
 ### quest_definition_objectives table
 
@@ -356,6 +383,137 @@ quest. With no NPC provider (no Citizens), one warning is logged instead of one 
 
 Objectives are components listed under `TRIGGER_FOUND`, `QUEST_ACTIVE`, or `OBJECTIVE_FOUND` in `state_mapping`. All objectives share the fields `required_state` (the state in which the objective is active) and `advance_state` (the state to transition to on completion).
 
+### on_advance — give on advance (any trigger or objective, 1.1.69, #2267)
+
+A component can give rewards when **its own advance commits**, not only at quest completion. The
+list holds entries of the existing reward types (section 6). A lore item by name is a `COMMAND`
+entry, as in the example.
+
+```yaml
+obj_gold_door:
+  objective_type: INTERACT
+  block_type: GOLD_BLOCK
+  world: sotw_city
+  x: 120
+  y: 64
+  z: -40
+  advance_state: OBJECTIVE_FOUND
+  on_advance:
+  - reward_id: a_key
+    type: COMMAND
+    value: lore item give %player% Lodestone Key
+  - reward_id: b_xp
+    type: EXPERIENCE
+    amount: 25
+```
+
+| Entry key | Description |
+|---|---|
+| `reward_id` | Optional. Sort key; default `<component>_NN` from the list position |
+| `type` | **Required.** A `RewardType`: `ITEM`, `COMMAND`, `EXPERIENCE`, `LORE_ITEM`, ... |
+| `value`, `amount`, `description`, `metadata` | As for a completion reward |
+| `once` | Optional. `server` = only the first player on the server gets it (section 6) |
+
+- **When:** at the commit point that `advance_message` uses (`tryAdvanceStateForPlayer`, #2249).
+  A refused advance (prerequisite gate, monotonic guard, state already moved) gives nothing.
+- **Once per player per transition.** The commit is the guard: the per-player write chain makes
+  the state change atomic, so a second fire of the same component finds the state already moved
+  and cannot commit again. A repeatable quest gives the list again on the next run, like its
+  completion rewards. A party member whose fan-out advance commits gets the list too.
+- **Order:** sorted by `reward_id`, then delivered through `RewardServiceImpl`, which applies the
+  same stable processor-priority sort as completion rewards.
+- **The player must be online** when the advance commits; an offline player gets nothing, and a
+  warning is logged.
+- **Storage:** the list is part of the component config in `quest_definitions.metadata`, so
+  `/quest import` and `/quest export` carry it with no schema change. A map keyed by reward id
+  (the shape of `rewards:`) is accepted too.
+- `/quest debug fire` runs the component's `on_advance` on commit, so it can be QA'd from console.
+- When the advance also completes the quest, the completion side effects run first.
+
+### waypoint — objective waypoints (any trigger or objective, 1.1.70, #2264)
+
+A component can carry a `waypoint`: where the player should go while that component is active. The
+player sees it on a bossbar (label, distance, an arrow from their facing), on their compass, or as a
+short particle trail. It works from any world: in the wrong world the bar names the target's world.
+
+```yaml
+metadata:
+  waypoints: auto                # optional, default off (see Auto mode)
+  components:
+    obj_lodestone_key:
+      objective_type: INTERACT
+      block_type: LODESTONE
+      advance_state: OBJECTIVE_FOUND
+      waypoint:
+        world: sotw_sky_0
+        x: -421
+        y: 98
+        z: 19
+        label: The gold door     # optional
+        style: bossbar           # bossbar (default) | compass | particles
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `world` | — | **Required.** Target world name (any case) |
+| `x`, `y`, `z` | — | **Required.** Target block |
+| `label` | component `description`, then the component id | Text on the bar |
+| `style` | `bossbar` | `bossbar`, `compass` or `particles` |
+
+**Which waypoint the player sees**
+
+1. **Active set:** the components in `state_mapping` for the player's current state that have a
+   waypoint, in `state_mapping` order.
+2. **Shown:** the nearest of those in the player's world (straight-line distance). If none is in the
+   player's world, the first of the set.
+3. **One tracked quest per player.** Starting a quest that has a waypoint (a commit from
+   `NOT_STARTED`) tracks it when nothing else is tracked. `/quest track <quest_id>` switches;
+   `/quest track off` stops. The tracked quest is saved in `quest_player_preferences`
+   (`tracked_quest`) and survives relog. Completing, abandoning or resetting the quest untracks it.
+4. A state with no waypoint shows nothing; the quest stays tracked.
+
+**Styles**
+
+| Style | Same world | Other world |
+|---|---|---|
+| `bossbar` | `<label> - <N>m <arrow>`; progress `1 - min(1, dist / startDist)` | `<label> - in <world display name>` |
+| `compass` | Holding a compass (either hand): the compass points at the target and the bar hides. Not holding one: the bar | The bar |
+| `particles` | The bar. The author marks the trail as the aid: `/quest track <id> --trail` | The bar |
+
+- **Arrow:** one of `↑ ↗ → ↘ ↓ ↙ ← ↖` (8 sectors of 45 degrees, ahead = `↑`), from the player's yaw
+  to the target. `↕` when the target is within one block horizontally (straight above or below).
+- **startDist** is captured on the first update in the target's world after tracking starts or the
+  target changes.
+- **World display name:** from RVNKWorlds (`display_names` in its worlds.yml) through the RVNKCore
+  `IRVNKWorldsApiService`, cached and refreshed at most once a minute on a miss. Without RVNKWorlds,
+  the world name.
+- **Compass:** `Player.setCompassTarget` turns a normal compass only, same world only (vanilla
+  limit). A lodestone compass keeps pointing at its lodestone. Untracking or a new target gives the
+  compass its world spawn back.
+- **Trail (`--trail`, any style):** gold dust along the first 9 blocks toward the target, every
+  10 ticks for 5 seconds, sent only to that player. Same world only.
+
+**Auto mode.** `metadata.waypoints: auto` gives each `LOCATION_PROXIMITY` trigger and `REACH`
+objective that has no `waypoint` block one from its own `world/x/y/z`, with the component defaults
+(world `world`, y 64; `x` and `z` must be set). A `REACH` with `context_location_key` is skipped.
+`waypoint: off` opts one component out. **Auto is off by default**, so a quest that does not ask for
+it gets no waypoint it did not author.
+
+**Player switch.** `/quest prefs waypoints <on|off>` (default on, key `waypoints_enabled`). Off hides
+every bar and keeps the tracked quest.
+
+**Runtime.** One repeating task every 10 ticks, online tracked players only. It reads memory only:
+the tracker, the quest's waypoint sets (computed once at quest load), and the quest's per-player
+state cache. Prefs and the tracked quest load asynchronously on join. The bar title is rebuilt only
+when the whole metres or the arrow change. The bar is removed on complete, abandon, reset, a state
+without a waypoint, `/quest track off`, `prefs waypoints off`, quit and plugin disable.
+
+**Storage and validation.** The block is part of the component config in
+`quest_definitions.metadata`; `/quest import` and `/quest export` carry it with no schema change. A
+bad block (no world, a missing coordinate, not a map, an unknown style) is listed by `/quest validate`
+and the load log; that component has no waypoint and the quest still loads. Quests without a
+`waypoint` block and without `waypoints: auto` behave exactly as before.
+
 ### KILL
 
 Kill entities by type. Supports filtering by custom name to restrict tracking to quest mobs.
@@ -577,7 +735,47 @@ Rewards are defined in `quest_definition_rewards`. The engine delivers all rewar
 | `COMMAND` | Console command string. `%player%` is substituted with the player's name | Ignored |
 | `PERMISSION` | Permission node string | Ignored |
 
-Double reward delivery is prevented by `quest_rewards_claimed` — a unique constraint on `(player_uuid, quest_id, reward_id)`.
+Double reward delivery is prevented by the state machine: completion side effects run once, on the
+commit to `COMPLETED`, and a second advance to `COMPLETED` is refused. (`quest_rewards_claimed` has a
+unique key on `(player_uuid, quest_id, reward_id)`, but completion delivery does not consult it.)
+
+### once: server — run-once world rewards (1.1.69, #2268)
+
+A reward with `once: server` fires on the **first completion on the server** and never again. Use it
+for a world change: open a wall, ring a bell, set a block.
+
+```yaml
+rewards:
+  cavern_wake:
+    type: COMMAND
+    value: fill 10 60 10 12 62 10 minecraft:air
+    once: server
+  cavern_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 50
+```
+
+- Stored as the reward metadata key `once` = `server`, so no change to `quest_definition_rewards`.
+  In SQL: `metadata = '{"once":"server"}'`.
+- Fired rewards are recorded in `quest_once_rewards` (`quest_id`, `reward_id`, `fired_by`,
+  `fired_at`), primary key `(quest_id, reward_id)`. Migration V3, created on start by the schema
+  files for MySQL and SQLite; YAML storage mode uses `once_rewards.yml`.
+- **Atomic.** The claim is `INSERT IGNORE` (MySQL) / `INSERT OR IGNORE` (SQLite) and the update count
+  decides: two completions in the same instant fire it once. The claim happens before delivery and
+  stays recorded, so a delivery that fails is not retried.
+- **Fails closed.** If the store cannot be reached, the reward is skipped, not recorded, and a
+  warning names it; the next completion tries again. Other rewards are not affected.
+- Works on `on_advance` entries too; their record key is `<component>/<reward_id>`.
+- `/quest reward list <quest>` tags `[once: server]` and lists fired records.
+  `/quest reward reset-once <quest> [reward_id]` clears records so they fire again (console-safe).
+
+**Migrating the TFAH cavern wake.** The two-command scoreboard gate (`cavern_wake_1_glass` checks
+and sets a flag score, `cavern_wake_2_flag` acts on it) existed only to make a world change run
+once, and it depended on reward_id order. Replace both with one `once: server` `COMMAND` reward that
+holds the world change, and drop the scoreboard objective. Steps, on Dev first: export the quest
+(`/quest export <id>`), edit the YAML, `/quest import <id>`, complete it with two players, check
+`/quest reward list <id>` shows one fired record. Live quest content is not changed by 1.1.69.
 
 SQL examples:
 
@@ -829,8 +1027,36 @@ This calls `QuestManager.cleanupQuests()` then `QuestManager.initializeQuests()`
 | `/quest mobs kill` | `rvnkquests.command.mobs` | Despawn all active quest mobs |
 | `/quest validate` | `rvnkquests.command.validate` | Check quest definitions for configuration errors |
 | `/quest seed` | `rvnkquests.command.seed` | Manually trigger the definition seeder |
+| `/quest debug fire <quest> <component> <player>` | `rvnkquests.admin` | Run one component's advance (and its `on_advance`). Dev/test: any target. Other tiers: only a target with `rvnkcore.qa.subject`. Unknown tier: refused. One INFO audit line per attempt (1.1.69, #2265) |
+| `/quest reward list <quest_id>` | `rvnkquests.admin.edit` | List rewards; `[once: server]` tags and fired records |
+| `/quest reward reset-once <quest_id> [reward_id]` | `rvnkquests.admin.edit` | Clear fired `once: server` records so they fire again (1.1.69, #2268) |
+| `/quest debug waypoint <player>` | `rvnkquests.admin` | Tracked quest, waypoints on/off, state, active set, resolved target, world, distance, arrow, progress and style. Read-only (1.1.70, #2264) |
+| `/quest track <quest_id\|off> [--trail] <player>` | `rvnkquests.admin` (for another player) | Track or untrack a started quest's waypoint for a player (1.1.70, #2264) |
 
-All commands support console execution — no player required.
+All commands support console execution — no player required. Exception: `/quest prefs` reads the
+sender's own preferences and is player-only.
+
+### quest debug fire on Event (1.1.69, #2265)
+
+The gate is `QaFireGate`, a copy of RVNKCore's `NpcClickGate` rules (RVNKQuests does not link that
+class, because Event ran RVNKCore 1.5.101, which lacks it):
+
+| Tier (`server-id`) | Target without `rvnkcore.qa.subject` | Target with it |
+|---|---|---|
+| `dev`, `test` | allowed | allowed |
+| `event`, `nations`, any other | refused | allowed |
+| unset, blank, `local` | refused | refused |
+
+The sender always needs `rvnkquests.admin`. Grant the node through the QA group:
+`lp user <player> parent add qa`. RVNKCore 1.5.102+ declares `rvnkcore.qa.subject`; on an older
+RVNKCore, RVNKQuests declares it at startup with default `false`, so an op is not a QA subject by
+accident. Audit line format:
+
+```
+[quest debug fire] sender=CONSOLE target=Shad0melt quest=tfah_cavern component=trig_well tier=event result=ALLOWED (tier 'event', target has rvnkcore.qa.subject), advanced NOT_STARTED -> QUEST_ACTIVE
+```
+
+`trace` and `session` stay Dev only.
 
 ---
 

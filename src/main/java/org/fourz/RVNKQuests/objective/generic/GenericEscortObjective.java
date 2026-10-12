@@ -153,7 +153,7 @@ public class GenericEscortObjective implements Listener {
             // is within `radius` of it by the check above, and the player is trailing it.
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
-                    quest.tryAdvanceStateForPlayer(playerId, advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(dest, radius, requiredState)),
                     mainThread);
             logger.debug(player.getName() + " completed escort objective for quest " + quest.getId());

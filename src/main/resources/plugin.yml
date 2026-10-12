@@ -20,7 +20,8 @@ commands:
       §e/quest journal [player]§7 - View quest journal
       §e/quest menu [filter] [player]§7 - Open quest GUI menu
       §e/quest leaderboard [type]§7 - View leaderboards
-      §e/quest prefs§7 - Notification preferences
+      §e/quest prefs§7 - Notification and waypoint preferences
+      §e/quest track <quest_id>|off§7 - Track a quest's waypoint
       §7Use TAB for autocomplete
     aliases: [quests, q]
 
@@ -58,6 +59,9 @@ permissions:
     default: true
   rvnkquests.prefs:
     description: Manage quest notification preferences (/quest prefs)
+    default: true
+  rvnkquests.track:
+    description: Track a started quest's waypoint (/quest track) — objective waypoints (#2264)
     default: true
   rvnkquests.player:
     description: General player quest access (wildcard alternative for player group assignment)

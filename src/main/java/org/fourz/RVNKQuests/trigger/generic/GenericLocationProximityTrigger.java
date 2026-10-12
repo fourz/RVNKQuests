@@ -99,7 +99,7 @@ public class GenericLocationProximityTrigger implements Listener {
             // Party fan-out (#1982): carry the checkpoint so qualifying members share the beat.
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
-                    quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
                     new org.fourz.RVNKQuests.party.PartyBeatContext(worldName, x, y, z, radius, requiredState)),
                     mainThread);
             logger.debug("Location proximity trigger fired for " + player.getName()

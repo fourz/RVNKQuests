@@ -100,6 +100,12 @@ public class RVNKQuests extends JavaPlugin {
     /** Central NPC listener: dialogue lines and key validation (#2214). Null without the RVNKCore NPC bridge. */
     private org.fourz.RVNKQuests.npc.NpcInteractionCoordinator npcCoordinator;
 
+    /** Server-wide record of fired once:server rewards (#2268). */
+    private org.fourz.RVNKQuests.data.IOnceRewardStore onceRewardStore;
+
+    /** Objective waypoints (#2264): tracked quest, bossbar, compass, trail. */
+    private org.fourz.RVNKQuests.waypoint.WaypointService waypointService;
+
     /** Opaque PlaceholderAPI expansion handle; typed Object so this class never links PAPI (#2214). */
     private Object placeholderExpansion;
 
@@ -141,6 +147,16 @@ public class RVNKQuests extends JavaPlugin {
                 logger.debug("Quest definition repository initialized (YAML fallback)");
             }
 
+            // once: server reward records (#2268): SQL table when the database is up, else a file
+            if (databaseManager.isAvailable()) {
+                onceRewardStore = new org.fourz.RVNKQuests.data.OnceRewardRepositoryImpl(
+                        databaseManager::getConnection, databaseManager.table("quest_once_rewards"),
+                        databaseManager.isMySQL(), databaseManager.getExecutor());
+            } else {
+                onceRewardStore = new org.fourz.RVNKQuests.data.OnceRewardYamlStore(
+                        new java.io.File(getDataFolder(), "once_rewards.yml"));
+            }
+
             // Initialize quest progress service
             questProgressService = new QuestProgressServiceImpl(this, databaseManager);
 
@@ -180,6 +196,9 @@ public class RVNKQuests extends JavaPlugin {
             // NPC bridge (#2214) - before quests register, so their key check can be scheduled
             initNpcBridge();
 
+            // quest debug fire checks rvnkcore.qa.subject on the target (#2265)
+            registerQaSubjectPermission();
+
             // Initialize lore database if enabled
             if (configManager.isLoreDatabaseEnabled()) {
                 loreDatabase = new LoreDatabase(this, databaseManager);
@@ -218,9 +237,38 @@ public class RVNKQuests extends JavaPlugin {
             // %rvnkquests_*% placeholders (#2214) - only when PlaceholderAPI is enabled
             initPlaceholders();
 
+            // Objective waypoints (#2264) - after quests load, so the tick finds them
+            waypointService = org.fourz.RVNKQuests.waypoint.WaypointService.create(this);
+            waypointService.start();
+
             logger.info("RVNKQuests plugin enabled successfully");
         } catch (Exception e) {
             logger.error("Failed to initialize RVNKQuests plugin", e);
+        }
+    }
+
+    /**
+     * Makes sure {@code rvnkcore.qa.subject} is a declared, default-false node (#2265).
+     *
+     * <p>{@code quest debug fire} checks it on the target. An undeclared node defaults to OP in
+     * Bukkit, so on a server whose RVNKCore predates 1.5.102 (RVNK Event ran 1.5.101) every op would
+     * silently count as a QA subject. RVNKCore 1.5.102+ declares the node itself; declaring it a
+     * second time in plugin.yml would make the server log a duplicate-permission warning with a
+     * stack trace on every boot, so it is added here only when nobody has declared it.</p>
+     */
+    private void registerQaSubjectPermission() {
+        try {
+            org.bukkit.plugin.PluginManager pm = getServer().getPluginManager();
+            if (pm.getPermission(org.fourz.RVNKQuests.util.QaFireGate.PERM_QA_SUBJECT) == null) {
+                pm.addPermission(new org.bukkit.permissions.Permission(
+                        org.fourz.RVNKQuests.util.QaFireGate.PERM_QA_SUBJECT,
+                        "Target of /quest debug fire on a non-Dev tier (#2265); granted by the QA group",
+                        org.bukkit.permissions.PermissionDefault.FALSE));
+                logger.debug("Declared " + org.fourz.RVNKQuests.util.QaFireGate.PERM_QA_SUBJECT
+                        + " (default false) - RVNKCore did not");
+            }
+        } catch (IllegalArgumentException alreadyDeclared) {
+            // Declared between the check and the add; the existing declaration stands.
         }
     }
 
@@ -231,6 +279,12 @@ public class RVNKQuests extends JavaPlugin {
         try {
             // Drop the PlaceholderAPI expansion before the services it reads go away (#2214)
             shutdownPlaceholders();
+
+            // Remove every waypoint bar before the quests it reads go away (#2264)
+            if (waypointService != null) {
+                waypointService.shutdown();
+                waypointService = null;
+            }
 
             // Unregister from RVNKCore first
             unregisterFromRVNKCore();
@@ -449,6 +503,14 @@ public class RVNKQuests extends JavaPlugin {
     }
 
     /**
+     * The server-wide record of fired {@code once: server} rewards (#2268).
+     * @return the store; null only before onEnable has run
+     */
+    public org.fourz.RVNKQuests.data.IOnceRewardStore getOnceRewardStore() {
+        return onceRewardStore;
+    }
+
+    /**
      * Gets the quest definition repository.
      * @return The quest repository (SQL or YAML fallback)
      */
@@ -470,6 +532,13 @@ public class RVNKQuests extends JavaPlugin {
      */
     public IPreferenceRepository getPreferenceRepository() {
         return preferenceRepository;
+    }
+
+    /**
+     * Objective waypoints (#2264). Null before enable finishes, after disable, and in unit tests.
+     */
+    public org.fourz.RVNKQuests.waypoint.WaypointService getWaypointService() {
+        return waypointService;
     }
 
     /**

@@ -64,6 +64,11 @@ public final class NpcTestSupport {
                 if (commits) state.set(inv.getArgument(1, QuestState.class));
                 return CompletableFuture.completedFuture(null);
             });
+        when(quest.tryAdvanceStateForPlayer(any(UUID.class), any(QuestState.class), any(PartyBeatContext.class)))
+            .thenAnswer(inv -> {
+                if (commits) state.set(inv.getArgument(1, QuestState.class));
+                return CompletableFuture.completedFuture(commits);
+            });
         return quest;
     }
 

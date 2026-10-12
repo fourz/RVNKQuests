@@ -5,7 +5,8 @@ general:
   logLevel: WARNING
 
 quests:
-  # Announce quest completions server-wide
+  # Announce quest completions server-wide. This is the master switch: a quest can also mute
+  # its own broadcast with metadata notify.broadcast: false (1.1.69, #2266). Both must be true.
   announce_completion: true
 
   # Quest party (#1982) — shared beat advancement for players questing together.

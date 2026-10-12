@@ -314,8 +314,9 @@ in section 5, Example 4, and section 13 (dialogue and placeholders). Sample ques
 - **NPC_INTERACT** trigger and **TALK_TO** objective take `npc_key` (RVNK key, case-insensitive) and
   `click` (`right` default, `left`, `any`). They listen to RVNKCore's `RvnkNpcInteractEvent`.
   RVNKQuests has **no Citizens dependency** — do not add Citizens to `depend`/`softdepend`.
-- Both advance through `advanceStateForPlayer`, so prerequisites, the monotonic guard and the
-  COMPLETED side effects behave as for every other component.
+- Both advance through `tryAdvanceStateForPlayer` (via `ComponentAdvance.tryAdvance`), so
+  prerequisites, the monotonic guard and the COMPLETED side effects behave as for every other
+  component. The coordinator counts a click's advance only when that call returned `true` (#2277).
 - **Dialogue:** components never send chat. They report to `NpcInteractionCoordinator`, which runs
   at `MONITOR` and sends one line per click from the RVNKLore entry
   `npc_<key>_<offer|active|done|locked>`. Priority: `done` > `offer` > `active` > `locked`.
@@ -338,6 +339,47 @@ in section 5, Example 4, and section 13 (dialogue and placeholders). Sample ques
   enabled check. `PlaceholderIsolationTest` fails if the main class links a `me.clip` type.
 - An RVNKCore older than 1.5.99-alpha disables both NPC component types with a warning
   (`NpcApi.isPresent()`), instead of throwing `NoClassDefFoundError` during quest registration.
+
+## Guided-quest engine keys (1.1.69, #2263)
+
+Full reference: [docs/quest-engine.md](docs/quest-engine.md) sections 3, 5, 6 and 11.
+
+- **`quest debug fire` gate (#2265):** `util/QaFireGate` is a pure copy of RVNKCore's `NpcClickGate`
+  rules. Do not link `NpcClickGate`: RVNK Event ran RVNKCore 1.5.101, which lacks it. Dev/test allow
+  any target; other tiers need the TARGET to hold `rvnkcore.qa.subject`; an unknown tier refuses.
+  Each attempt writes one INFO audit line through `plugin.getLogger()` (not LogManager, whose level
+  can hide INFO). The node is declared at startup, default false, only when RVNKCore has not
+  declared it — not in plugin.yml, which would log a duplicate-permission warning on 1.5.102+.
+- **`metadata.notify` (#2266):** `quest/QuestNotifyPolicy`. Defaults all true (old behaviour). Read
+  in `AbstractQuest.performAdvance` / `start()` and `GenericWorldEventTrigger.announce`. Player
+  prefs still apply inside `NotificationServiceImpl`; `announce_completion` stays the master switch.
+- **`on_advance` (#2267):** components advance through `quest/ComponentAdvance`, which makes the
+  pre-1.1.69 call when the component has no `on_advance`, and otherwise passes
+  `DataDrivenQuest.onAdvanceHook` to the 4-argument `tryAdvanceStateForPlayer`. The hook runs per
+  committed player (firer and party members), never for a refused advance. New components must
+  call `ComponentAdvance`, not the quest directly.
+- **`once: server` (#2268):** reward metadata `once=server`; `service/OnceRewards.claimAndFilter`
+  claims through `data/IOnceRewardStore` (`quest_once_rewards`, migration V3, insert-ignore) before
+  delivery. Fails closed. `/quest reward reset-once` clears records.
+
+## Objective waypoints (1.1.70, #2264)
+
+Full reference: [docs/quest-engine.md](docs/quest-engine.md) section 5 (`waypoint`).
+
+- **Package `waypoint/`.** Pure, unit-tested helpers: `WaypointParser` (the `waypoint` block and
+  `metadata.waypoints: auto`), `WaypointResolver` (active set from `state_mapping`, nearest
+  same-world pick, progress), `BearingArrow` (8 sectors from yaw), `TrackRequest`
+  (`/quest track` grammar), `WaypointPrefs`. Runtime: `WaypointService` (one 10-tick task, bars,
+  compass, trail) and `WorldDisplayNames` (RVNKWorlds names through RVNKCore's
+  `IRVNKWorldsApiService`, never blocking).
+- **No database in the tick.** Prefs (`waypoints_enabled`) and the tracked quest (`tracked_quest`)
+  live in `quest_player_preferences`, load async on join, and are cached in the tracker. Quest state
+  comes from `AbstractQuest`'s state cache; an uncached state is requested async and skipped.
+- **Hook:** `AbstractQuest.performAdvance` calls `WaypointService.onStateCommitted` on the main
+  thread after the listener refresh, in a try/catch: auto-track on a start from `NOT_STARTED`,
+  untrack on COMPLETED/ABANDONED/NOT_STARTED, re-resolve otherwise.
+- `DataDrivenQuest` parses waypoints once at construction (`getActiveWaypoints(state)`); waypoint
+  problems join `getEngineKeyProblems()`, so `/quest validate` lists them.
 
 ## Command Formatting Standards
 

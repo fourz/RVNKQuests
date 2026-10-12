@@ -66,6 +66,9 @@ public class QuestCommand extends BaseCommand {
         // Player preference commands (Phase 4 - with database persistence)
         registerSubCommand("prefs", new QuestPrefsSubCommand(plugin, plugin.getPreferenceRepository()));
 
+        // Objective waypoints (#2264) — one tracked quest per player
+        registerSubCommand("track", new QuestTrackSubCommand(plugin));
+
         // Quest party (#1982) — shared beat advancement
         registerSubCommand("party", new QuestPartySubCommand(plugin));
 

@@ -115,6 +115,11 @@ public class QuestValidateSubCommand extends BaseSubCommand {
                     + "' failed construction: " + failure.getValue());
                 valid = false;
             }
+            // notify / on_advance / once problems (#2266-#2268). Each falls back to the old
+            // behaviour, so they warn without failing the quest.
+            for (String issue : ddq.getEngineKeyProblems()) {
+                logger.warning(quest.getId() + ": " + issue);
+            }
         }
 
         // Check listener creation for each state

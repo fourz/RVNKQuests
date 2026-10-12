@@ -130,7 +130,7 @@ public class GenericInteractObjective implements Listener {
             // lets the service's min_share_radius floor govern, same as a kill.
             // Notify only after the advance commits (#2249).
             advanceFeedback.notifyIfCommitted(player,
-                    quest.tryAdvanceStateForPlayer(playerId, advanceState,
+                    org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, playerId, advanceState,
                 org.fourz.RVNKQuests.party.PartyBeatContext.of(
                     player.getLocation(), 0.0, requiredState)),
                     mainThread);

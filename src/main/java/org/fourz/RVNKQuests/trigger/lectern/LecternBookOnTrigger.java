@@ -103,7 +103,7 @@ public class LecternBookOnTrigger implements Listener {
         // Party fan-out (#1986): the lectern is the checkpoint. It is a fixed, authored object and
         // the whole point of the beat, so a member standing at the same lectern shares it. Radius 0
         // lets the service's min_share_radius floor govern — a lectern has no radius of its own.
-        quest.advanceStateForPlayer(player.getUniqueId(), advanceState,
+        org.fourz.RVNKQuests.quest.ComponentAdvance.advance(quest, this, player.getUniqueId(), advanceState,
             org.fourz.RVNKQuests.party.PartyBeatContext.of(
                 block.getLocation(), 0.0, requiredState));
         logger.debug("LecternBookOnTrigger fired for " + player.getName());

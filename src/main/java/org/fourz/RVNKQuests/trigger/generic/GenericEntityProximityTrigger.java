@@ -85,7 +85,7 @@ public class GenericEntityProximityTrigger implements Listener {
                 // requiredState is NOT_STARTED because that is the gate checked above.
                 // Notify only after the advance commits (#2249).
                 advanceFeedback.notifyIfCommitted(player,
-                        quest.tryAdvanceStateForPlayer(player.getUniqueId(), advanceState,
+                        org.fourz.RVNKQuests.quest.ComponentAdvance.tryAdvance(quest, this, player.getUniqueId(), advanceState,
                     org.fourz.RVNKQuests.party.PartyBeatContext.of(
                         entity.getLocation(), radius, QuestState.NOT_STARTED)),
                         mainThread);

@@ -28,8 +28,9 @@ For detailed workflow documentation, see [Development Workflow - MCP Integration
 
 The tables below list the common commands. `/quest` has the aliases `/quests` and `/q`.
 Per-command pages are in [docs/plugins/commands/](../../docs/plugins/commands/README.md) (`quest-*.md`).
-These subcommands have no row here: `item`, `debug`, `objective`, `create`, `delete`, `edit`, `component`,
-`def-objective`, `reward`, `export`, `import`, `chain`, `probe`, `world`, `prefs`, `party`.
+These subcommands have no row here: `item`, `objective`, `create`, `delete`, `edit`, `component`,
+`def-objective`, `export`, `import`, `chain`, `probe`, `world`, `party`, most `prefs` verbs, and most
+`debug` and `reward` verbs.
 Run `/quest help` or read `command/QuestCommand.java` for the full list.
 
 ### Player Commands
@@ -44,6 +45,9 @@ Run `/quest help` or read `command/QuestCommand.java` for the full list.
 | `/quest journal view <id>` | View journal entry detail | `rvnkquests.command.journal` |
 | `/quest menu` | Open quest browser GUI | `rvnkquests.command.menu` |
 | `/quest leaderboard` | View quest leaderboards | `rvnkquests.command.leaderboard` |
+| `/quest track <quest_id> [--trail]` | Track a started quest's waypoint: a bossbar with label, distance and arrow, in any world. `--trail` adds a 5-second particle line (1.1.70, #2264) | `rvnkquests.track` |
+| `/quest track off` | Stop tracking; removes the bar | `rvnkquests.track` |
+| `/quest prefs waypoints <on\|off>` | Show or hide quest waypoints (default on); the tracked quest is kept | `rvnkquests.prefs` |
 
 ### Staff Journal Commands
 
@@ -74,6 +78,11 @@ Run `/quest help` or read `command/QuestCommand.java` for the full list.
 | `/quest reload reseed` | Re-seed quest definitions from config then reinitialize | `rvnkquests.admin.reload` |
 | `/quest reset <quest_id> [player]` | Reset quest progress | `rvnkquests.command.reset` |
 | `/quest debug seed` | Seed quest definitions from DB | `rvnkquests.admin.seed` |
+| `/quest debug fire <quest_id> <component> <player>` | Run one component's advance and its `on_advance`. Dev/test: any target. Other tiers: only a target with `rvnkcore.qa.subject`. Audited at INFO (1.1.69, #2265) | `rvnkquests.admin` |
+| `/quest reward list <quest_id>` | List rewards, with `[once: server]` tags and fired records | `rvnkquests.admin.edit` |
+| `/quest reward reset-once <quest_id> [reward_id]` | Let `once: server` rewards fire again (1.1.69, #2268) | `rvnkquests.admin.edit` |
+| `/quest debug waypoint <player>` | Tracked quest, resolved waypoint, world, distance and style. Console-safe (1.1.70, #2264) | `rvnkquests.admin` |
+| `/quest track <quest_id\|off> [--trail] <player>` | Track or untrack for another player (console, staff) | `rvnkquests.admin` |
 
 ### Command Examples
 
@@ -364,7 +373,7 @@ general:
   logLevel: WARNING           # OFF, SEVERE, WARNING, INFO, DEBUG, FINE
 
 quests:
-  announce_completion: true
+  announce_completion: true   # master switch; a quest can mute itself with notify.broadcast: false
   default_world: event        # Used by seeded quest definitions
   piglin_far_from_home:
     enable: true
