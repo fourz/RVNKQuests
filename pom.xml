@@ -6,7 +6,7 @@
 
     <groupId>org.fourz.RVNKQuests</groupId>
     <artifactId>RVNKQuests</artifactId>
-    <version>1.1.71</version>
+    <version>1.1.73</version>
 
     <name>RVNKQuests</name>
     <description></description>
@@ -79,8 +79,9 @@
         <dependency>
             <groupId>org.fourz</groupId>
             <artifactId>rvnkcore</artifactId>
-            <!-- 1.5.99-alpha: NPC bridge - INpcService, RvnkNpcInteractEvent (#2213, #2214) -->
-            <version>1.5.99-alpha</version>
+            <!-- 1.5.99-alpha: NPC bridge - INpcService, RvnkNpcInteractEvent (#2213, #2214).
+                 1.5.106-alpha: ISiteLocatorService - the site key of REACH / LOCATION_PROXIMITY (#2316). -->
+            <version>1.5.106-alpha</version>
             <scope>provided</scope>
         </dependency>
         <!-- Optional: %rvnkquests_*% expansion (#2214). Reached only through
