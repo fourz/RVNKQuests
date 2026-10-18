@@ -488,9 +488,30 @@ public abstract class AbstractQuest implements Quest {
                     return CompletableFuture.completedFuture(Boolean.FALSE);
                 }
 
-                // Gate trigger-driven activation (NOT_STARTED -> TRIGGER_FOUND) on prerequisites.
-                // Component-driven advances only; admin setState bypasses (#1884).
-                if (monotonic && currentState == QuestState.NOT_STARTED && newState == QuestState.TRIGGER_FOUND) {
+                // A start is an automatic move out of NOT_STARTED to TRIGGER_FOUND (a trigger) or
+                // QUEST_ACTIVE (/quest start, the journal, a QUEST_UNLOCK reward). Both gates below
+                // cover both edges: before #2353 /quest start (default: true for every player) went
+                // straight to QUEST_ACTIVE and skipped the prerequisite gate. Admin setState and
+                // /quest complete (NOT_STARTED -> COMPLETED) still bypass, as #1884 intends.
+                boolean startEdge = monotonic && currentState == QuestState.NOT_STARTED
+                    && (newState == QuestState.TRIGGER_FOUND || newState == QuestState.QUEST_ACTIVE);
+
+                // Permission gate (#2353): a quest may name a permission its starter must hold, for
+                // example a veterans-only quest. The refusal is spoken in-world, unlike the silent
+                // solo prerequisite block, because the quest author chose to state the requirement.
+                if (startEdge && !hasRequiredPermission(playerUuid)) {
+                    logger.debug("Quest " + questId + " start blocked for " + playerUuid
+                        + " - missing permission " + getRequiredPermission());
+                    trace(playerUuid, currentState, newState, QuestTrace.Decision.PERMISSION_BLOCKED,
+                        "missing permission " + getRequiredPermission(), checkpoint);
+                    sendPermissionRefusal(playerUuid);
+                    stateCache.put(playerUuid, currentState);
+                    return CompletableFuture.completedFuture(Boolean.FALSE);
+                }
+
+                // Gate activation on prerequisites. Component-driven advances only; admin setState
+                // bypasses (#1884).
+                if (startEdge) {
                     return arePrerequisitesMet(playerUuid).thenCompose(met -> {
                         if (!met) {
                             logger.debug("Quest " + questId + " trigger blocked for " + playerUuid
@@ -555,6 +576,58 @@ public abstract class AbstractQuest implements Quest {
             return true;
         }
         return toRank > fromRank;
+    }
+
+    /** Default refusal when a quest names no {@code required_permission_message} (#2353). */
+    public static final String DEFAULT_PERMISSION_REFUSAL = "&7This path is not open to you yet.";
+
+    /** One refusal line per player per quest in this window, so a proximity trigger cannot spam it. */
+    static final long PERMISSION_REFUSAL_COOLDOWN_MS = 10_000L;
+
+    private final Map<UUID, Long> permissionRefusedAt = new ConcurrentHashMap<>();
+
+    /**
+     * Permission a player must hold to start this quest (#2353); null or blank for none. Base
+     * quests have none; {@code DataDrivenQuest} reads its {@code required_permission} metadata.
+     */
+    protected String getRequiredPermission() {
+        return null;
+    }
+
+    /** In-world refusal for a missing {@link #getRequiredPermission()}; legacy {@code &} colours. Null = default. */
+    protected String getRequiredPermissionMessage() {
+        return null;
+    }
+
+    /**
+     * True when the quest names no permission, or the player is online and holds it. An offline
+     * player cannot be checked, so a gated start for them is refused.
+     */
+    private boolean hasRequiredPermission(UUID playerUuid) {
+        String perm = getRequiredPermission();
+        if (perm == null || perm.isBlank()) {
+            return true;
+        }
+        Player p = plugin.getServer().getPlayer(playerUuid);
+        return p != null && p.hasPermission(perm.trim());
+    }
+
+    private void sendPermissionRefusal(UUID playerUuid) {
+        long now = System.currentTimeMillis();
+        Long last = permissionRefusedAt.get(playerUuid);
+        if (last != null && now - last < PERMISSION_REFUSAL_COOLDOWN_MS) {
+            return;
+        }
+        permissionRefusedAt.put(playerUuid, now);
+        String raw = getRequiredPermissionMessage();
+        String text = org.bukkit.ChatColor.translateAlternateColorCodes('&',
+            raw == null || raw.isBlank() ? DEFAULT_PERMISSION_REFUSAL : raw);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player p = plugin.getServer().getPlayer(playerUuid);
+            if (p != null) {
+                p.sendMessage(text);
+            }
+        });
     }
 
     /**

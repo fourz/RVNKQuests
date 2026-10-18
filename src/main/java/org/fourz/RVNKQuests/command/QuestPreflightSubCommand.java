@@ -335,6 +335,11 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
     }
 
     private void checkPrerequisites(DataDrivenQuest quest, List<Finding> findings) {
+        Object perm = quest.getDefinition().metadata().get("required_permission");
+        if (perm != null && !perm.toString().isBlank()) {
+            findings.add(new Finding(Severity.OK, "permission",
+                    "start requires " + perm + " (#2353)"));
+        }
         for (String prereq : quest.getDefinition().prerequisites() == null
                 ? List.<String>of() : quest.getDefinition().prerequisites()) {
             if (plugin.getQuestManager().getQuest(prereq).isEmpty()) {

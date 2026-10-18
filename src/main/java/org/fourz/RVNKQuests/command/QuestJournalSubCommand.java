@@ -221,8 +221,16 @@ public class QuestJournalSubCommand extends BaseSubCommand {
                     throw new IllegalStateException("Quest is already " + state.name().toLowerCase().replace('_', ' ') + " for " + playerName);
                 }
                 return plugin.getQuestManager().startQuest(playerUuid, questId)
-                    .thenCompose(started -> journalService.recordAction(
-                        playerUuid, questId, JournalAction.STARTED, "Assigned by " + sender.getName()));
+                    .thenCompose(started -> {
+                        // A start refused by the permission or prerequisite gate (#2353) must not be
+                        // journaled as STARTED. /quest debug setstate is the deliberate bypass.
+                        if (!started) {
+                            throw new IllegalStateException(playerName + " does not meet the requirements of "
+                                + questId + " (permission or prerequisite quests); use /quest debug setstate to override");
+                        }
+                        return journalService.recordAction(
+                            playerUuid, questId, JournalAction.STARTED, "Assigned by " + sender.getName());
+                    });
             })
             .thenAccept(entry -> Bukkit.getScheduler().runTask(plugin, () ->
                 sendSuccessMessage(sender, "Assigned quest " + formatQuestName(questId) + " to " + playerName)))
