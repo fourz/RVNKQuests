@@ -1,0 +1,92 @@
+quest_id: tfah_worldforge_ledger
+name: The Ledger Behind the Worlds
+description: Warden Tolla wrote your name into the city's first page. She has one more
+  page, and it is not about this city at all.
+repeatable: false
+cooldown_minutes: 0
+# The whole Worldforge arc first (#2352). Prerequisites are checked before the permission, so a
+# player who has not earned this quest is never shown the veterans-only refusal.
+prerequisites:
+- tfah_worldforge_ruins
+- tfah_worldforge_aether
+- tfah_worldforge_cavern
+metadata:
+  chain: tfah_worldforge
+  chapter: 6.0
+  required_worlds:
+  - sotw_city
+  start_trigger: Warden Tolla, at the beach crossroads
+  # Veterans only (#2353). The node is set on the veteran group on Event:
+  #   lp group veteran permission set rvnkquests.access.fragile_worlds true
+  required_permission: rvnkquests.access.fragile_worlds
+  required_permission_message: "&e[Warden Tolla] &fThe ledger's for veterans, love. Come back once the realm's had a proper look at you."
+  components:
+
+    # Beat 1 -- Tolla's ledger stand, beside her (placed 2026-10-18 at sotw_city -90,67,1 facing east,
+    # read back with /rvnkworlds/probe: lectern[facing=east,has_book=false] on sandstone).
+    # The quest opens at the STAND, not on a Tolla click: NPC dialogue is per NPC key
+    # (npc_guide_ruins_<context>), so a Tolla click would replay her "Filed as Collapsed" line, and
+    # NPC_INTERACT ignores advance_message (docs/quest-engine.md section 13). Sited, radius 3, so no
+    # other lectern can open it (#1894).
+    trig_ledger_open:
+      type: STRUCTURE_INTERACT
+      block_type: LECTERN
+      world: sotw_city
+      x: -90
+      y: 67
+      z: 1
+      radius: 3
+      required_state: NOT_STARTED
+      advance_state: QUEST_ACTIVE
+      description: Look at the ledger beside Warden Tolla
+      advance_message: "&e[Warden Tolla] &fOh, it's you. Hands off the ledger a minute. Read this first, I mean it, then bring it back to the stand and I'll find you a pen."
+      on_advance:
+      - reward_id: a_charter
+        type: COMMAND
+        value: lore item give "The Fragile Worlds Charter" %player%
+
+    # Beat 2 -- the oath: right-click the stand holding the charter. The book goes onto the stand
+    # (LECTERN_BOOK_IN_HAND does not cancel); Tolla stamps it and hands it back as a reward.
+    obj_ledger_sign:
+      type: LECTERN_BOOK_IN_HAND
+      world: sotw_city
+      lore_book_id: The Fragile Worlds Charter
+      required_state: QUEST_ACTIVE
+      advance_state: COMPLETED
+      description: Bring the charter back to Tolla's ledger
+
+  state_mapping:
+    NOT_STARTED:
+    - trig_ledger_open
+    QUEST_ACTIVE:
+    - obj_ledger_sign
+  notifications:
+    quest_start: false
+    quest_complete: false
+
+rewards:
+  # The point of the quest (#2351): z-office opens RVNK Dev to the player's address after its next poll.
+  ledger_grant:
+    type: COMMAND
+    value: rvnk entitlement grant {uuid} mc-dev quest:tfah_worldforge_ledger
+    amount: 1
+  ledger_title_perm:
+    type: PERMISSION
+    value: rvnkquests.title.fragile_tester
+    amount: 1
+  ledger_title_popup:
+    type: COMMAND
+    value: title %player% title {"text":"Tester of the Fragile Worlds","color":"aqua","bold":true}
+    amount: 1
+  ledger_close:
+    type: COMMAND
+    value: tellraw %player% {"text":"You write your name under the last one. Tolla blots it, stamps your charter and hands it back. \"Next time the Forge does its count, the door will know you. Not before. Go on, then.\"","color":"gray","italic":true}
+    amount: 1
+  ledger_charter_back:
+    type: COMMAND
+    value: lore item give "The Fragile Worlds Charter" %player%
+    amount: 1
+  ledger_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 300

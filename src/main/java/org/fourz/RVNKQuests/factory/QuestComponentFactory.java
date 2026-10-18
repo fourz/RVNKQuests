@@ -288,6 +288,14 @@ public class QuestComponentFactory {
             // CUSTOM stays unimplemented: it is specified as "plugin-defined behavior" with no
             // handler contract, so there is nothing to construct. It remains a deliberate null.
             case CUSTOM -> null;
+            // #2371: resettable dungeons (RVNKWorlds). Guarded like NPC components: an RVNKCore
+            // older than 1.5.112-alpha lacks the dungeon events.
+            case DUNGEON_ENTER -> dungeonApiPresent("DUNGEON_ENTER")
+                ? new org.fourz.RVNKQuests.dungeon.GenericDungeonTrigger(plugin, quest, config,
+                    org.fourz.RVNKQuests.dungeon.GenericDungeonTrigger.Mode.ENTER) : null;
+            case DUNGEON_LEAVE -> dungeonApiPresent("DUNGEON_LEAVE")
+                ? new org.fourz.RVNKQuests.dungeon.GenericDungeonTrigger(plugin, quest, config,
+                    org.fourz.RVNKQuests.dungeon.GenericDungeonTrigger.Mode.LEAVE) : null;
         };
     }
 
@@ -319,8 +327,20 @@ public class QuestComponentFactory {
             // #2214: the #1018 subset - one click on the keyed NPC advances the objective.
             case TALK_TO -> npcApiPresent("TALK_TO")
                 ? new GenericTalkToObjective(plugin, quest, config) : null;
+            case DUNGEON_CLEAR -> dungeonApiPresent("DUNGEON_CLEAR")
+                ? new org.fourz.RVNKQuests.dungeon.GenericDungeonClearObjective(plugin, quest, config) : null;
             default -> null;
         };
+    }
+
+    /** False, with a warning naming the quest, when RVNKCore has no dungeon contract (pre-1.5.112). */
+    private boolean dungeonApiPresent(String typeName) {
+        if (org.fourz.RVNKQuests.dungeon.DungeonApi.isPresent()) {
+            return true;
+        }
+        logger.warning("Quest '" + quest.getId() + "': " + typeName + " needs RVNKCore 1.5.112-alpha or newer"
+            + " (dungeon contract) - component skipped");
+        return false;
     }
 
     /** False, with a warning naming the quest, when RVNKCore has no NPC bridge (pre-1.5.99). */

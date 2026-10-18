@@ -627,6 +627,11 @@ public class QuestManager implements IQuestService {
                     logger.debug("Player " + playerId + " cannot start quest " + questId + " - already in state: " + currentState);
                     return CompletableFuture.completedFuture(false);
                 }
+                // Report the real outcome (#2353): a start refused by the permission or the
+                // prerequisite gate completes normally, so the Void overload would read as success.
+                if (quest instanceof AbstractQuest aq) {
+                    return aq.tryAdvanceStateForPlayer(playerId, QuestState.QUEST_ACTIVE, null);
+                }
                 return quest.advanceStateForPlayer(playerId, QuestState.QUEST_ACTIVE)
                     .thenApply(v -> true);
             });

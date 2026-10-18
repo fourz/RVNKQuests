@@ -22,6 +22,8 @@ import java.util.Map;
  * <ul>
  *   <li>{@code world} — World name</li>
  *   <li>{@code x}, {@code y}, {@code z} — Target coordinates</li>
+ *   <li>{@code site} — A named site of the world instead of x/y/z, e.g. {@code drowned:trail:2}: its position comes
+ *       from the plugin that generated the world ({@link org.fourz.RVNKQuests.util.SiteResolver}, #2316)</li>
  *   <li>{@code radius} — Completion radius (default: 5.0)</li>
  *   <li>{@code required_state} — QuestState player must be in (default: "QUEST_ACTIVE")</li>
  *   <li>{@code advance_state} — State to advance to (default: "OBJECTIVE_FOUND")</li>
@@ -49,6 +51,7 @@ public class GenericReachObjective implements Listener {
     private final QuestState requiredState;
     private final QuestState advanceState;
     private final String contextLocationKey;
+    private final String site;
     private final String requiresPath;
     private final String setsPath;
 
@@ -64,6 +67,7 @@ public class GenericReachObjective implements Listener {
         this.requiredState = parseState(QuestComponentFactory.getStringConfig(config, "required_state", "QUEST_ACTIVE"));
         this.advanceState = parseState(QuestComponentFactory.getStringConfig(config, "advance_state", "OBJECTIVE_FOUND"));
         this.contextLocationKey = QuestComponentFactory.getStringConfig(config, "context_location_key", null);
+        this.site = QuestComponentFactory.getStringConfig(config, "site", null);
         this.requiresPath = QuestComponentFactory.getStringConfig(config, "requires_path", null);
         this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
         this.mainThread = org.fourz.RVNKQuests.util.AdvanceFeedback.mainThread(plugin);
@@ -117,9 +121,13 @@ public class GenericReachObjective implements Listener {
             if (ctxLoc != null) return ctxLoc;
         }
 
-        // Fall back to config coordinates
+        // Fall back to config coordinates: a named site's (#2316), else the fixed x/y/z
         World world = player.getServer().getWorld(worldName);
         if (world == null) return null;
+        if (site != null) {
+            double[] p = org.fourz.RVNKQuests.util.SiteResolver.resolve(worldName, site);
+            return p == null ? null : new Location(world, p[0], p[1], p[2]);
+        }
         return new Location(world, targetX, targetY, targetZ);
     }
 

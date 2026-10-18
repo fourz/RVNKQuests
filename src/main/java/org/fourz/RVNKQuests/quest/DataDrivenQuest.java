@@ -411,6 +411,20 @@ public class DataDrivenQuest extends AbstractQuest {
         return definition.prerequisites();
     }
 
+    /** {@code required_permission} metadata (#2353). */
+    @Override
+    protected String getRequiredPermission() {
+        Object perm = definition.metadata().get("required_permission");
+        return perm != null ? perm.toString() : null;
+    }
+
+    /** {@code required_permission_message} metadata (#2353). */
+    @Override
+    protected String getRequiredPermissionMessage() {
+        Object msg = definition.metadata().get("required_permission_message");
+        return msg != null ? msg.toString() : null;
+    }
+
     /**
      * Components that threw during listener construction at initialize() time,
      * keyed by component ID → error message. Surfaced by {@code quest validate}.

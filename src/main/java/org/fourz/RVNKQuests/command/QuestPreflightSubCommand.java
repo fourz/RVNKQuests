@@ -187,6 +187,10 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
             checkNpcComponent(id, kindForNpc, config, findings);
             return;
         }
+        if (kindForNpc != null && kindForNpc.toUpperCase(java.util.Locale.ROOT).startsWith("DUNGEON_")) {
+            checkDungeon(id, kindForNpc, str(config.get("dungeon")), findings);
+            return;
+        }
 
         String worldName = str(config.get("world"));
         if (worldName == null) {
@@ -335,6 +339,11 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
     }
 
     private void checkPrerequisites(DataDrivenQuest quest, List<Finding> findings) {
+        Object perm = quest.getDefinition().metadata().get("required_permission");
+        if (perm != null && !perm.toString().isBlank()) {
+            findings.add(new Finding(Severity.OK, "permission",
+                    "start requires " + perm + " (#2353)"));
+        }
         for (String prereq : quest.getDefinition().prerequisites() == null
                 ? List.<String>of() : quest.getDefinition().prerequisites()) {
             if (plugin.getQuestManager().getQuest(prereq).isEmpty()) {
@@ -365,6 +374,11 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
             String type = String.valueOf(reward.type());
             String value = reward.value();
             int amount = reward.amount();
+
+            if ("DUNGEON_RESET".equals(type)) {
+                checkDungeon("reward " + reward.rewardId(), type, value, findings);
+                continue;
+            }
 
             if ("EXPERIENCE".equals(type)) {
                 boolean numericMode = value != null && value.chars().allMatch(Character::isDigit);
@@ -462,6 +476,21 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
      * NPC_INTERACT / TALK_TO (#2214): the key must be well-formed and carried by an NPC. Runs on
      * the command thread (main), which is where INpcService lookups must happen.
      */
+    /** #2371: the named dungeon must exist on this server, and the RVNKCore contract must be present. */
+    private void checkDungeon(String id, String kind, String dungeon, List<Finding> findings) {
+        if (dungeon == null || dungeon.isBlank()) {
+            findings.add(new Finding(Severity.BLOCKER, id, kind + " has no dungeon id"));
+            return;
+        }
+        if (!org.fourz.RVNKQuests.dungeon.DungeonApi.isPresent()) {
+            findings.add(new Finding(Severity.BLOCKER, id, kind + " needs RVNKCore 1.5.112-alpha+ (dungeon contract)"));
+            return;
+        }
+        String msg = org.fourz.RVNKQuests.dungeon.DungeonPreflight.describe(dungeon.trim());
+        findings.add(new Finding(msg.startsWith("ok:") ? Severity.OK : Severity.BLOCKER, id,
+                kind + " " + msg.substring(msg.indexOf(':') + 1).trim()));
+    }
+
     private void checkNpcComponent(String id, String kind, Map<?, ?> config, List<Finding> findings) {
         String raw = str(config.get("npc_key"));
         if (!org.fourz.RVNKQuests.npc.NpcKeyRules.isValid(raw)) {
