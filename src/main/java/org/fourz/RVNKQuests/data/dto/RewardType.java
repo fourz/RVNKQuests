@@ -70,6 +70,12 @@ public enum RewardType {
     RNG_ITEM,
 
     /**
+     * Resets a resettable dungeon (RVNKWorlds, #2371). Value: the dungeon id. Reason QUEST, so a
+     * dungeon whose policy refuses quest resets reports REFUSED. Needs RVNKCore 1.5.112-alpha+.
+     */
+    DUNGEON_RESET,
+
+    /**
      * Custom reward with plugin-defined behavior.
      * Value: Custom identifier
      */

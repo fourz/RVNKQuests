@@ -86,6 +86,12 @@ public enum ObjectiveType {
     ENCOUNTER,
 
     /**
+     * Clear a resettable dungeon: completes for its participants when the last roster mob dies
+     * (RVNKWorlds, #2371). Config: dungeon. Needs RVNKCore 1.5.112-alpha+.
+     */
+    DUNGEON_CLEAR,
+
+    /**
      * Custom objective with plugin-defined behavior.
      * Target: Custom identifier
      */
