@@ -205,6 +205,17 @@ class QuestPermissionGateTest {
     }
 
     @Test
+    @DisplayName("prerequisites are checked first: an unearned quest stays silent, no permission refusal")
+    void unmetPrerequisitesStaySilent() throws Exception {
+        prereqs = List.of(PREREQ_ID);
+        assertFalse(tryAdvance(QuestState.TRIGGER_FOUND));
+        verify(player, never()).sendMessage(anyString());
+        store.put(PREREQ_ID, QuestState.COMPLETED);
+        assertFalse(tryAdvance(QuestState.TRIGGER_FOUND), "prerequisites met, permission still missing");
+        verify(player).sendMessage(contains("This path is not open to you yet."));
+    }
+
+    @Test
     @DisplayName("admin paths bypass: setState and NOT_STARTED -> COMPLETED")
     void adminBypass() throws Exception {
         prereqs = List.of(PREREQ_ID);

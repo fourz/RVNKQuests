@@ -496,19 +496,6 @@ public abstract class AbstractQuest implements Quest {
                 boolean startEdge = monotonic && currentState == QuestState.NOT_STARTED
                     && (newState == QuestState.TRIGGER_FOUND || newState == QuestState.QUEST_ACTIVE);
 
-                // Permission gate (#2353): a quest may name a permission its starter must hold, for
-                // example a veterans-only quest. The refusal is spoken in-world, unlike the silent
-                // solo prerequisite block, because the quest author chose to state the requirement.
-                if (startEdge && !hasRequiredPermission(playerUuid)) {
-                    logger.debug("Quest " + questId + " start blocked for " + playerUuid
-                        + " - missing permission " + getRequiredPermission());
-                    trace(playerUuid, currentState, newState, QuestTrace.Decision.PERMISSION_BLOCKED,
-                        "missing permission " + getRequiredPermission(), checkpoint);
-                    sendPermissionRefusal(playerUuid);
-                    stateCache.put(playerUuid, currentState);
-                    return CompletableFuture.completedFuture(Boolean.FALSE);
-                }
-
                 // Gate activation on prerequisites. Component-driven advances only; admin setState
                 // bypasses (#1884).
                 if (startEdge) {
@@ -536,6 +523,19 @@ public abstract class AbstractQuest implements Quest {
                                     }
                                 });
                             }
+                            stateCache.put(playerUuid, currentState);
+                            return CompletableFuture.completedFuture(Boolean.FALSE);
+                        }
+                        // Permission gate (#2353), checked only AFTER the prerequisites pass. A
+                        // player who has not earned the quest stays silently blocked, so an NPC that
+                        // starts an earlier quest never speaks a later quest's refusal. The refusal is
+                        // spoken in-world because the quest author chose to state the requirement.
+                        if (!hasRequiredPermission(playerUuid)) {
+                            logger.debug("Quest " + questId + " start blocked for " + playerUuid
+                                + " - missing permission " + getRequiredPermission());
+                            trace(playerUuid, currentState, newState, QuestTrace.Decision.PERMISSION_BLOCKED,
+                                "missing permission " + getRequiredPermission(), checkpoint);
+                            sendPermissionRefusal(playerUuid);
                             stateCache.put(playerUuid, currentState);
                             return CompletableFuture.completedFuture(Boolean.FALSE);
                         }
