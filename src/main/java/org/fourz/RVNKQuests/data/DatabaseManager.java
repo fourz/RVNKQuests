@@ -154,8 +154,11 @@ public class DatabaseManager implements IQuestDatabaseService {
                         .username(mysql.getUsername())
                         .password(mysql.getPassword())
                         .useSSL(mysql.isUseSSL())
-                        .maxConnections(10)
-                        .minIdleConnections(2)
+                        // MySQL is cross-host and every plugin on a server shares one MySQL user
+                        // (max_user_connections=45 on the Interserver host). Keep the pool small and
+                        // hold none idle, as RVNKLore and RVNKWorlds do: network gear drops idle TCP.
+                        .maxConnections(poolSize())
+                        .minIdleConnections(0)
                         .connectionTimeoutMs(30000)
                         .idleTimeoutMs(600000L)
                         .maxLifetimeMs(1800000L)
@@ -194,6 +197,12 @@ public class DatabaseManager implements IQuestDatabaseService {
             fallbackTracker.recordFailure();
             return false;
         }
+    }
+
+    /** {@code database.mysql.poolSize}, default 4, clamped to 1..10. */
+    private int poolSize() {
+        int size = plugin.getConfig().getInt("database.mysql.poolSize", 4);
+        return Math.max(1, Math.min(size, 10));
     }
 
     /**
