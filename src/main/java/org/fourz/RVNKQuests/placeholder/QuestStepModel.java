@@ -85,6 +85,10 @@ public final class QuestStepModel {
                     && config.get("npc_key") != null) {
                 fallback = "Talk to " + String.valueOf(config.get("npc_key")).trim();
             }
+            if (fallback == null && "DELIVER".equals(String.valueOf(config.get("objective_type")))
+                    && config.get("npc_key") != null) {
+                fallback = "Deliver to " + String.valueOf(config.get("npc_key")).trim();
+            }
         }
         return fallback;
     }

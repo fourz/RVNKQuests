@@ -329,6 +329,9 @@ public class QuestComponentFactory {
             // #2214: the #1018 subset - one click on the keyed NPC advances the objective.
             case TALK_TO -> npcApiPresent("TALK_TO")
                 ? new GenericTalkToObjective(plugin, quest, config) : null;
+            // #2390: hand a matching main-hand item to the keyed NPC; taken only on a committed advance.
+            case DELIVER -> npcApiPresent("DELIVER")
+                ? new org.fourz.RVNKQuests.objective.generic.GenericDeliverObjective(plugin, quest, config) : null;
             case DUNGEON_CLEAR -> dungeonApiPresent("DUNGEON_CLEAR")
                 ? new org.fourz.RVNKQuests.dungeon.GenericDungeonClearObjective(plugin, quest, config) : null;
             default -> null;

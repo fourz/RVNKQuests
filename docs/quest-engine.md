@@ -663,6 +663,61 @@ objective is active. It completes like every generic objective: `advanceStateFor
 | `requires_path` / `sets_path` | String | Optional branching, as on `INTERACT`. |
 | `description` | String | Optional. Text for `%rvnkquests_active_objective%`; default `Talk to <npc_key>`. |
 
+### DELIVER
+
+*(1.1.81, #2390)* The player right-clicks the NPC with this RVNK key while holding the right item
+in the **main hand**. The item is taken and the step advances. It listens to RVNKCore's
+`RvnkNpcInteractEvent`, like `TALK_TO`; there is no Citizens dependency.
+
+- **Taken only on commit.** The item is taken after `ComponentAdvance.tryAdvance` returns `true`. A
+  refused advance (prerequisite gate, monotonic guard, a failed write) takes nothing.
+- **Once per click.** One click makes at most one delivery, across every `DELIVER` that hears it.
+  A second click while the first advance is in flight is ignored. Only the main hand is read.
+- **Wrong item, too few, or an empty hand:** the item is kept and nothing advances. With
+  `wrong_item_message`, the NPC says that line instead of its usual dialogue line. It goes through
+  `NpcInteractionCoordinator`, so the click still gives one line. Without it, the click gives the
+  usual `npc_<key>_active` line.
+- **The wrong beat** (the player is not in `required_state`) does nothing, and sends no message.
+
+Example: the player hands a ledger book to the outpost guide.
+
+```yaml
+state_mapping:
+  QUEST_ACTIVE: [obj_hand_in_ledger]
+components:
+  obj_hand_in_ledger:
+    objective_type: DELIVER
+    npc_key: guide_outpost
+    item_type: WRITTEN_BOOK
+    custom_name: Outpost Ledger        # colour codes ignored; "contains" match
+    # lore_item_id: 42                 # or the RVNKLore item (number = id, text = item name)
+    amount: 1
+    advance_state: COMPLETED
+    description: Bring the ledger to the outpost guide
+    wrong_item_message: "&7That is not the ledger. Find the book with the outpost seal."
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `npc_key` | String | **Required.** RVNK key, as on `NPC_INTERACT`. An invalid key makes the component inert with a warning; `/quest component add` rejects it. |
+| `item_type` | String | Material, `WRITTEN_BOOK` or `minecraft:written_book`. |
+| `custom_name` / `item_name` | String | Display name. Colour codes and the Paper JSON quotes are stripped from both sides; the item name must **contain** this text (the `ITEM_DISCOVERY` rule). |
+| `lore_item_id` | Number or String | RVNKLore item. A number matches the `rvnklore:lore_item_id` INTEGER tag; text matches the `rvnklore:lore_item_name` STRING tag, case ignored. The numeric id differs between server databases, so prefer the name for a quest that ships to several tiers. |
+| `amount` | Integer | Items taken, default 1, at least 1. The main-hand stack must hold that many. |
+| `click` | String | `right` (default), `left` or `any`. |
+| `wrong_item_message` | String | Optional NPC line for a click at this beat with the wrong item. `&` colour codes allowed. |
+| `required_state` / `advance_state` | String | Defaults `QUEST_ACTIVE` / `OBJECTIVE_FOUND`; the `state_mapping` bucket overrides `required_state`. |
+| `requires_path` / `sets_path` | String | Optional branching, as on `INTERACT`. |
+| `description` | String | Optional. Text for `%rvnkquests_active_objective%`; default `Deliver to <npc_key>`. |
+| `on_advance`, `waypoint` | | As on every component. `waypoints: auto` does not derive a point from the NPC. |
+
+At least one of `item_type`, `custom_name`/`item_name`, `lore_item_id` is required, and every one
+given must match. No item key, an unknown `item_type`, or `amount` below 1 fails construction:
+`/quest validate` reports the quest INVALID and `/quest component add` rejects it. The lore tags
+are read from the item's PersistentDataContainer by key, so RVNKQuests needs no RVNKLore class for
+this. If the player moves the item between the click and the commit, the same number of matching
+items is taken from the rest of the inventory; if too few are left, a warning is logged.
+
 ### BLOCK_STATE
 
 *(1.1.80, #2389)* Completes when **every** block check matches at the same time. Built for lever
@@ -1306,7 +1361,7 @@ and gives its `keeper` NPC a locked line, `npc_keeper_locked`. See the locked co
 
 ### NPC dialogue lines (#2214)
 
-When a player clicks a keyed NPC that an `NPC_INTERACT` or `TALK_TO` component references, the NPC
+When a player clicks a keyed NPC that an `NPC_INTERACT`, `TALK_TO` or `DELIVER` component references, the NPC
 says **one** line: the description of the RVNKLore entry `npc_<key>_<context>`, read through
 `ILoreIntegration.getNPCDialogue(key, context)`. It shows as `<NPC name>: <line>`, with `&` colour
 codes honoured.
@@ -1314,7 +1369,7 @@ codes honoured.
 | Context | When |
 |---|---|
 | `offer` | an `NPC_INTERACT` trigger advanced the quest on this click |
-| `active` | a `TALK_TO` advanced the quest without completing it, **or** nothing advanced and the player has a quest with this NPC in progress |
+| `active` | a `TALK_TO` or `DELIVER` advanced the quest without completing it, **or** nothing advanced and the player has a quest with this NPC in progress |
 | `done` | the click completed the quest, **or** nothing advanced and the player completed a quest with this NPC |
 | `locked` | *(1.1.68, #2249)* nothing above applies, and a quest with this NPC is `NOT_STARTED` for the player with a prerequisite that is not `COMPLETED` |
 
@@ -1326,6 +1381,8 @@ codes honoured.
 - A quest the player has not started, and that has no unmet prerequisite, gives no line from its
   NPC. This is unchanged.
 - No lore entry, no RVNKLore, or a cancelled click: no line. The quest action still happens.
+- *(1.1.81, #2390)* A `DELIVER` refused for the wrong item sends its `wrong_item_message`
+  instead of the fallback and `locked` lines, when no advance on the click committed.
 
 #### The locked rule (#2249)
 

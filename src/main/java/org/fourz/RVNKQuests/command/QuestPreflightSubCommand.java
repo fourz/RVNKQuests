@@ -183,7 +183,8 @@ public class QuestPreflightSubCommand extends BaseSubCommand {
                                 java.util.Set<String> declaredWorlds) {
         String kindForNpc = str(config.get("type"));
         if (kindForNpc == null) kindForNpc = str(config.get("objective_type"));
-        if ("NPC_INTERACT".equalsIgnoreCase(kindForNpc) || "TALK_TO".equalsIgnoreCase(kindForNpc)) {
+        if ("NPC_INTERACT".equalsIgnoreCase(kindForNpc) || "TALK_TO".equalsIgnoreCase(kindForNpc)
+                || "DELIVER".equalsIgnoreCase(kindForNpc)) {
             checkNpcComponent(id, kindForNpc, config, findings);
             return;
         }
