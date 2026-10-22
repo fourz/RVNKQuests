@@ -28,6 +28,10 @@ canonical shape.
 | `tfah_ch1_archea.yml` | The Knights of the Darkness | Tales From A Hat — Chapter 1 |
 | `tfah_sky_ascent.yml` | The Kingdom Looked Up | Tales From A Hat — Skylands (scenario 3) |
 | `tfah_forge_outpost.yml` | The Shipment That Did Not Arrive | Tales From A Hat — Ravenforge (scenario 4) |
+| `tfah_worldforge_ruins.yml` | Filed as Collapsed | Tales From A Hat — Secrets of the Worlds |
+| `tfah_worldforge_aether.yml` | The Marker Nobody Claimed | Tales From A Hat — Secrets of the Worlds |
+| `tfah_worldforge_cavern.yml` | Born Already Old | Tales From A Hat — Secrets of the Worlds (fires the once-per-world `sotw_firstday` wake; never force COMPLETED in QA) |
+| `tfah_worldforge_ledger.yml` | The Ledger Behind the Worlds | Tales From A Hat — Secrets of the Worlds |
 | `welcome_alphac.yml` | Welcome to Alpha Centauri | — |
 | `survey_trail.yml` | The Surveyor's Trail | Surveyor (Zeal 2013 dome) |
 | `survey_choice.yml` | Wanderer or Historian | Surveyor |

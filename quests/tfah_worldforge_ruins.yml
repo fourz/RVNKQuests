@@ -1,0 +1,42 @@
+quest_id: tfah_worldforge_ruins
+name: Filed as Collapsed
+description: Warden Tolla has logged this ruin as collapsed for longer than anyone
+  has lived in it. Ask her who she filed it under.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  chain: tfah_worldforge
+  required_worlds:
+  - sotw_city
+  chapter: 5.0
+  start_trigger: Warden Tolla, at the beach crossroads
+  components:
+    trig_tolla_offer:
+      type: NPC_INTERACT
+      npc_key: guide_ruins
+      click: right
+      required_state: NOT_STARTED
+      advance_state: QUEST_ACTIVE
+      description: Hear Warden Tolla at the beach crossroads
+    arr_spire_top:
+      type: LOCATION_PROXIMITY
+      world: sotw_city
+      x: -16.0
+      y: 318.0
+      z: -14.0
+      radius: 3.0
+      required_state: QUEST_ACTIVE
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - trig_tolla_offer
+    QUEST_ACTIVE:
+    - arr_spire_top
+  notifications:
+    quest_start: false
+    quest_complete: false
+rewards:
+  ruins_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 150
