@@ -92,6 +92,12 @@ public enum ObjectiveType {
     DUNGEON_CLEAR,
 
     /**
+     * Set one or more blocks to a given BlockData state at once - a lever or switch puzzle (#2389).
+     * Config: checks (list of world, x, y, z, block?, state), radius.
+     */
+    BLOCK_STATE,
+
+    /**
      * Custom objective with plugin-defined behavior.
      * Target: Custom identifier
      */

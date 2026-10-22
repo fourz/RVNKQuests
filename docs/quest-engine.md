@@ -496,6 +496,7 @@ metadata:
 **Auto mode.** `metadata.waypoints: auto` gives each `LOCATION_PROXIMITY` trigger and `REACH`
 objective that has no `waypoint` block one from its own `world/x/y/z`, with the component defaults
 (world `world`, y 64; `x` and `z` must be set). A `REACH` with `context_location_key` is skipped.
+A `BLOCK_STATE` objective takes the block of its first check (#2389).
 `waypoint: off` opts one component out. **Auto is off by default**, so a quest that does not ask for
 it gets no waypoint it did not author.
 
@@ -661,6 +662,55 @@ objective is active. It completes like every generic objective: `advanceStateFor
 | `advance_state` | String | Default `OBJECTIVE_FOUND`. Use `COMPLETED` to finish the quest. |
 | `requires_path` / `sets_path` | String | Optional branching, as on `INTERACT`. |
 | `description` | String | Optional. Text for `%rvnkquests_active_objective%`; default `Talk to <npc_key>`. |
+
+### BLOCK_STATE
+
+*(1.1.80, #2389)* Completes when **every** block check matches at the same time. Built for lever
+and switch puzzles, but any BlockData property works: `powered`, `open`, `facing`, `power`, `lit`.
+The engine reads the property names from `BlockData.getAsString()`
+(`minecraft:lever[face=wall,facing=north,powered=true]`), so no block needs its own code.
+
+It evaluates on events, not on a poll. A right-click on a target block credits that player. A
+redstone change within one block of a target (a lever, a door half, a lamp) credits every player in
+the objective's state within `radius` of the first check. Both run one tick later, after the block
+has changed, and all events in one tick share one evaluation. The wrong combination does nothing:
+there is no message and no state change.
+
+Example: a 3-lever puzzle. The left and right levers must be on, the middle one off.
+
+```yaml
+state_mapping:
+  QUEST_ACTIVE: [obj_lever_puzzle]
+components:
+  obj_lever_puzzle:
+    objective_type: BLOCK_STATE
+    description: Set the three levers of the gate
+    world: outpost                 # default for checks without their own world
+    radius: 16                     # redstone credit radius (default 16)
+    advance_state: OBJECTIVE_FOUND
+    advance_message: "&7Somewhere below, a bolt slides back."
+    checks:
+      - {x: 120, y: 65, z: -40, block: LEVER, state: {powered: true}}
+      - {x: 122, y: 65, z: -40, block: LEVER, state: {powered: false}}
+      - {x: 124, y: 65, z: -40, block: LEVER, state: {powered: true}}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `checks` | List | **Required**, not empty. Each check has `world`, `x`, `y`, `z`, an optional `block` and a `state` map. |
+| `checks[].world` | String | World of the block. Falls back to the component `world`. One of the two is required. |
+| `checks[].x`, `y`, `z` | Number | **Required** block coordinates. |
+| `checks[].block` | String | Optional material (`LEVER` or `minecraft:lever`). Omit it to accept any block. |
+| `checks[].state` | Map | Property to value, e.g. `powered: true`, `open: true`, `facing: north`. Case does not matter. A property the block does not have never matches. |
+| `radius` | Number | Players credited for a redstone change with no player (default 16). |
+| `required_state` / `advance_state` | String | Defaults `QUEST_ACTIVE` / `OBJECTIVE_FOUND`; the `state_mapping` bucket overrides `required_state`. |
+| `requires_path` / `sets_path` | String | Optional branching, as on `INTERACT`. |
+
+A check needs `block`, `state` or both. A check with no world, a missing or non-numeric coordinate,
+an unknown block, or neither `block` nor `state` fails construction: `/quest validate` reports the
+quest INVALID and `/quest component add` rejects it. A check in an unloaded chunk does not match.
+`BlockPhysicsEvent` is not used, so a block changed by a plugin or by `/setblock` is seen only at the
+next interact or redstone change near a target.
 
 ### ENCOUNTER
 

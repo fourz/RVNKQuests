@@ -324,6 +324,8 @@ public class QuestComponentFactory {
             case ESCORT -> new GenericEscortObjective(plugin, quest, config);
             case ENCOUNTER -> new GenericEncounterObjective(plugin, quest, config);
             case COLLECT -> new GenericCollectObjective(plugin, quest, config);
+            // #2389: every block check must match at once (lever/switch puzzles).
+            case BLOCK_STATE -> new GenericBlockStateObjective(plugin, quest, config);
             // #2214: the #1018 subset - one click on the keyed NPC advances the objective.
             case TALK_TO -> npcApiPresent("TALK_TO")
                 ? new GenericTalkToObjective(plugin, quest, config) : null;
