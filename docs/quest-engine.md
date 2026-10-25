@@ -1361,8 +1361,7 @@ and gives its `keeper` NPC a locked line, `npc_keeper_locked`. See the locked co
 
 ### NPC dialogue lines (#2214)
 
-When a player clicks a keyed NPC that an `NPC_INTERACT`, `TALK_TO` or `DELIVER` component references, the NPC
-says **one** line: the description of the RVNKLore entry `npc_<key>_<context>`, read through
+When a player clicks a keyed NPC, the NPC says **at most one** line: the description of the RVNKLore entry `npc_<key>_<context>`, read through
 `ILoreIntegration.getNPCDialogue(key, context)`. It shows as `<NPC name>: <line>`, with `&` colour
 codes honoured.
 
@@ -1372,14 +1371,18 @@ codes honoured.
 | `active` | a `TALK_TO` or `DELIVER` advanced the quest without completing it, **or** nothing advanced and the player has a quest with this NPC in progress |
 | `done` | the click completed the quest, **or** nothing advanced and the player completed a quest with this NPC |
 | `locked` | *(1.1.68, #2249)* nothing above applies, and a quest with this NPC is `NOT_STARTED` for the player with a prerequisite that is not `COMPLETED` |
+| `idle` | *(1.1.82, #2417)* nothing above applies, and the click is a right-click. Covers a player who has not reached the NPC's quest step, and an NPC that no quest uses |
 
 - One click gives one line, even when several quests use the same NPC. Components never speak;
   they report to one central listener (`npc/NpcInteractionCoordinator`) that runs at `MONITOR`
-  priority after them and picks the highest context: `done` > `offer` > `active` > `locked`.
+  priority after them and picks the highest context: `done` > `offer` > `active` > `locked` > `idle`.
 - An advance that did not commit (for example, the prerequisite gate refused the offer) does not
   count as an offer. It can give the `locked` line, see below.
-- A quest the player has not started, and that has no unmet prerequisite, gives no line from its
-  NPC. This is unchanged.
+- A quest the player has not started, and that has no unmet prerequisite, gives no quest line from
+  its NPC. *(1.1.82, #2417)* A right-click then plays `npc_<key>_idle` if that entry exists, so the
+  NPC can greet the player and point to the quest's start. Write the idle line so it names no
+  hidden quest step; it plays to every player with nothing else to hear. A left-click plays no
+  idle line.
 - No lore entry, no RVNKLore, or a cancelled click: no line. The quest action still happens.
 - *(1.1.81, #2390)* A `DELIVER` refused for the wrong item sends its `wrong_item_message`
   instead of the fallback and `locked` lines, when no advance on the click committed.

@@ -57,10 +57,13 @@ import java.util.function.Supplier;
  *   <li>The line is the RVNKLore entry {@code npc_<key>_<context>}. No entry, or no RVNKLore,
  *       means silence; the quest action has already happened either way. For {@code locked} this
  *       is the leak guard: a quest whose NPC has no {@code npc_<key>_locked} entry stays silent.</li>
+ *   <li>With nothing at all, a right-click plays {@code npc_<key>_idle} (#2417): a greeting for a
+ *       player who has not reached the NPC's quest step, or for an NPC no quest uses. A left-click
+ *       stays silent, and no entry means silence.</li>
  * </ol>
  *
  * <p>Priority, highest first: {@code done} &gt; {@code offer} &gt; {@code active} &gt;
- * {@code locked}.</p>
+ * {@code locked} &gt; {@code idle}.</p>
  *
  * <h2>Key validation</h2>
  *
@@ -203,8 +206,8 @@ public class NpcInteractionCoordinator implements Listener {
 
     /**
      * Speaks the resolved context, or, when there is none, the {@code locked} line if the
-     * {@link #resolveLocked} rule holds. Call on the main thread: the locked rule reads the
-     * cached quest states.
+     * {@link #resolveLocked} rule holds, else the {@code idle} line on a right-click (#2417).
+     * Call on the main thread: the locked rule reads the cached quest states.
      */
     private void speakResolved(Player player, String key, String npcName,
                                RvnkNpcInteractEvent.ClickType click, DialogueContext context) {
@@ -213,8 +216,11 @@ public class NpcInteractionCoordinator implements Listener {
             return;
         }
         resolveLocked(player, key, click).whenComplete((locked, ex) -> {
-            if (ex == null && Boolean.TRUE.equals(locked)) {
+            if (ex != null) return;
+            if (Boolean.TRUE.equals(locked)) {
                 mainThread.execute(() -> speak(player, key, npcName, DialogueContext.LOCKED));
+            } else if (click == RvnkNpcInteractEvent.ClickType.RIGHT) {
+                mainThread.execute(() -> speak(player, key, npcName, DialogueContext.IDLE));
             }
         });
     }
