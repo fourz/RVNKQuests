@@ -1,28 +1,32 @@
 # RVNKQuests
 
-A dynamic narrative quest system for Bukkit/Spigot servers that creates immersive, event-driven adventures for players. RVNKQuests is p## Building from Source
+A dynamic narrative quest system for Bukkit/Spigot servers that creates immersive, event-driven adventures for players. RVNKQuests is part of the Ravenkraft plugin ecosystem and uses RVNKCore.
+
+
+## Status
+
+| Server | Version (read 2026-11-01) |
+|--------|---------------------------|
+| RVNK Dev | 1.1.83 |
+| RVNK Event | 1.1.83 |
+| Ravenkraft (prod) | not installed |
+
+Versions drift between servers. Read the live one with `version RVNKQuests` on the server, or the built one in `pom.xml`.
+
+## Building
+
+- Compiler: JDK 25 (Temurin). Bytecode: Java 21 (`<release>21</release>`). API: `spigot-api` 26.1.2, `api-version: '26.1'`.
+- maven-compiler-plugin is pinned to 3.13.0 with `<fork>true</fork>`. Do not unpin it: newer versions crash `javac` on JDK 25 (#1929).
+- Bump the pom `<version>` on every deploy. Full rules: `.claude/rules/java-plugin-build.md` in the parent repo (`fourz/Ravenkaft-Dev`).
 
 ```bash
-# Clone the repository
-git clone https://github.com/fourz/RVNKQuests.git
-cd RVNKQuests
-
-# Build with Maven
-mvn clean package
-
-# The compiled JAR will be in target/RVNKQuests-[version].jar
+mvn clean package -DskipTests
+# output: target/RVNKQuests.jar
 ```
 
-### Development Environment
+## Source and mirrors
 
-RVNKQuests uses RVNKDev MCP server for streamlined development workflow:
-
-- **Build Plugin**: `Ctrl+Shift+P` → "Tasks: Run Task" → "Build Plugin"
-- **Deploy to RVNK Test**: Use RVNKDev MCP batch file operations
-- **Server Management**: Use RVNKDev MCP tools for restart/reload operations
-- **Console Access**: Direct server console monitoring and command execution
-
-For detailed workflow documentation, see [Development Workflow - MCP Integration](docs/development-workflow-mcp.md).
+GitHub (`fourz/RVNKQuests`) is origin. Push there. A read-only mirror is on the internal forge in org `ravenkraft` (path to be added).
 
 ## Commands
 
