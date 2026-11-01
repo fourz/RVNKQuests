@@ -83,6 +83,8 @@ public class RewardServiceImpl implements IRewardService {
         registerProcessor(RewardType.LORE, new LoreRewardProcessor());
         registerProcessor(RewardType.LORE_ITEM, new LoreItemRewardProcessor());
         registerProcessor(RewardType.RNG_ITEM, new RngItemRewardProcessor());
+        registerProcessor(RewardType.DUNGEON_RESET,
+            new org.fourz.RVNKQuests.service.reward.DungeonResetRewardProcessor());   // #2371
         registerProcessor(RewardType.CUSTOM, new CustomRewardProcessor());
 
         // Log which processors are available

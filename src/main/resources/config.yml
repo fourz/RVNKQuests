@@ -58,6 +58,9 @@ database:
     useSSL: true
     # Table prefix for shared database hosting (e.g., "quests_" creates "quests_quest_progress")
     tablePrefix: ""
+    # Most connections this plugin opens (1-10). Every plugin on a server shares one MySQL user,
+    # and the host allows 45 per user, so keep it small. None are held idle.
+    poolSize: 4
 
   # SQLite settings (only used when type: sqlite)
   sqlite:

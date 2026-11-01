@@ -59,6 +59,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GenericEncounterObjective implements Listener {
 
     private static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
+    /**
+     * The quest and owner of a quest mob, in the entity's persistent data so they survive a restart (#2004). Bukkit
+     * metadata ({@link #QUEST_MOB_METADATA}) is runtime-only: a wave alive across a restart lost it, and its deaths were
+     * dropped without a word. The owner's next visit to the arena adopts the survivors instead of stacking a new wave.
+     */
+    static final org.bukkit.NamespacedKey QUEST_KEY = new org.bukkit.NamespacedKey("rvnkquests", "quest_mob");
+    static final org.bukkit.NamespacedKey OWNER_KEY = new org.bukkit.NamespacedKey("rvnkquests", "quest_mob_owner");
 
     /**
      * How close the owner must be to a mob that died without a player killer for it to count
@@ -217,10 +224,15 @@ public class GenericEncounterObjective implements Listener {
         // the spawn so an unexpected failure rolls back partial mobs and never floods or leaves a
         // half-spawned wave. Exactly spawnCount mobs spawn once per activation.
         encounterTriggered.put(playerId, true);
-        List<Entity> mobs = new ArrayList<>();
+        List<Entity> mobs = adopt(world, spawnLoc, playerId);           // survivors of a wave from before a restart
+        if (!mobs.isEmpty()) {
+            logger.info("Encounter '" + quest.getId() + "': adopted " + mobs.size() + " " + entityType
+                + " left from before a restart for " + player.getName() + " (#2004)");
+        }
+        int toSpawn = Math.max(0, spawnCount - mobs.size());
         Random rng = new Random();
         try {
-            for (int i = 0; i < spawnCount; i++) {
+            for (int i = 0; i < toSpawn; i++) {
                 double[] offset = discOffset(rng, spawnRadius);
                 Location mobLoc = spawnLoc.clone().add(offset[0], 0, offset[1]);
 
@@ -237,7 +249,7 @@ public class GenericEncounterObjective implements Listener {
                         piglin.setImmuneToZombification(true);
                     }
                 }
-                mob.setMetadata(QUEST_MOB_METADATA, new FixedMetadataValue(plugin, quest.getId()));
+                mark(mob, playerId);
                 mobs.add(mob);
             }
         } catch (Exception e) {
@@ -262,7 +274,15 @@ public class GenericEncounterObjective implements Listener {
         LivingEntity entity = event.getEntity();
 
         // Quick filter before any per-player work
-        if (!entity.hasMetadata(QUEST_MOB_METADATA)) return;
+        if (!entity.hasMetadata(QUEST_MOB_METADATA)) {
+            // A mob of this encounter from before a restart that nobody has adopted yet (#2004): say so, instead
+            // of the total silence that hid this bug. Its owner's next visit adopts its wave-mates.
+            if (entity.getType() == entityType && quest.getId().equals(questOf(entity))) {
+                logger.info("Encounter '" + quest.getId() + "': a " + entityType + " from before a restart died untracked"
+                    + " (owner " + ownerOf(entity) + ") - no credit; its owner's next visit adopts the rest of its wave");
+            }
+            return;
+        }
         if (entity.getType() != entityType) return;
 
         // #1904: credit is driven by OWNERSHIP, not by who landed the blow. The mob was spawned for
@@ -360,6 +380,39 @@ public class GenericEncounterObjective implements Listener {
         double angle = rng.nextDouble() * Math.PI * 2;
         double dist = Math.sqrt(rng.nextDouble()) * radius;
         return new double[] { Math.cos(angle) * dist, Math.sin(angle) * dist };
+    }
+
+    /** Tags a quest mob: runtime metadata for this session, and its quest and owner in its persistent data (#2004). */
+    private void mark(Entity mob, UUID owner) {
+        mob.setMetadata(QUEST_MOB_METADATA, new FixedMetadataValue(plugin, quest.getId()));
+        org.bukkit.persistence.PersistentDataContainer pdc = mob.getPersistentDataContainer();
+        pdc.set(QUEST_KEY, org.bukkit.persistence.PersistentDataType.STRING, quest.getId());
+        pdc.set(OWNER_KEY, org.bukkit.persistence.PersistentDataType.STRING, owner.toString());
+    }
+
+    static String questOf(Entity e) {
+        return e.getPersistentDataContainer().get(QUEST_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+    }
+
+    static String ownerOf(Entity e) {
+        return e.getPersistentDataContainer().get(OWNER_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+    }
+
+    /**
+     * This player's living quest mobs of this encounter near the arena that no session tracks: a wave from before a
+     * restart (#2004). They are re-tagged and returned, at most {@code spawnCount}, so the wave is topped up, not doubled.
+     */
+    List<Entity> adopt(World world, Location post, UUID owner) {
+        List<Entity> out = new ArrayList<>();
+        String id = owner.toString();
+        for (Entity e : world.getNearbyEntities(post, triggerRadius, triggerRadius, triggerRadius)) {
+            if (out.size() >= spawnCount) break;
+            if (e.getType() != entityType || !e.isValid() || e.isDead() || e.hasMetadata(QUEST_MOB_METADATA)) continue;
+            if (!quest.getId().equals(questOf(e)) || !id.equals(ownerOf(e))) continue;
+            mark(e, owner);
+            out.add(e);
+        }
+        return out;
     }
 
     /** @return the player whose encounter spawned this entity, or null if it belongs to no live wave. */

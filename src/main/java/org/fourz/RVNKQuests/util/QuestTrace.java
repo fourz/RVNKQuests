@@ -47,7 +47,9 @@ public final class QuestTrace {
         /** Party fan-out skipped this member: they are not at the beat's starting state (#1982). */
         PARTY_OUT_OF_STEP("&e", "party-skip"),
         /** Trigger blocked because the quest's prerequisites are unmet. */
-        PREREQ_BLOCKED("&c", "prereq-block");
+        PREREQ_BLOCKED("&c", "prereq-block"),
+        /** Start blocked because the player lacks the quest's {@code required_permission} (#2353). */
+        PERMISSION_BLOCKED("&c", "perm-block");
 
         private final String colour;
         private final String label;

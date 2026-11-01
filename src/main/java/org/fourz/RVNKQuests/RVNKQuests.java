@@ -396,7 +396,7 @@ public class RVNKQuests extends JavaPlugin {
      */
     private void initNpcBridge() {
         if (!org.fourz.RVNKQuests.npc.NpcApi.isPresent()) {
-            logger.warning("RVNKCore has no NPC bridge (needs 1.5.99-alpha+) - NPC_INTERACT and TALK_TO are disabled");
+            logger.warning("RVNKCore has no NPC bridge (needs 1.5.99-alpha+) - NPC_INTERACT, TALK_TO and DELIVER are disabled");
             return;
         }
         try {
@@ -422,7 +422,7 @@ public class RVNKQuests extends JavaPlugin {
                 npcLog::warning,
                 npcLog::debug);
             getServer().getPluginManager().registerEvents(npcCoordinator, this);
-            logger.info("NPC bridge listener registered (NPC_INTERACT, TALK_TO, npc_<key>_<context> dialogue)");
+            logger.info("NPC bridge listener registered (NPC_INTERACT, TALK_TO, DELIVER, npc_<key>_<context> dialogue)");
         } catch (Throwable t) {
             npcCoordinator = null;
             logger.warning("NPC bridge listener failed to register: " + t.getClass().getSimpleName()

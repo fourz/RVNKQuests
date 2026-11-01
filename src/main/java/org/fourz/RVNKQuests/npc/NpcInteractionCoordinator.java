@@ -57,10 +57,13 @@ import java.util.function.Supplier;
  *   <li>The line is the RVNKLore entry {@code npc_<key>_<context>}. No entry, or no RVNKLore,
  *       means silence; the quest action has already happened either way. For {@code locked} this
  *       is the leak guard: a quest whose NPC has no {@code npc_<key>_locked} entry stays silent.</li>
+ *   <li>With nothing at all, a right-click plays {@code npc_<key>_idle} (#2417): a greeting for a
+ *       player who has not reached the NPC's quest step, or for an NPC no quest uses. A left-click
+ *       stays silent, and no entry means silence.</li>
  * </ol>
  *
  * <p>Priority, highest first: {@code done} &gt; {@code offer} &gt; {@code active} &gt;
- * {@code locked}.</p>
+ * {@code locked} &gt; {@code idle}.</p>
  *
  * <h2>Key validation</h2>
  *
@@ -90,6 +93,9 @@ public class NpcInteractionCoordinator implements Listener {
 
     /** Claims per click. Main thread only: the event and every component handler run there. */
     private final Map<RvnkNpcInteractEvent, List<Claim>> pending = new IdentityHashMap<>();
+
+    /** The first DELIVER wrong-item line per click (#2390). Main thread only. */
+    private final Map<RvnkNpcInteractEvent, String> wrongItem = new IdentityHashMap<>();
 
     private final AtomicBoolean validationScheduled = new AtomicBoolean(false);
     private final AtomicBoolean unavailableWarned = new AtomicBoolean(false);
@@ -137,9 +143,23 @@ public class NpcInteractionCoordinator implements Listener {
             .add(new Claim(component, target, advance != null ? advance : CompletableFuture.completedFuture(false)));
     }
 
+    /**
+     * Records a DELIVER refusal line for this click: the player is at the beat but holds the wrong
+     * item, or too few (#2390). Only the first line per click is kept. It is sent only when no
+     * advance for the click committed, and then instead of the fallback and {@code locked}
+     * lines, so the click still gives one line.
+     *
+     * @param event   the click
+     * @param message the component's {@code wrong_item_message}; {@code &} colour codes allowed
+     */
+    public void recordWrongItem(RvnkNpcInteractEvent event, String message) {
+        if (event == null || message == null || message.isBlank()) return;
+        wrongItem.putIfAbsent(event, message);
+    }
+
     /** Number of clicks with unresolved claims. Visible for tests: must be 0 after each click. */
     int pendingClicks() {
-        return pending.size();
+        return pending.size() + wrongItem.size();
     }
 
     // ==================== The click ====================
@@ -151,6 +171,7 @@ public class NpcInteractionCoordinator implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onNpcInteract(RvnkNpcInteractEvent event) {
         List<Claim> claims = pending.remove(event);
+        String wrongItemLine = wrongItem.remove(event);
         if (event.isCancelled()) return;
 
         Player player = event.getPlayer();
@@ -161,6 +182,10 @@ public class NpcInteractionCoordinator implements Listener {
         String npcName = event.getNpcName();
 
         if (claims == null || claims.isEmpty()) {
+            if (wrongItemLine != null) {
+                sayWrongItem(player, key, npcName, wrongItemLine);
+                return;
+            }
             speakResolved(player, key, npcName, click, resolveFallback(player, key, click).orElse(null));
             return;
         }
@@ -168,6 +193,10 @@ public class NpcInteractionCoordinator implements Listener {
         CompletableFuture<?>[] futures = claims.stream().map(Claim::advance).toArray(CompletableFuture[]::new);
         CompletableFuture.allOf(futures).handle((v, ex) -> null).thenRun(() -> mainThread.execute(() -> {
             DialogueContext context = contextFromClaims(player, claims);
+            if (context == null && wrongItemLine != null) {
+                sayWrongItem(player, key, npcName, wrongItemLine);
+                return;
+            }
             if (context == null) {
                 context = resolveFallback(player, key, click).orElse(null);
             }
@@ -177,8 +206,8 @@ public class NpcInteractionCoordinator implements Listener {
 
     /**
      * Speaks the resolved context, or, when there is none, the {@code locked} line if the
-     * {@link #resolveLocked} rule holds. Call on the main thread: the locked rule reads the
-     * cached quest states.
+     * {@link #resolveLocked} rule holds, else the {@code idle} line on a right-click (#2417).
+     * Call on the main thread: the locked rule reads the cached quest states.
      */
     private void speakResolved(Player player, String key, String npcName,
                                RvnkNpcInteractEvent.ClickType click, DialogueContext context) {
@@ -187,8 +216,11 @@ public class NpcInteractionCoordinator implements Listener {
             return;
         }
         resolveLocked(player, key, click).whenComplete((locked, ex) -> {
-            if (ex == null && Boolean.TRUE.equals(locked)) {
+            if (ex != null) return;
+            if (Boolean.TRUE.equals(locked)) {
                 mainThread.execute(() -> speak(player, key, npcName, DialogueContext.LOCKED));
+            } else if (click == RvnkNpcInteractEvent.ClickType.RIGHT) {
+                mainThread.execute(() -> speak(player, key, npcName, DialogueContext.IDLE));
             }
         });
     }
@@ -347,6 +379,13 @@ public class NpcInteractionCoordinator implements Listener {
         });
     }
 
+    /** Sends a DELIVER {@code wrong_item_message} as the NPC's line (#2390). Main thread. */
+    private void sayWrongItem(Player player, String key, String npcName, String line) {
+        if (player.isOnline()) {
+            player.sendMessage(formatLine(npcName, key, line));
+        }
+    }
+
     /** {@code <NPC name>: <line>}, with {@code &} colour codes in the lore text honoured. */
     static String formatLine(String npcName, String key, String line) {
         String name = npcName == null || npcName.isBlank() ? key : ChatColor.stripColor(npcName);
@@ -397,7 +436,7 @@ public class NpcInteractionCoordinator implements Listener {
             if (c.getQuest() != null) quests.add(c.getQuest().getId());
         }
         return "NPC service unavailable (RVNKCore has no NPC provider - is Citizens installed?): "
-            + components.size() + " NPC_INTERACT/TALK_TO component(s) in quest(s) "
+            + components.size() + " NPC_INTERACT/TALK_TO/DELIVER component(s) in quest(s) "
             + String.join(", ", quests) + " cannot fire until it is";
     }
 

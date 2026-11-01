@@ -1,0 +1,52 @@
+quest_id: tfah_worldforge_aether
+name: The Marker Nobody Claimed
+description: A gold door hangs open above the ruined city. Whatever is marked on the
+  lodestone inside it was not left there by Skywarden Rell.
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  chain: tfah_worldforge
+  required_worlds:
+  - sotw_sky_0
+  chapter: 5.0
+  start_trigger: The gold door in the sky
+  components:
+    trig_rell_offer:
+      type: NPC_INTERACT
+      npc_key: guide_aether
+      click: right
+      required_state: NOT_STARTED
+      advance_state: QUEST_ACTIVE
+      description: Find Skywarden Rell at the bridge landing
+    obj_lodestone_key:
+      type: ITEM_DISCOVERY
+      item_type: COMPASS
+      item_name: The Lodestone Key
+      world: sotw_sky_0
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
+    obj_return_rell:
+      objective_type: TALK_TO
+      npc_key: guide_aether
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+      description: Bring the Lodestone Key back to Skywarden Rell
+  state_mapping:
+    NOT_STARTED:
+    - trig_rell_offer
+    QUEST_ACTIVE:
+    - obj_lodestone_key
+    OBJECTIVE_FOUND:
+    - obj_return_rell
+  notifications:
+    quest_start: false
+    quest_complete: false
+rewards:
+  aether_slow_falling:
+    type: COMMAND
+    value: effect give %player% slow_falling 60 0 true
+    amount: 1
+  aether_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 400

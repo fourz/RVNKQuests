@@ -1,0 +1,84 @@
+quest_id: tfah_worldforge_cavern
+name: Born Already Old
+description: Hollowkeeper Vance keeps a book at the bottom of everything. It explains
+  why the city above never had a first day.
+repeatable: false
+cooldown_minutes: 0
+prerequisites:
+- tfah_worldforge_aether
+metadata:
+  chain: tfah_worldforge
+  required_worlds:
+  - sotw_deep_0
+  chapter: 5.0
+  start_trigger: The first crystal grotto
+  components:
+    arr_cavern:
+      type: LOCATION_PROXIMITY
+      world: sotw_deep_0
+      x: 8.0
+      y: 243.0
+      z: 8.0
+      radius: 20.0
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+      advance_message: '&7The last floor gives out. &fRock, water, and a quiet that
+        was not an accident.'
+    trig_vance_offer:
+      type: NPC_INTERACT
+      npc_key: guide_cavern
+      click: right
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+      description: Find Hollowkeeper Vance at the cavern arrival hall
+    obj_lectern_origin:
+      type: LECTERN_BOOK_ON
+      world: sotw_deep_0
+      lore_book_id: THE CAVERN ORIGIN
+      required_state: QUEST_ACTIVE
+      advance_state: COMPLETED
+  state_mapping:
+    NOT_STARTED:
+    - arr_cavern
+    TRIGGER_FOUND:
+    - trig_vance_offer
+    QUEST_ACTIVE:
+    - obj_lectern_origin
+  notifications:
+    quest_start: false
+    quest_complete: false
+rewards:
+  cavern_book:
+    type: COMMAND
+    value: lore item give "THE CAVERN ORIGIN" %player%
+    amount: 1
+  cavern_ledger_book:
+    type: COMMAND
+    value: lore item give "CITY LEDGER" %player%
+    amount: 1
+  cavern_ledger_whisper:
+    type: COMMAND
+    value: tellraw %player% {"text":"Far above, Warden Tolla writes a name into an
+      empty ledger. The city has its first page.","color":"gray","italic":true}
+    amount: 1
+  cavern_perm:
+    type: PERMISSION
+    value: rvnkquests.title.first_citizen
+    amount: 1
+  cavern_title_popup:
+    type: COMMAND
+    value: title %player% title {"text":"First Citizen of the Fallen City","color":"gold","bold":true}
+    amount: 1
+  cavern_wake_1_glass:
+    type: COMMAND
+    value: execute unless score global sotw_firstday matches 1.. in minecraft:sotw_city
+      run setblock 10 65 8 yellow_stained_glass
+    amount: 1
+  cavern_wake_2_flag:
+    type: COMMAND
+    value: scoreboard players set global sotw_firstday 1
+    amount: 1
+  cavern_xp:
+    type: EXPERIENCE
+    value: points
+    amount: 1200

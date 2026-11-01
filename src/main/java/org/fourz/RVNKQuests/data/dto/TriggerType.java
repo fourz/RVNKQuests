@@ -42,5 +42,11 @@ public enum TriggerType {
      * Click an NPC that carries an RVNK key (RVNKCore NPC bridge, #2214).
      * Config: npc_key (required), click (any|right|left, default right), advance_state
      */
-    NPC_INTERACT
+    NPC_INTERACT,
+
+    /** A player enters a resettable dungeon (RVNKWorlds, #2371). Config: dungeon. Needs RVNKCore 1.5.112-alpha+. */
+    DUNGEON_ENTER,
+
+    /** A player leaves a resettable dungeon (#2371). Config: dungeon. */
+    DUNGEON_LEAVE
 }

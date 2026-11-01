@@ -4,7 +4,8 @@ import org.fourz.RVNKQuests.quest.DataDrivenQuest;
 import org.fourz.rvnkcore.api.event.RvnkNpcInteractEvent;
 
 /**
- * A quest component bound to an RVNK NPC key: {@code NPC_INTERACT} or {@code TALK_TO} (#2214).
+ * A quest component bound to an RVNK NPC key: {@code NPC_INTERACT}, {@code TALK_TO} or
+ * {@code DELIVER} (#2214, #2390).
  *
  * <p>{@link NpcInteractionCoordinator} finds these by walking the live quest list, the same way
  * {@code WorldEventScheduler} finds WORLD_EVENT triggers, so there is no registry to go stale on
@@ -23,10 +24,10 @@ public interface NpcQuestComponent {
         return getNpcKey() != null;
     }
 
-    /** True for NPC_INTERACT (offers a quest), false for TALK_TO (an objective). */
+    /** True for NPC_INTERACT (offers a quest), false for TALK_TO and DELIVER (objectives). */
     boolean isTrigger();
 
-    /** The config type name, for warnings: {@code NPC_INTERACT} or {@code TALK_TO}. */
+    /** The config type name, for warnings: {@code NPC_INTERACT}, {@code TALK_TO} or {@code DELIVER}. */
     String getTypeName();
 
     /** True when this component reacts to the click type. */
