@@ -804,6 +804,14 @@ Spawns a group of named mobs at coordinates when the player enters a trigger rad
 | `block_portals` | Boolean | Prevent portal use in the encounter zone |
 | `context_location_key` | String | Alternative to fixed coords — read location from runtime context |
 
+**Who gets kill credit (1.1.84, #2067).** Each player who enters the trigger radius gets their own wave, and every mob belongs to the player it was spawned for (the owner). A mob's death counts for its owner only when:
+
+- the owner killed it, or
+- a member of the owner's quest party killed it, or
+- it died without a player killer (lava, a fall, a golem) while the owner was still engaged near it (`credit_radius`, #1904).
+
+Any other player kill gives no credit to anyone. This includes a player who already finished the encounter. Before 1.1.84 every player kill counted for the owner, so a bystander could clear another player's wave. A dead mob still leaves the owner's wave either way. When the whole wave is gone without enough credit, the encounter resets, and the owner's next approach spawns a new wave. A quest mob that belongs to no live wave of the encounter credits nobody.
+
 ### DISCOVER
 
 Player finds a structure identified by block material composition within a detection radius.

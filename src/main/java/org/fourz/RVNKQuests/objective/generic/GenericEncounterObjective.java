@@ -289,11 +289,11 @@ public class GenericEncounterObjective implements Listener {
         // one player's encounter and it is now dead; a knight that falls off the arena should not cost
         // the player the four they already killed. Resolve the owner from the spawn registry first,
         // because an environmental death has no killer at all.
+        // #2067: no killer fallback. A quest mob that is in no live wave of THIS encounter credits nobody here.
+        // The fallback credited the killer's own wave, so a stale mob of another wave of the same type could
+        // count toward the killer's current wave.
         UUID playerId = findOwner(entity);
         Player killer = entity.getKiller();
-        if (playerId == null && killer != null) {
-            playerId = killer.getUniqueId();
-        }
         if (playerId == null) return;
 
         List<Entity> mobs = spawnedMobs.get(playerId);
@@ -303,15 +303,30 @@ public class GenericEncounterObjective implements Listener {
         Player owner = plugin.getServer().getPlayer(playerId);
         if (owner == null || quest.getStateForPlayer(owner) != requiredState) return;
 
-        // The exploit this guards: spawn a wave, walk away, let the terrain clear it. A player kill
-        // always counts — they were demonstrably there. An environmental death only counts while the
-        // owner is still engaged.
-        boolean credited = killer != null || isOwnerEngaged(owner, entity.getLocation());
+        // Two exploits are guarded here.
+        // 1. Spawn a wave, walk away, let the terrain clear it: an environmental death only counts while
+        //    the owner is still engaged.
+        // 2. #2067: a bystander clears the wave for you. A player kill counts only when the killer is the
+        //    owner or in the owner's quest party. Before this, ANY player kill counted (#1904 moved credit
+        //    to the owner and dropped the old killer check), so a player who had already COMPLETED the
+        //    encounter cleared wave 1 for two other players on Event.
+        boolean credited;
+        if (killer != null) {
+            credited = killerEarnsOwnerCredit(playerId, killer.getUniqueId(), ownerParty(playerId));
+            if (!credited) {
+                logger.debug("Encounter mob of " + owner.getName() + " killed by non-participant "
+                    + killer.getName() + " on quest " + quest.getId() + " - no credit for the owner");
+            }
+        } else {
+            credited = isOwnerEngaged(owner, entity.getLocation());
+            if (!credited) {
+                logger.debug("Encounter mob died with " + owner.getName() + " away from the fight on quest "
+                    + quest.getId() + " - no credit, existing progress kept");
+            }
+        }
 
         if (!credited) {
             // Not credited, but NOT discarded either — the kills already banked stay banked.
-            logger.debug("Encounter mob died with " + owner.getName() + " away from the fight on quest "
-                + quest.getId() + " - no credit, existing progress kept");
             if (mobs.isEmpty()) {
                 // No player-facing message here: the owner walked away from this wave, so telling
                 // them to "approach again" is noise about something they chose to leave. The
@@ -413,6 +428,25 @@ public class GenericEncounterObjective implements Listener {
             out.add(e);
         }
         return out;
+    }
+
+    /**
+     * #2067: may this killer earn the wave owner's kill credit? Yes for the owner, and for a member of the
+     * owner's quest party (the party shares beats, #1982/#1986). No for anyone else, including a player who
+     * already finished the encounter. Pure, so the rule is unit-tested without a server.
+     *
+     * @param ownerParty the owner's party, or null when the owner has none or parties are off
+     */
+    static boolean killerEarnsOwnerCredit(UUID ownerId, UUID killerId, org.fourz.RVNKQuests.party.QuestParty ownerParty) {
+        if (killerId.equals(ownerId)) return true;
+        return ownerParty != null && ownerParty.contains(killerId);
+    }
+
+    /** The owner's quest party, or null when parties are off or the owner has none. */
+    private org.fourz.RVNKQuests.party.QuestParty ownerParty(UUID ownerId) {
+        org.fourz.RVNKQuests.party.QuestPartyService parties = plugin.getQuestPartyService();
+        if (parties == null || !parties.isEnabled()) return null;
+        return parties.getParty(ownerId);
     }
 
     /** @return the player whose encounter spawned this entity, or null if it belongs to no live wave. */
