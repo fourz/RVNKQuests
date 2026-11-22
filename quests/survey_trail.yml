@@ -9,6 +9,7 @@ metadata:
   required_worlds:
   - zeal
   - world
+  waypoints: auto
   components:
     obj_dome:
       objective_type: REACH

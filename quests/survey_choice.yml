@@ -11,6 +11,7 @@ metadata:
   required_worlds:
   - zeal
   - world
+  waypoints: auto
   components:
     obj_wanderer:
       objective_type: REACH

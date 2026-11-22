@@ -12,6 +12,7 @@ metadata:
   - alphac
   - zeal
   - world
+  waypoints: auto
   components:
     obj_ledger:
       type: LECTERN_BOOK_ON

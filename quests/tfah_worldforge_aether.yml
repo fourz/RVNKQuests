@@ -10,6 +10,7 @@ metadata:
   - sotw_sky_0
   chapter: 5.0
   start_trigger: The gold door in the sky
+  waypoints: auto
   components:
     trig_rell_offer:
       type: NPC_INTERACT

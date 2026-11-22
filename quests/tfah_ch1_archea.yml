@@ -11,6 +11,7 @@ metadata:
   start_trigger: The Knights of the Darkness
   chain: tfah_chapter1
   chapter: 1
+  waypoints: auto
   components:
     arena_trigger:
       type: LOCATION_PROXIMITY

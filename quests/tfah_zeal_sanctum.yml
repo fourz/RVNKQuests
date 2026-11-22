@@ -12,6 +12,7 @@ metadata:
   - world
   chain: tfah_zeal
   chapter: 1
+  waypoints: auto
   components:
     sanctum_trigger:
       type: LOCATION_PROXIMITY

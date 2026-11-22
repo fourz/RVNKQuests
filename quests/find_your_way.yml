@@ -10,6 +10,7 @@ metadata:
   # stands at the Kingdom of Zeal portal hub; Keeper Soli (guide_sol) in the Sol Sanctum, the
   # Alpha Centauri portal plaza. Tag the NPCs first: /rvnk npc tag <key> <id>.
   # Dialogue: RVNKLore entries npc_<key>_<offer|active|done>.
+  waypoints: auto
   components:
     trig_greeter:
       type: NPC_INTERACT

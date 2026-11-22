@@ -9,6 +9,7 @@ metadata:
   start_trigger: The Quiet World
   chain: tfah_chapter1
   chapter: 1
+  waypoints: auto
   components:
     # RESOLVED 2026-08-10 (#1881). The lectern was never missing — the coordinate was wrong. Read
     # off the live Event world: the real block is alphac -316,118,447, a LECTERN holding the

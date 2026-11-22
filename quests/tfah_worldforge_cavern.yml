@@ -12,6 +12,7 @@ metadata:
   - sotw_deep_0
   chapter: 5.0
   start_trigger: The first crystal grotto
+  waypoints: auto
   components:
     arr_cavern:
       type: LOCATION_PROXIMITY

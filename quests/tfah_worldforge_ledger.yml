@@ -20,6 +20,7 @@ metadata:
   #   lp group veteran permission set rvnkquests.access.fragile_worlds true
   required_permission: rvnkquests.access.fragile_worlds
   required_permission_message: "&e[Warden Tolla] &fThe ledger's for veterans, love. Come back once the realm's had a proper look at you."
+  waypoints: auto
   components:
 
     # Beat 1 -- Tolla's ledger stand, beside her (placed 2026-10-18 at sotw_city -90,67,1 facing east,
