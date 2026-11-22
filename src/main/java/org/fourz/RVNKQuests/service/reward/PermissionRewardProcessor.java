@@ -51,7 +51,7 @@ public class PermissionRewardProcessor implements RewardProcessor {
     @Override
     public CompletableFuture<RewardDeliveryResult> deliver(UUID playerId, RewardDTO reward) {
         return CompletableFuture.supplyAsync(() -> {
-            String permission = getMetadataString(reward, "permission");
+            String permission = permissionNode(reward);
             if (permission == null || permission.isBlank()) {
                 return RewardDeliveryResult.failure(
                     reward,
@@ -164,7 +164,7 @@ public class PermissionRewardProcessor implements RewardProcessor {
 
     @Override
     public CompletableFuture<RewardValidationResult> validate(UUID playerId, RewardDTO reward) {
-        String permission = getMetadataString(reward, "permission");
+        String permission = permissionNode(reward);
         
         if (permission == null || permission.isBlank()) {
             return CompletableFuture.completedFuture(
@@ -239,6 +239,21 @@ public class PermissionRewardProcessor implements RewardProcessor {
     }
 
     /**
+     * The permission node: {@code metadata.permission}, else the reward's {@code value}. Quest YAML
+     * authors write {@code value: <node>} like every other reward type; before this fallback that
+     * shape failed with INVALID_PERMISSION on every delivery (tfah_worldforge_cavern,
+     * tfah_worldforge_ledger; #2355).
+     */
+    static String permissionNode(RewardDTO reward) {
+        Object meta = reward.metadata() == null ? null : reward.metadata().get("permission");
+        if (meta != null && !meta.toString().isBlank()) {
+            return meta.toString().trim();
+        }
+        String value = reward.value();
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    /**
      * Get a string value from reward metadata.
      */
     private String getMetadataString(RewardDTO reward, String key) {
@@ -251,7 +266,7 @@ public class PermissionRewardProcessor implements RewardProcessor {
 
     @Override
     public String formatReward(RewardDTO reward) {
-        String permission = getMetadataString(reward, "permission");
+        String permission = permissionNode(reward);
         String durationStr = getMetadataString(reward, "duration");
         
         if (permission == null) {

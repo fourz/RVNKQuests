@@ -159,6 +159,44 @@ public class DataDrivenQuest extends AbstractQuest {
         return playerUuid -> runOnMain(() -> deliverOnAdvance(id, playerUuid, rewards));
     }
 
+    /**
+     * The beat line for party members, or null when the component has no {@code advance_message} (#2418).
+     *
+     * <p>The firer hears the line through the component's own {@code AdvanceFeedback.notifyIfCommitted}. A member
+     * whose state moved with the party used to hear nothing. This hook runs per committed player, like
+     * {@link #onAdvanceHook(Listener)}, skips the firer, and sends the same line on the main thread.</p>
+     */
+    public java.util.function.Consumer<UUID> memberFeedbackHook(Listener component, UUID firer) {
+        return memberFeedbackHook(componentFactory.componentIdOf(component), firer);
+    }
+
+    /** {@link #memberFeedbackHook(Listener, UUID)} by component id. */
+    public java.util.function.Consumer<UUID> memberFeedbackHook(String componentId, UUID firer) {
+        Map<String, Object> config = componentConfig(componentId);
+        if (config == null) return null;
+        org.fourz.RVNKQuests.util.AdvanceFeedback feedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
+        if (!feedback.isConfigured()) return null;
+        return member -> {
+            if (member.equals(firer)) return;
+            runOnMain(() -> feedback.notifyAdvanced(plugin.getServer().getPlayer(member)));
+        };
+    }
+
+    /** A component's config block by id (case-insensitive, as fire does), or null. */
+    @SuppressWarnings("unchecked")
+    Map<String, Object> componentConfig(String componentId) {
+        if (componentId == null || definition.metadata() == null) return null;
+        if (!(definition.metadata().get("components") instanceof Map<?, ?> components)) return null;
+        Object exact = components.get(componentId);
+        if (exact instanceof Map<?, ?> m) return (Map<String, Object>) m;
+        for (Map.Entry<?, ?> e : components.entrySet()) {
+            if (String.valueOf(e.getKey()).equalsIgnoreCase(componentId) && e.getValue() instanceof Map<?, ?> m) {
+                return (Map<String, Object>) m;
+            }
+        }
+        return null;
+    }
+
     private void runOnMain(Runnable task) {
         try {
             plugin.getServer().getScheduler().runTask(plugin, task);
@@ -409,6 +447,20 @@ public class DataDrivenQuest extends AbstractQuest {
     @Override
     protected List<String> getPrerequisiteQuestIds() {
         return definition.prerequisites();
+    }
+
+    /** {@code required_permission} metadata (#2353). */
+    @Override
+    protected String getRequiredPermission() {
+        Object perm = definition.metadata().get("required_permission");
+        return perm != null ? perm.toString() : null;
+    }
+
+    /** {@code required_permission_message} metadata (#2353). */
+    @Override
+    protected String getRequiredPermissionMessage() {
+        Object msg = definition.metadata().get("required_permission_message");
+        return msg != null ? msg.toString() : null;
     }
 
     /**

@@ -59,6 +59,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GenericEncounterObjective implements Listener {
 
     private static final String QUEST_MOB_METADATA = "rvnkquests.questmob";
+    /**
+     * The quest and owner of a quest mob, in the entity's persistent data so they survive a restart (#2004). Bukkit
+     * metadata ({@link #QUEST_MOB_METADATA}) is runtime-only: a wave alive across a restart lost it, and its deaths were
+     * dropped without a word. The owner's next visit to the arena adopts the survivors instead of stacking a new wave.
+     */
+    static final org.bukkit.NamespacedKey QUEST_KEY = new org.bukkit.NamespacedKey("rvnkquests", "quest_mob");
+    static final org.bukkit.NamespacedKey OWNER_KEY = new org.bukkit.NamespacedKey("rvnkquests", "quest_mob_owner");
 
     /**
      * How close the owner must be to a mob that died without a player killer for it to count
@@ -217,10 +224,15 @@ public class GenericEncounterObjective implements Listener {
         // the spawn so an unexpected failure rolls back partial mobs and never floods or leaves a
         // half-spawned wave. Exactly spawnCount mobs spawn once per activation.
         encounterTriggered.put(playerId, true);
-        List<Entity> mobs = new ArrayList<>();
+        List<Entity> mobs = adopt(world, spawnLoc, playerId);           // survivors of a wave from before a restart
+        if (!mobs.isEmpty()) {
+            logger.info("Encounter '" + quest.getId() + "': adopted " + mobs.size() + " " + entityType
+                + " left from before a restart for " + player.getName() + " (#2004)");
+        }
+        int toSpawn = Math.max(0, spawnCount - mobs.size());
         Random rng = new Random();
         try {
-            for (int i = 0; i < spawnCount; i++) {
+            for (int i = 0; i < toSpawn; i++) {
                 double[] offset = discOffset(rng, spawnRadius);
                 Location mobLoc = spawnLoc.clone().add(offset[0], 0, offset[1]);
 
@@ -237,7 +249,7 @@ public class GenericEncounterObjective implements Listener {
                         piglin.setImmuneToZombification(true);
                     }
                 }
-                mob.setMetadata(QUEST_MOB_METADATA, new FixedMetadataValue(plugin, quest.getId()));
+                mark(mob, playerId);
                 mobs.add(mob);
             }
         } catch (Exception e) {
@@ -262,18 +274,26 @@ public class GenericEncounterObjective implements Listener {
         LivingEntity entity = event.getEntity();
 
         // Quick filter before any per-player work
-        if (!entity.hasMetadata(QUEST_MOB_METADATA)) return;
+        if (!entity.hasMetadata(QUEST_MOB_METADATA)) {
+            // A mob of this encounter from before a restart that nobody has adopted yet (#2004): say so, instead
+            // of the total silence that hid this bug. Its owner's next visit adopts its wave-mates.
+            if (entity.getType() == entityType && quest.getId().equals(questOf(entity))) {
+                logger.info("Encounter '" + quest.getId() + "': a " + entityType + " from before a restart died untracked"
+                    + " (owner " + ownerOf(entity) + ") - no credit; its owner's next visit adopts the rest of its wave");
+            }
+            return;
+        }
         if (entity.getType() != entityType) return;
 
         // #1904: credit is driven by OWNERSHIP, not by who landed the blow. The mob was spawned for
         // one player's encounter and it is now dead; a knight that falls off the arena should not cost
         // the player the four they already killed. Resolve the owner from the spawn registry first,
         // because an environmental death has no killer at all.
+        // #2067: no killer fallback. A quest mob that is in no live wave of THIS encounter credits nobody here.
+        // The fallback credited the killer's own wave, so a stale mob of another wave of the same type could
+        // count toward the killer's current wave.
         UUID playerId = findOwner(entity);
         Player killer = entity.getKiller();
-        if (playerId == null && killer != null) {
-            playerId = killer.getUniqueId();
-        }
         if (playerId == null) return;
 
         List<Entity> mobs = spawnedMobs.get(playerId);
@@ -283,15 +303,30 @@ public class GenericEncounterObjective implements Listener {
         Player owner = plugin.getServer().getPlayer(playerId);
         if (owner == null || quest.getStateForPlayer(owner) != requiredState) return;
 
-        // The exploit this guards: spawn a wave, walk away, let the terrain clear it. A player kill
-        // always counts — they were demonstrably there. An environmental death only counts while the
-        // owner is still engaged.
-        boolean credited = killer != null || isOwnerEngaged(owner, entity.getLocation());
+        // Two exploits are guarded here.
+        // 1. Spawn a wave, walk away, let the terrain clear it: an environmental death only counts while
+        //    the owner is still engaged.
+        // 2. #2067: a bystander clears the wave for you. A player kill counts only when the killer is the
+        //    owner or in the owner's quest party. Before this, ANY player kill counted (#1904 moved credit
+        //    to the owner and dropped the old killer check), so a player who had already COMPLETED the
+        //    encounter cleared wave 1 for two other players on Event.
+        boolean credited;
+        if (killer != null) {
+            credited = killerEarnsOwnerCredit(playerId, killer.getUniqueId(), ownerParty(playerId));
+            if (!credited) {
+                logger.debug("Encounter mob of " + owner.getName() + " killed by non-participant "
+                    + killer.getName() + " on quest " + quest.getId() + " - no credit for the owner");
+            }
+        } else {
+            credited = isOwnerEngaged(owner, entity.getLocation());
+            if (!credited) {
+                logger.debug("Encounter mob died with " + owner.getName() + " away from the fight on quest "
+                    + quest.getId() + " - no credit, existing progress kept");
+            }
+        }
 
         if (!credited) {
             // Not credited, but NOT discarded either — the kills already banked stay banked.
-            logger.debug("Encounter mob died with " + owner.getName() + " away from the fight on quest "
-                + quest.getId() + " - no credit, existing progress kept");
             if (mobs.isEmpty()) {
                 // No player-facing message here: the owner walked away from this wave, so telling
                 // them to "approach again" is noise about something they chose to leave. The
@@ -360,6 +395,58 @@ public class GenericEncounterObjective implements Listener {
         double angle = rng.nextDouble() * Math.PI * 2;
         double dist = Math.sqrt(rng.nextDouble()) * radius;
         return new double[] { Math.cos(angle) * dist, Math.sin(angle) * dist };
+    }
+
+    /** Tags a quest mob: runtime metadata for this session, and its quest and owner in its persistent data (#2004). */
+    private void mark(Entity mob, UUID owner) {
+        mob.setMetadata(QUEST_MOB_METADATA, new FixedMetadataValue(plugin, quest.getId()));
+        org.bukkit.persistence.PersistentDataContainer pdc = mob.getPersistentDataContainer();
+        pdc.set(QUEST_KEY, org.bukkit.persistence.PersistentDataType.STRING, quest.getId());
+        pdc.set(OWNER_KEY, org.bukkit.persistence.PersistentDataType.STRING, owner.toString());
+    }
+
+    static String questOf(Entity e) {
+        return e.getPersistentDataContainer().get(QUEST_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+    }
+
+    static String ownerOf(Entity e) {
+        return e.getPersistentDataContainer().get(OWNER_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+    }
+
+    /**
+     * This player's living quest mobs of this encounter near the arena that no session tracks: a wave from before a
+     * restart (#2004). They are re-tagged and returned, at most {@code spawnCount}, so the wave is topped up, not doubled.
+     */
+    List<Entity> adopt(World world, Location post, UUID owner) {
+        List<Entity> out = new ArrayList<>();
+        String id = owner.toString();
+        for (Entity e : world.getNearbyEntities(post, triggerRadius, triggerRadius, triggerRadius)) {
+            if (out.size() >= spawnCount) break;
+            if (e.getType() != entityType || !e.isValid() || e.isDead() || e.hasMetadata(QUEST_MOB_METADATA)) continue;
+            if (!quest.getId().equals(questOf(e)) || !id.equals(ownerOf(e))) continue;
+            mark(e, owner);
+            out.add(e);
+        }
+        return out;
+    }
+
+    /**
+     * #2067: may this killer earn the wave owner's kill credit? Yes for the owner, and for a member of the
+     * owner's quest party (the party shares beats, #1982/#1986). No for anyone else, including a player who
+     * already finished the encounter. Pure, so the rule is unit-tested without a server.
+     *
+     * @param ownerParty the owner's party, or null when the owner has none or parties are off
+     */
+    static boolean killerEarnsOwnerCredit(UUID ownerId, UUID killerId, org.fourz.RVNKQuests.party.QuestParty ownerParty) {
+        if (killerId.equals(ownerId)) return true;
+        return ownerParty != null && ownerParty.contains(killerId);
+    }
+
+    /** The owner's quest party, or null when parties are off or the owner has none. */
+    private org.fourz.RVNKQuests.party.QuestParty ownerParty(UUID ownerId) {
+        org.fourz.RVNKQuests.party.QuestPartyService parties = plugin.getQuestPartyService();
+        if (parties == null || !parties.isEnabled()) return null;
+        return parties.getParty(ownerId);
     }
 
     /** @return the player whose encounter spawned this entity, or null if it belongs to no live wave. */

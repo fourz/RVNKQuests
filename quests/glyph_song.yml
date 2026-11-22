@@ -1,0 +1,58 @@
+# drowned_world glyph trail (#2316). Every place is a named site of the world, looked up through RVNKCore's
+# ISiteLocatorService (RVNKWorlds computes it from the seed): the file never holds coordinates. To run the trail
+# on another drowned_world world, change world / required_worlds.
+quest_id: glyph_song
+name: The Glyph Song
+description: 'Old pillars stand on the trench floors below the outpost, and the deckhands swear they hum. Dive to the first glyph and touch it. Each touch lets you breathe and see underwater for a minute, enough to follow the song to the next two.'
+repeatable: false
+cooldown_minutes: 0
+metadata:
+  required_worlds:
+  - dw_trail
+  components:
+    trig_outpost:
+      type: LOCATION_PROXIMITY
+      world: dw_trail
+      site: drowned:spawn
+      radius: 8
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+      advance_message: 'The deck hums faintly underfoot. Far below, something old is humming the same note back.'
+    obj_glyph1:
+      objective_type: REACH
+      world: dw_trail
+      site: drowned:trail:1
+      radius: 6
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+      advance_message: 'The song begins. The water rose slowly, then all at once. We raised these pillars so the lost could find us.'
+    obj_glyph2:
+      objective_type: REACH
+      world: dw_trail
+      site: drowned:trail:2
+      radius: 6
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
+      advance_message: 'The song goes on. The cities sank with their lamps still lit, and their people sang until the glass went dark.'
+    obj_glyph3:
+      objective_type: REACH
+      world: dw_trail
+      site: drowned:trail:3
+      radius: 6
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+      advance_message: 'The song turns. The deep folk carried it down to the gates and shut it in. Find the ring on the plain.'
+  state_mapping:
+    NOT_STARTED:
+    - trig_outpost
+    TRIGGER_FOUND:
+    - obj_glyph1
+    QUEST_ACTIVE:
+    - obj_glyph2
+    OBJECTIVE_FOUND:
+    - obj_glyph3
+rewards:
+  glyph_song_experience:
+    type: EXPERIENCE
+    value: points
+    amount: 300

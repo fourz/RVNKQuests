@@ -261,7 +261,16 @@ Player approaches any entity of a given type within a radius. No custom mob spaw
 
 ### ITEM_DISCOVERY
 
-Player picks up or holds a named item.
+Player picks up or holds a named item. It fires on any of these (#2461):
+
+- the player picks the item up off the ground;
+- the player closes a chest or other inventory with the item in their inventory (a chest take);
+- the player switches the hotbar onto the item;
+- the player right-clicks with the item in the main hand.
+
+Only the right-click tells the player about a wrong beat. The other paths stay silent at a wrong
+beat. A player who already carries the item when the beat opens gets it on the next of these
+actions, not at once.
 
 ```json
 {
@@ -275,7 +284,7 @@ Player picks up or holds a named item.
 | Field | Type | Description |
 |---|---|---|
 | `item_type` | String | Bukkit Material name |
-| `item_name` | String | Display name of the item (exact match) |
+| `item_name` | String | Text the item's display name must contain (colour codes stripped). `custom_name` is the preferred alias. |
 | `world` | String | Restricts to this world if set |
 
 ### STRUCTURE_INTERACT
@@ -496,6 +505,7 @@ metadata:
 **Auto mode.** `metadata.waypoints: auto` gives each `LOCATION_PROXIMITY` trigger and `REACH`
 objective that has no `waypoint` block one from its own `world/x/y/z`, with the component defaults
 (world `world`, y 64; `x` and `z` must be set). A `REACH` with `context_location_key` is skipped.
+A `BLOCK_STATE` objective takes the block of its first check (#2389).
 `waypoint: off` opts one component out. **Auto is off by default**, so a quest that does not ask for
 it gets no waypoint it did not author.
 
@@ -662,6 +672,110 @@ objective is active. It completes like every generic objective: `advanceStateFor
 | `requires_path` / `sets_path` | String | Optional branching, as on `INTERACT`. |
 | `description` | String | Optional. Text for `%rvnkquests_active_objective%`; default `Talk to <npc_key>`. |
 
+### DELIVER
+
+*(1.1.81, #2390)* The player right-clicks the NPC with this RVNK key while holding the right item
+in the **main hand**. The item is taken and the step advances. It listens to RVNKCore's
+`RvnkNpcInteractEvent`, like `TALK_TO`; there is no Citizens dependency.
+
+- **Taken only on commit.** The item is taken after `ComponentAdvance.tryAdvance` returns `true`. A
+  refused advance (prerequisite gate, monotonic guard, a failed write) takes nothing.
+- **Once per click.** One click makes at most one delivery, across every `DELIVER` that hears it.
+  A second click while the first advance is in flight is ignored. Only the main hand is read.
+- **Wrong item, too few, or an empty hand:** the item is kept and nothing advances. With
+  `wrong_item_message`, the NPC says that line instead of its usual dialogue line. It goes through
+  `NpcInteractionCoordinator`, so the click still gives one line. Without it, the click gives the
+  usual `npc_<key>_active` line.
+- **The wrong beat** (the player is not in `required_state`) does nothing, and sends no message.
+
+Example: the player hands a ledger book to the outpost guide.
+
+```yaml
+state_mapping:
+  QUEST_ACTIVE: [obj_hand_in_ledger]
+components:
+  obj_hand_in_ledger:
+    objective_type: DELIVER
+    npc_key: guide_outpost
+    item_type: WRITTEN_BOOK
+    custom_name: Outpost Ledger        # colour codes ignored; "contains" match
+    # lore_item_id: 42                 # or the RVNKLore item (number = id, text = item name)
+    amount: 1
+    advance_state: COMPLETED
+    description: Bring the ledger to the outpost guide
+    wrong_item_message: "&7That is not the ledger. Find the book with the outpost seal."
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `npc_key` | String | **Required.** RVNK key, as on `NPC_INTERACT`. An invalid key makes the component inert with a warning; `/quest component add` rejects it. |
+| `item_type` | String | Material, `WRITTEN_BOOK` or `minecraft:written_book`. |
+| `custom_name` / `item_name` | String | Display name. Colour codes and the Paper JSON quotes are stripped from both sides; the item name must **contain** this text (the `ITEM_DISCOVERY` rule). |
+| `lore_item_id` | Number or String | RVNKLore item. A number matches the `rvnklore:lore_item_id` INTEGER tag; text matches the `rvnklore:lore_item_name` STRING tag, case ignored. The numeric id differs between server databases, so prefer the name for a quest that ships to several tiers. |
+| `amount` | Integer | Items taken, default 1, at least 1. The main-hand stack must hold that many. |
+| `click` | String | `right` (default), `left` or `any`. |
+| `wrong_item_message` | String | Optional NPC line for a click at this beat with the wrong item. `&` colour codes allowed. |
+| `required_state` / `advance_state` | String | Defaults `QUEST_ACTIVE` / `OBJECTIVE_FOUND`; the `state_mapping` bucket overrides `required_state`. |
+| `requires_path` / `sets_path` | String | Optional branching, as on `INTERACT`. |
+| `description` | String | Optional. Text for `%rvnkquests_active_objective%`; default `Deliver to <npc_key>`. |
+| `on_advance`, `waypoint` | | As on every component. `waypoints: auto` does not derive a point from the NPC. |
+
+At least one of `item_type`, `custom_name`/`item_name`, `lore_item_id` is required, and every one
+given must match. No item key, an unknown `item_type`, or `amount` below 1 fails construction:
+`/quest validate` reports the quest INVALID and `/quest component add` rejects it. The lore tags
+are read from the item's PersistentDataContainer by key, so RVNKQuests needs no RVNKLore class for
+this. If the player moves the item between the click and the commit, the same number of matching
+items is taken from the rest of the inventory; if too few are left, a warning is logged.
+
+### BLOCK_STATE
+
+*(1.1.80, #2389)* Completes when **every** block check matches at the same time. Built for lever
+and switch puzzles, but any BlockData property works: `powered`, `open`, `facing`, `power`, `lit`.
+The engine reads the property names from `BlockData.getAsString()`
+(`minecraft:lever[face=wall,facing=north,powered=true]`), so no block needs its own code.
+
+It evaluates on events, not on a poll. A right-click on a target block credits that player. A
+redstone change within one block of a target (a lever, a door half, a lamp) credits every player in
+the objective's state within `radius` of the first check. Both run one tick later, after the block
+has changed, and all events in one tick share one evaluation. The wrong combination does nothing:
+there is no message and no state change.
+
+Example: a 3-lever puzzle. The left and right levers must be on, the middle one off.
+
+```yaml
+state_mapping:
+  QUEST_ACTIVE: [obj_lever_puzzle]
+components:
+  obj_lever_puzzle:
+    objective_type: BLOCK_STATE
+    description: Set the three levers of the gate
+    world: outpost                 # default for checks without their own world
+    radius: 16                     # redstone credit radius (default 16)
+    advance_state: OBJECTIVE_FOUND
+    advance_message: "&7Somewhere below, a bolt slides back."
+    checks:
+      - {x: 120, y: 65, z: -40, block: LEVER, state: {powered: true}}
+      - {x: 122, y: 65, z: -40, block: LEVER, state: {powered: false}}
+      - {x: 124, y: 65, z: -40, block: LEVER, state: {powered: true}}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `checks` | List | **Required**, not empty. Each check has `world`, `x`, `y`, `z`, an optional `block` and a `state` map. |
+| `checks[].world` | String | World of the block. Falls back to the component `world`. One of the two is required. |
+| `checks[].x`, `y`, `z` | Number | **Required** block coordinates. |
+| `checks[].block` | String | Optional material (`LEVER` or `minecraft:lever`). Omit it to accept any block. |
+| `checks[].state` | Map | Property to value, e.g. `powered: true`, `open: true`, `facing: north`. Case does not matter. A property the block does not have never matches. |
+| `radius` | Number | Players credited for a redstone change with no player (default 16). |
+| `required_state` / `advance_state` | String | Defaults `QUEST_ACTIVE` / `OBJECTIVE_FOUND`; the `state_mapping` bucket overrides `required_state`. |
+| `requires_path` / `sets_path` | String | Optional branching, as on `INTERACT`. |
+
+A check needs `block`, `state` or both. A check with no world, a missing or non-numeric coordinate,
+an unknown block, or neither `block` nor `state` fails construction: `/quest validate` reports the
+quest INVALID and `/quest component add` rejects it. A check in an unloaded chunk does not match.
+`BlockPhysicsEvent` is not used, so a block changed by a plugin or by `/setblock` is seen only at the
+next interact or redstone change near a target.
+
 ### ENCOUNTER
 
 Spawns a group of named mobs at coordinates when the player enters a trigger radius. The player must kill all spawned mobs to complete the objective.
@@ -698,6 +812,14 @@ Spawns a group of named mobs at coordinates when the player enters a trigger rad
 | `prevent_infighting` | Boolean | Mobs will not attack each other |
 | `block_portals` | Boolean | Prevent portal use in the encounter zone |
 | `context_location_key` | String | Alternative to fixed coords — read location from runtime context |
+
+**Who gets kill credit (1.1.84, #2067).** Each player who enters the trigger radius gets their own wave, and every mob belongs to the player it was spawned for (the owner). A mob's death counts for its owner only when:
+
+- the owner killed it, or
+- a member of the owner's quest party killed it, or
+- it died without a player killer (lava, a fall, a golem) while the owner was still engaged near it (`credit_radius`, #1904).
+
+Any other player kill gives no credit to anyone. This includes a player who already finished the encounter. Before 1.1.84 every player kill counted for the owner, so a bystander could clear another player's wave. A dead mob still leaves the owner's wave either way. When the whole wave is gone without enough credit, the encounter resets, and the owner's next approach spawns a new wave. A quest mob that belongs to no live wave of the encounter credits nobody.
 
 ### DISCOVER
 
@@ -1256,26 +1378,31 @@ and gives its `keeper` NPC a locked line, `npc_keeper_locked`. See the locked co
 
 ### NPC dialogue lines (#2214)
 
-When a player clicks a keyed NPC that an `NPC_INTERACT` or `TALK_TO` component references, the NPC
-says **one** line: the description of the RVNKLore entry `npc_<key>_<context>`, read through
+When a player clicks a keyed NPC, the NPC says **at most one** line: the description of the RVNKLore entry `npc_<key>_<context>`, read through
 `ILoreIntegration.getNPCDialogue(key, context)`. It shows as `<NPC name>: <line>`, with `&` colour
 codes honoured.
 
 | Context | When |
 |---|---|
 | `offer` | an `NPC_INTERACT` trigger advanced the quest on this click |
-| `active` | a `TALK_TO` advanced the quest without completing it, **or** nothing advanced and the player has a quest with this NPC in progress |
+| `active` | a `TALK_TO` or `DELIVER` advanced the quest without completing it, **or** nothing advanced and the player has a quest with this NPC in progress |
 | `done` | the click completed the quest, **or** nothing advanced and the player completed a quest with this NPC |
 | `locked` | *(1.1.68, #2249)* nothing above applies, and a quest with this NPC is `NOT_STARTED` for the player with a prerequisite that is not `COMPLETED` |
+| `idle` | *(1.1.82, #2417)* nothing above applies, and the click is a right-click. Covers a player who has not reached the NPC's quest step, and an NPC that no quest uses |
 
 - One click gives one line, even when several quests use the same NPC. Components never speak;
   they report to one central listener (`npc/NpcInteractionCoordinator`) that runs at `MONITOR`
-  priority after them and picks the highest context: `done` > `offer` > `active` > `locked`.
+  priority after them and picks the highest context: `done` > `offer` > `active` > `locked` > `idle`.
 - An advance that did not commit (for example, the prerequisite gate refused the offer) does not
   count as an offer. It can give the `locked` line, see below.
-- A quest the player has not started, and that has no unmet prerequisite, gives no line from its
-  NPC. This is unchanged.
+- A quest the player has not started, and that has no unmet prerequisite, gives no quest line from
+  its NPC. *(1.1.82, #2417)* A right-click then plays `npc_<key>_idle` if that entry exists, so the
+  NPC can greet the player and point to the quest's start. Write the idle line so it names no
+  hidden quest step; it plays to every player with nothing else to hear. A left-click plays no
+  idle line.
 - No lore entry, no RVNKLore, or a cancelled click: no line. The quest action still happens.
+- *(1.1.81, #2390)* A `DELIVER` refused for the wrong item sends its `wrong_item_message`
+  instead of the fallback and `locked` lines, when no advance on the click committed.
 
 #### The locked rule (#2249)
 

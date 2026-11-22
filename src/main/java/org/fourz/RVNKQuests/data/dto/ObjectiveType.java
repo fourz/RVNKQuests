@@ -86,6 +86,18 @@ public enum ObjectiveType {
     ENCOUNTER,
 
     /**
+     * Clear a resettable dungeon: completes for its participants when the last roster mob dies
+     * (RVNKWorlds, #2371). Config: dungeon. Needs RVNKCore 1.5.112-alpha+.
+     */
+    DUNGEON_CLEAR,
+
+    /**
+     * Set one or more blocks to a given BlockData state at once - a lever or switch puzzle (#2389).
+     * Config: checks (list of world, x, y, z, block?, state), radius.
+     */
+    BLOCK_STATE,
+
+    /**
      * Custom objective with plugin-defined behavior.
      * Target: Custom identifier
      */

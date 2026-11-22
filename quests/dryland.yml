@@ -1,0 +1,60 @@
+# drowned_world glyph trail (#2316). Every place is a named site of the world, looked up through RVNKCore's
+# ISiteLocatorService (RVNKWorlds computes it from the seed): the file never holds coordinates. To run the trail
+# on another drowned_world world, change world / required_worlds.
+quest_id: dryland
+name: The Road to Dryland
+description: 'Leaving Atlantis, the glyphs no longer point down. They lean out across the open deep. Swim from pillar to pillar, touch the fourth, fifth and sixth, and see what the singers swam toward.'
+repeatable: false
+cooldown_minutes: 0
+prerequisites:
+- atlantis_gate
+metadata:
+  required_worlds:
+  - dw_trail
+  components:
+    trig_glyph4:
+      type: LOCATION_PROXIMITY
+      world: dw_trail
+      site: drowned:trail:4
+      radius: 6
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+      advance_message: 'A new verse. The singers left by the gates and swam where the pillars lean. None came back to tell the end.'
+    obj_glyph5:
+      objective_type: REACH
+      world: dw_trail
+      site: drowned:trail:5
+      radius: 6
+      required_state: TRIGGER_FOUND
+      advance_state: QUEST_ACTIVE
+      advance_message: 'The song thins. Open water is wide and forgets quickly. Keep to the pillars, and keep your breath for them.'
+    obj_glyph6:
+      objective_type: REACH
+      world: dw_trail
+      site: drowned:trail:6
+      radius: 6
+      required_state: QUEST_ACTIVE
+      advance_state: OBJECTIVE_FOUND
+      advance_message: 'The song warms. Something ahead pours sweet water into the salt, and the sea tastes faintly of it.'
+    obj_shore:
+      objective_type: REACH
+      world: dw_trail
+      site: drowned:dryland
+      radius: 6
+      required_state: OBJECTIVE_FOUND
+      advance_state: COMPLETED
+      advance_message: 'Soil underhand, trees overhead, a lake you can drink. The song ends: this is Dryland. It was never a story.'
+  state_mapping:
+    NOT_STARTED:
+    - trig_glyph4
+    TRIGGER_FOUND:
+    - obj_glyph5
+    QUEST_ACTIVE:
+    - obj_glyph6
+    OBJECTIVE_FOUND:
+    - obj_shore
+rewards:
+  dryland_experience:
+    type: EXPERIENCE
+    value: points
+    amount: 1000

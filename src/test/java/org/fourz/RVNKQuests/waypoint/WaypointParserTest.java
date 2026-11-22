@@ -132,4 +132,16 @@ class WaypointParserTest {
         assertEquals(1, problems.size());
         assertTrue(WaypointParser.isAuto(map("waypoints", "auto"), null));
     }
+
+    @Test
+    @DisplayName("auto: BLOCK_STATE points at its first check; component world is the fallback (#2389)")
+    void autoBlockState() {
+        Map<String, Object> comp = map("objective_type", "BLOCK_STATE", "world", "outpost", "description", "Set the levers",
+            "checks", List.of(map("x", 10, "y", 70, "z", -5, "state", map("powered", true)),
+                map("world", "other", "x", 99, "y", 1, "z", 1, "state", map("powered", true))));
+        Waypoint wp = WaypointParser.parse("obj_levers", comp, true, null);
+        assertEquals(new Waypoint("obj_levers", "outpost", 10, 70, -5, "Set the levers", WaypointStyle.BOSSBAR, true), wp);
+        assertNull(WaypointParser.parse("obj_levers", comp, false, null));
+        assertNull(WaypointParser.parse("obj_x", map("objective_type", "BLOCK_STATE", "checks", List.of()), true, null));
+    }
 }

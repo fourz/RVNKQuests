@@ -30,7 +30,8 @@ import java.util.Map;
  * {@code world/x/y/z}, with the same defaults the component uses (world {@code world}, y 64). It
  * needs {@code x} and {@code z}. A {@code REACH} with {@code context_location_key} is skipped: its
  * target is set at runtime. {@code waypoint: off} (or {@code false}/{@code none}) opts a single
- * component out. Auto is off by default, so a quest that does not ask for it gets no waypoint it
+ * component out. A {@code BLOCK_STATE} objective takes its first check's block (#2389). Auto
+ * is off by default, so a quest that does not ask for it gets no waypoint it
  * did not author.</p>
  *
  * <p>Nothing here stops a quest loading. A bad block is reported through {@code problems} (shown by
@@ -147,8 +148,14 @@ public final class WaypointParser {
         return new Waypoint(componentId, world, x, y, z, label(componentId, config, block.get("label")), style, false);
     }
 
-    /** Auto mode: a LOCATION_PROXIMITY trigger or a REACH objective with fixed coordinates. */
+    /**
+     * Auto mode: a LOCATION_PROXIMITY trigger or a REACH objective with fixed coordinates, or a
+     * BLOCK_STATE objective, which points at its first check (#2389).
+     */
     private static Waypoint derive(String componentId, Map<?, ?> config) {
+        if ("BLOCK_STATE".equalsIgnoreCase(str(config.get("objective_type")))) {
+            return deriveBlockState(componentId, config);
+        }
         boolean proximity = "LOCATION_PROXIMITY".equalsIgnoreCase(str(config.get("type")));
         boolean reach = "REACH".equalsIgnoreCase(str(config.get("objective_type")));
         if (!proximity && !reach) return null;
@@ -161,6 +168,23 @@ public final class WaypointParser {
         // The same defaults the components use, so the waypoint is where the component checks.
         return new Waypoint(componentId, world == null || world.isBlank() ? "world" : world.trim(),
             x, y == null ? 64.0 : y, z, label(componentId, config, null), WaypointStyle.BOSSBAR, true);
+    }
+
+    /** BLOCK_STATE: the first check's block; its world, else the component's world. */
+    private static Waypoint deriveBlockState(String componentId, Map<?, ?> config) {
+        if (!(config.get("checks") instanceof List<?> list) || list.isEmpty()
+                || !(list.get(0) instanceof Map<?, ?> first)) {
+            return null;
+        }
+        Double x = number(first.get("x"));
+        Double y = number(first.get("y"));
+        Double z = number(first.get("z"));
+        if (x == null || y == null || z == null) return null;
+        String world = str(first.get("world"));
+        if (world == null || world.isBlank()) world = str(config.get("world"));
+        if (world == null || world.isBlank()) return null;
+        return new Waypoint(componentId, world.trim(), x, y, z, label(componentId, config, null),
+            WaypointStyle.BOSSBAR, true);
     }
 
     private static String label(String componentId, Map<?, ?> config, Object authored) {

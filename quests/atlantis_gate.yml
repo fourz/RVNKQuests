@@ -1,0 +1,40 @@
+# drowned_world glyph trail (#2316). Every place is a named site of the world, looked up through RVNKCore's
+# ISiteLocatorService (RVNKWorlds computes it from the seed): the file never holds coordinates. To run the trail
+# on another drowned_world world, change world / required_worlds.
+quest_id: atlantis_gate
+name: The Gate of Atlantis
+description: 'The third glyph points down to a drowned ring city on the deep plain. Dive to the gate glyphs, then walk the colonnade and the canal ring to the domed temple. Touch nothing there but the altar.'
+repeatable: false
+cooldown_minutes: 0
+prerequisites:
+- glyph_song
+metadata:
+  required_worlds:
+  - dw_trail
+  components:
+    trig_gate:
+      type: LOCATION_PROXIMITY
+      world: dw_trail
+      site: drowned:atlantis:gate
+      radius: 10
+      required_state: NOT_STARTED
+      advance_state: TRIGGER_FOUND
+      advance_message: 'The gate glyphs wake. We kept what was left here. Come in; the streets still remember their names.'
+    obj_temple:
+      objective_type: REACH
+      world: dw_trail
+      site: drowned:atlantis
+      radius: 6
+      required_state: TRIGGER_FOUND
+      advance_state: COMPLETED
+      advance_message: 'The conduit sang to the last ones, then went quiet. Its final line leans away: the way out is across the deep.'
+  state_mapping:
+    NOT_STARTED:
+    - trig_gate
+    TRIGGER_FOUND:
+    - obj_temple
+rewards:
+  atlantis_gate_experience:
+    type: EXPERIENCE
+    value: points
+    amount: 500

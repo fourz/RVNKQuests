@@ -47,7 +47,13 @@ public class QuestEditSubCommand extends BaseSubCommand {
 
         // Metadata is handled separately — validate JSON before touching the repository
         if ("metadata".equals(property)) {
-            handleMetadata(sender, questId, value);
+            // Scalar keys merge into the existing metadata (#2353); anything else is a whole JSON object.
+            if (args.length >= 4 && MERGE_KEYS.contains(args[2])) {
+                handleMetadataKey(sender, questId, args[2],
+                        stripQuotes(String.join(" ", Arrays.copyOfRange(args, 3, args.length))));
+            } else {
+                handleMetadata(sender, questId, value);
+            }
             return true;
         }
 
@@ -105,6 +111,45 @@ public class QuestEditSubCommand extends BaseSubCommand {
         });
 
         return true;
+    }
+
+    /** Metadata keys set one at a time; {@code clear} removes the key (#2353). */
+    private static final List<String> MERGE_KEYS = List.of("required_permission", "required_permission_message");
+
+    private void handleMetadataKey(CommandSender sender, String questId, String key, String value) {
+        IQuestRepository repo = plugin.getQuestRepository();
+        if (repo == null) {
+            sendErrorMessage(sender, "Quest repository not available.");
+            return;
+        }
+        repo.findById(questId).thenAccept(opt -> {
+            if (opt.isEmpty()) {
+                sendErrorMessage(sender, "Quest not found: " + questId);
+                return;
+            }
+            QuestDTO quest = opt.get();
+            Map<String, Object> meta = new java.util.LinkedHashMap<>(
+                    quest.metadata() == null ? Map.of() : quest.metadata());
+            boolean clear = "clear".equalsIgnoreCase(value.trim());
+            if (clear) {
+                meta.remove(key);
+            } else {
+                meta.put(key, value.trim());
+            }
+            QuestDTO updated = new QuestDTO(quest.questId(), quest.name(), quest.description(),
+                quest.category(), quest.repeatable(), quest.cooldownMinutes(),
+                quest.objectives(), quest.rewards(), quest.prerequisites(),
+                quest.createdAt(), meta);
+            repo.save(updated).thenAccept(success -> {
+                if (success) {
+                    plugin.getQuestManager().reloadQuest(questId);
+                    sendSuccessMessage(sender, (clear ? "Cleared " + key : "Set " + key + " = " + value.trim())
+                            + " on quest " + questId + " (hot-reloaded)");
+                } else {
+                    sendErrorMessage(sender, "Failed to save metadata.");
+                }
+            });
+        });
     }
 
     private void handleMetadata(CommandSender sender, String questId, String json) {
@@ -277,6 +322,9 @@ public class QuestEditSubCommand extends BaseSubCommand {
                 "/quest edit tfah_ch1_journey cooldown 86400",
                 "  cooldown is in seconds",
                 "/quest edit tfah_ch1_journey prerequisite tfah_zeal_arrival",
-                "/quest edit tfah_ch1_journey metadata state_mapping {\"COMPLETED\":\"done\"}");
+                "/quest edit tfah_ch1_journey metadata state_mapping {\"COMPLETED\":\"done\"}",
+                "/quest edit tfah_worldforge_ledger metadata required_permission rvnkquests.access.fragile_worlds",
+                "/quest edit tfah_worldforge_ledger metadata required_permission_message &e[Warden Tolla] &fThe ledger is kept for veterans.",
+                "/quest edit tfah_worldforge_ledger metadata required_permission clear");
     }
 }

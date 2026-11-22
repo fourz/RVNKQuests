@@ -188,7 +188,7 @@ class NpcInteractionCoordinatorTest {
 
             dispatch(rightClick(player, "courier"));
 
-            assertTrue(lookups.isEmpty());
+            assertEquals(List.of("npc_courier_idle"), lookups, "only the idle line (#2417), never a quest line");
             assertTrue(sentLines().isEmpty());
         }
 
@@ -229,7 +229,7 @@ class NpcInteractionCoordinatorTest {
 
             dispatch(rightClick(player, "blacksmith"));
 
-            assertTrue(lookups.isEmpty());
+            assertEquals(List.of("npc_blacksmith_idle"), lookups);
         }
 
         @Test
@@ -442,7 +442,7 @@ class NpcInteractionCoordinatorTest {
 
             dispatch(rightClick(player, "courier"));
 
-            assertTrue(lookups.isEmpty());
+            assertEquals(List.of("npc_courier_idle"), lookups, "not locked: only the idle entry (#2417)");
             assertTrue(sentLines().isEmpty());
         }
 
@@ -531,7 +531,7 @@ class NpcInteractionCoordinatorTest {
             withLockedLore("guide");
 
             assertDoesNotThrow(() -> dispatch(rightClick(player, "guide")));
-            assertTrue(lookups.isEmpty());
+            assertEquals(List.of("npc_guide_idle"), lookups, "a failed read is not locked: only the idle entry");
             assertTrue(sentLines().isEmpty());
         }
 
@@ -558,6 +558,122 @@ class NpcInteractionCoordinatorTest {
             verify(q, never()).advanceStateForPlayer(any(java.util.UUID.class), any(QuestState.class));
             verify(q, never()).advanceStateForPlayer(any(java.util.UUID.class), any(QuestState.class), any());
             verify(q, never()).setStateForPlayer(any(java.util.UUID.class), any(QuestState.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("idle context (#2417)")
+    class Idle {
+
+        private void withIdleLore(String key) {
+            lore.put("npc_" + key + "_idle", key + " nods at you");
+        }
+
+        @Test
+        @DisplayName("a TALK_TO NPC before its quest step greets with the idle line, and the quest does not move")
+        void notStartedPlaysIdle() {
+            AtomicReference<QuestState> s = new AtomicReference<>(QuestState.NOT_STARTED);
+            talkTo(quest("q1", s, true), "guide_koz", "required_state", "QUEST_ACTIVE", "advance_state", "OBJECTIVE_FOUND");
+            withLoreForAllContexts("guide_koz");
+            withIdleLore("guide_koz");
+
+            dispatch(rightClick(player, "guide_koz"));
+
+            assertEquals(List.of("npc_guide_koz_idle"), lookups);
+            assertEquals(1, sentLines().size());
+            assertTrue(sentLines().get(0).contains("guide_koz nods at you"));
+            assertEquals(QuestState.NOT_STARTED, s.get());
+        }
+
+        @Test
+        @DisplayName("an NPC no quest uses plays its idle line")
+        void unusedNpcPlaysIdle() {
+            withIdleLore("blacksmith");
+
+            dispatch(rightClick(player, "blacksmith"));
+
+            assertEquals(1, sentLines().size());
+        }
+
+        @Test
+        @DisplayName("a left-click never plays the idle line")
+        void leftClickStaysSilent() {
+            withIdleLore("blacksmith");
+
+            dispatch(click(player, "blacksmith", ClickType.LEFT));
+
+            assertTrue(lookups.isEmpty());
+            assertTrue(sentLines().isEmpty());
+        }
+
+        @Test
+        @DisplayName("idle is lowest: an active quest gives the active line")
+        void activeOutranksIdle() {
+            talkTo(quest("q1", new AtomicReference<>(QuestState.QUEST_ACTIVE), false), "guide",
+                "required_state", "OBJECTIVE_FOUND");
+            withLoreForAllContexts("guide");
+            withIdleLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_active"), lookups);
+            assertEquals(1, sentLines().size());
+        }
+
+        @Test
+        @DisplayName("idle is lowest: an offer wins")
+        void offerOutranksIdle() {
+            trigger(quest("q1", new AtomicReference<>(QuestState.NOT_STARTED), true), "guide");
+            withLoreForAllContexts("guide");
+            withIdleLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_offer"), lookups);
+            assertEquals(1, sentLines().size());
+        }
+
+        @Test
+        @DisplayName("idle is lowest: a locked quest plays the locked line, not idle")
+        void lockedOutranksIdle() {
+            trigger(withUnmet(quest("cavern", new AtomicReference<>(QuestState.NOT_STARTED), false), "aether"), "guide");
+            lore.put("npc_guide_locked", "guide is not ready for you");
+            withIdleLore("guide");
+
+            dispatch(rightClick(player, "guide"));
+
+            assertEquals(List.of("npc_guide_locked"), lookups);
+            assertEquals(1, sentLines().size());
+        }
+
+        @Test
+        @DisplayName("a cancelled click plays no idle line")
+        void cancelledClickNoIdle() {
+            withIdleLore("blacksmith");
+            RvnkNpcInteractEvent event = rightClick(player, "blacksmith");
+            event.setCancelled(true);
+
+            coordinator.onNpcInteract(event);
+
+            assertTrue(sentLines().isEmpty());
+        }
+
+        @Test
+        @DisplayName("two players: each gets the line for their own state")
+        void twoPlayersOwnState() {
+            Player other = player("Other");
+            DataDrivenQuest q = quest("q1", new AtomicReference<>(QuestState.NOT_STARTED), true);
+            when(q.getStateForPlayer(other)).thenReturn(QuestState.COMPLETED);
+            talkTo(q, "guide_koz", "required_state", "QUEST_ACTIVE");
+            withLoreForAllContexts("guide_koz");
+            withIdleLore("guide_koz");
+
+            dispatch(rightClick(player, "guide_koz"));
+            dispatch(rightClick(other, "guide_koz"));
+
+            assertEquals(List.of("npc_guide_koz_idle", "npc_guide_koz_done"), lookups);
+            verify(other, times(1)).sendMessage(anyString());
+            assertEquals(1, sentLines().size(), "the first player gets only his own line");
         }
     }
 

@@ -327,6 +327,9 @@ in section 5, Example 4, and section 13 (dialogue and placeholders). Sample ques
   `NOT_STARTED` -> `TRIGGER_FOUND` edge. The check reads `getUnmetPrerequisites` and changes nothing.
   No `npc_<key>_locked` entry means silence, which is the leak guard. Rule: docs/quest-engine.md
   section 13. Sample: `quests/npc_sealed_stacks.yml`.
+- **Idle (1.1.82, #2417):** lowest of all. A right-click with no other line plays `npc_<key>_idle`
+  if it exists; a left-click stays silent. Before this, an NPC was mute to every player who had not
+  reached its quest step (Warden Halvard on Event).
 - **`advance_message` only on commit (1.1.68, #1764):** components call
   `AbstractQuest.tryAdvanceStateForPlayer`, which returns `true` only when the state write landed,
   and send the line through `AdvanceFeedback.notifyIfCommitted`. A refused advance (prerequisite

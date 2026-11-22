@@ -87,7 +87,8 @@ public class QuestStartSubCommand extends BaseSubCommand {
                 return questService.startQuest(playerId, questId)
                     .thenApply(success -> {
                         if (!success) {
-                            throw new IllegalStateException("Quest start failed for unknown reason");
+                            throw new IllegalStateException("Quest not started: " + playerName
+                                + " does not meet its requirements (permission or prerequisite quests)");
                         }
                         return success;
                     });
