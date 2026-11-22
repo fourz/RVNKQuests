@@ -60,9 +60,11 @@ metadata:
     - trig_ledger_open
     QUEST_ACTIVE:
     - obj_ledger_sign
-  notifications:
-    quest_start: false
-    quest_complete: false
+  # Silent beats (#2244): the engine reads metadata.notify (QuestNotifyPolicy), not 'notifications'.
+  notify:
+    start_popup: false
+    complete_popup: false
+    broadcast: false
 
 rewards:
   # The point of the quest (#2351): z-office opens RVNK Dev to the player's address after its next poll.

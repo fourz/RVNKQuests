@@ -44,9 +44,11 @@ metadata:
     - trig_vance_offer
     QUEST_ACTIVE:
     - obj_lectern_origin
-  notifications:
-    quest_start: false
-    quest_complete: false
+  # Silent beats (#2244): the engine reads metadata.notify (QuestNotifyPolicy), not 'notifications'.
+  notify:
+    start_popup: false
+    complete_popup: false
+    broadcast: false
 rewards:
   cavern_book:
     type: COMMAND
