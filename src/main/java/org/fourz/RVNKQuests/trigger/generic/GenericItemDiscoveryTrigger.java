@@ -3,9 +3,13 @@ package org.fourz.RVNKQuests.trigger.generic;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.fourz.RVNKQuests.RVNKQuests;
@@ -17,8 +21,13 @@ import org.fourz.rvnkcore.util.log.LogManager;
 import java.util.Map;
 
 /**
- * Generic item discovery trigger — triggers when player picks up or interacts with a specific item.
+ * Generic item discovery trigger — triggers when the player picks up, takes or holds a specific item.
  * Generalizes ListenerProphecyDiscovery.
+ *
+ * <p>Fires on any of (#2461): a right-click with the item in the main hand, picking the item up off
+ * the ground, closing any inventory (a chest take) while the item is in the player's inventory, or
+ * switching the hotbar onto the item. Only the right-click path tells the player about a wrong
+ * beat; the passive paths stay silent.</p>
  *
  * <h3>Config keys:</h3>
  * <ul>
@@ -75,34 +84,67 @@ public class GenericItemDiscoveryTrigger implements Listener {
 
         Player player = event.getPlayer();
 
-        // The state gate moved below the item match (#1904 follow-up). Identifying the item first
-        // means a mismatch here is "the right book at the wrong beat" — worth telling the player,
-        // rather than the silence that reads as a broken trigger.
-        if (worldName != null && !player.getWorld().getName().equalsIgnoreCase(worldName)) return;
-
         // Paper 1.21+ may return null from event.getItem() for book interactions — fall back to main hand
         ItemStack item = event.getItem();
         if (item == null || item.getType() == Material.AIR) {
             item = player.getInventory().getItemInMainHand();
         }
-        if (item == null || item.getType() != itemType) return;
+        // The state gate sits below the item match (#1904 follow-up). Identifying the item first
+        // means a mismatch here is "the right book at the wrong beat" — worth telling the player,
+        // rather than the silence that reads as a broken trigger.
+        discover(player, item, true, "right-click");
+    }
 
-        // Check item name if configured — strip color codes for comparison
-        if (itemName != null) {
-            if (!item.hasItemMeta()) {
-                logger.debug("Item discovery: " + player.getName() + " held item has no meta - skipping");
-                return;
+    /**
+     * Picking the item up off the ground counts as finding it (#2461). The stack is not in the
+     * inventory yet when this event fires, so match the picked-up stack itself.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPickup(EntityPickupItemEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        discover(player, event.getItem().getItemStack(), false, "pickup");
+    }
+
+    /**
+     * Taking the item out of a chest (or any container) counts as finding it (#2461). On close,
+     * scan the player's own inventory once — one scan per close, not per tick, and it also
+     * catches shift-clicks, drags and hotbar swaps without tracking each click type.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        discover(player, findMatch(player.getInventory().getContents(), itemType, itemName), false, "inventory close");
+    }
+
+    /** Switching the hotbar onto the item counts as holding it (#2461). */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onItemHeld(PlayerItemHeldEvent event) {
+        Player player = event.getPlayer();
+        discover(player, player.getInventory().getItem(event.getNewSlot()), false, "held");
+    }
+
+    /**
+     * Advance the player when {@code item} is this trigger's item, in the right world, at the
+     * right beat.
+     *
+     * @param explicit true for a right-click: a wrong beat then tells the player. The passive
+     *                 paths (pickup, close, held) stay silent at a wrong beat, so carrying the
+     *                 item around never spams the out-of-order line.
+     */
+    private void discover(Player player, ItemStack item, boolean explicit, String via) {
+        if (item == null) return;
+        if (worldName != null && !player.getWorld().getName().equalsIgnoreCase(worldName)) return;
+        if (!matches(item, itemType, itemName)) {
+            if (explicit && item.getType() == itemType && itemName != null) {
+                logger.debug("Item discovery: " + player.getName() + " name mismatch: '"
+                    + org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(item) + "' vs '" + itemName + "'");
             }
-            String resolved = org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(item);
-            String displayName = resolved != null ? resolved : "";
-            if (!displayName.contains(itemName)) {
-                logger.debug("Item discovery: " + player.getName() + " name mismatch: '" + displayName + "' vs '" + itemName + "'");
-                return;
-            }
+            return;
         }
 
         QuestState currentState = quest.getStateForPlayer(player);
         if (currentState != requiredState) {
+            if (!explicit) return;
             // #1930: name what the feedback decided, not just that we skipped — the message is
             // player-only and otherwise unobservable from the server.
             var outcome = feedback.notifyWrongBeat(player, currentState, requiredState);
@@ -120,7 +162,29 @@ public class GenericItemDiscoveryTrigger implements Listener {
             org.fourz.RVNKQuests.party.PartyBeatContext.of(
                 player.getLocation(), 0.0, requiredState)),
                 mainThread);
-        logger.debug("Item discovery trigger fired for " + player.getName() + " on quest " + quest.getId() + " - advancing to " + advanceState);
+        logger.debug("Item discovery trigger fired (" + via + ") for " + player.getName() + " on quest "
+            + quest.getId() + " - advancing to " + advanceState);
+    }
+
+    /**
+     * @return true when {@code item} has the configured material and, if a name is configured,
+     *         a plain display name that contains it (colour and Paper JSON quotes stripped)
+     */
+    static boolean matches(ItemStack item, Material itemType, String itemName) {
+        if (item == null || item.getType() != itemType) return false;
+        if (itemName == null) return true;
+        if (!item.hasItemMeta()) return false;
+        String resolved = org.fourz.RVNKQuests.util.ItemNameUtil.plainDisplayName(item);
+        return resolved != null && resolved.contains(itemName);
+    }
+
+    /** @return the first stack in {@code contents} that {@link #matches}, or null */
+    static ItemStack findMatch(ItemStack[] contents, Material itemType, String itemName) {
+        if (contents == null) return null;
+        for (ItemStack stack : contents) {
+            if (matches(stack, itemType, itemName)) return stack;
+        }
+        return null;
     }
 
     private Material parseMaterial(String name) {

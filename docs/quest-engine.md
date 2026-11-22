@@ -261,7 +261,16 @@ Player approaches any entity of a given type within a radius. No custom mob spaw
 
 ### ITEM_DISCOVERY
 
-Player picks up or holds a named item.
+Player picks up or holds a named item. It fires on any of these (#2461):
+
+- the player picks the item up off the ground;
+- the player closes a chest or other inventory with the item in their inventory (a chest take);
+- the player switches the hotbar onto the item;
+- the player right-clicks with the item in the main hand.
+
+Only the right-click tells the player about a wrong beat. The other paths stay silent at a wrong
+beat. A player who already carries the item when the beat opens gets it on the next of these
+actions, not at once.
 
 ```json
 {
@@ -275,7 +284,7 @@ Player picks up or holds a named item.
 | Field | Type | Description |
 |---|---|---|
 | `item_type` | String | Bukkit Material name |
-| `item_name` | String | Display name of the item (exact match) |
+| `item_name` | String | Text the item's display name must contain (colour codes stripped). `custom_name` is the preferred alias. |
 | `world` | String | Restricts to this world if set |
 
 ### STRUCTURE_INTERACT
