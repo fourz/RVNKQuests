@@ -8,6 +8,7 @@ metadata:
   - zeal
   chain: tfah_zeal
   chapter: 1
+  waypoints: auto
   components:
     arr_trigger:
       type: LOCATION_PROXIMITY

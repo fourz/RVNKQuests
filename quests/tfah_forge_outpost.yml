@@ -16,6 +16,7 @@ metadata:
   start_trigger: The Waybill
   chain: tfah_ravenforge
   chapter: 4
+  waypoints: auto
   components:
 
     # Beat 1 -- the [Tome] lectern beside the KOZ_One gate.

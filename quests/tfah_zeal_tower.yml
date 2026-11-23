@@ -13,6 +13,7 @@ metadata:
   state_mapping:
     NOT_STARTED:
     - tower_reach
+  waypoints: auto
   components:
     tower_reach:
       objective_type: REACH

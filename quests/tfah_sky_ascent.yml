@@ -13,6 +13,7 @@ metadata:
   start_trigger: The Sky-Watcher
   chain: tfah_skylands
   chapter: 3
+  waypoints: auto
   components:
     # Beat 1a -- the plugin places and maintains the guardian.
     #

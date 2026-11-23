@@ -10,6 +10,7 @@ metadata:
   - sotw_city
   chapter: 5.0
   start_trigger: Warden Tolla, at the beach crossroads
+  waypoints: auto
   components:
     trig_tolla_offer:
       type: NPC_INTERACT
