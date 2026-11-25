@@ -42,6 +42,9 @@ import java.util.concurrent.Executor;
  *   <li>{@code wrong_item_message} — optional line for a click at this beat with the wrong item or an
  *       empty hand; {@code &} colour codes allowed. Sent through the NPC coordinator, so the click
  *       still gives one line.</li>
+ *   <li>{@code advance_message}, {@code advance_sound}, {@code advance_volume}, {@code advance_pitch},
+ *       {@code advance_feedback} — the line and cue sent once the advance commits (#2475). See
+ *       {@link org.fourz.RVNKQuests.util.AdvanceFeedback}.</li>
  *   <li>{@code required_state}, {@code advance_state}, {@code requires_path} / {@code sets_path},
  *       {@code description}, {@code on_advance}, {@code waypoint} — as on TALK_TO</li>
  * </ul>
@@ -59,10 +62,17 @@ public class GenericDeliverObjective implements Listener, NpcQuestComponent {
 
     public static final String TYPE_NAME = "DELIVER";
 
-    private static final Set<String> KNOWN_KEYS = Set.of(
-        "objective_type", "npc_key", "click", "item_type", "item_name", "custom_name", "lore_item_id",
-        "amount", "wrong_item_message", "required_state", "advance_state", "requires_path", "sets_path",
-        "description", "waypoint", org.fourz.RVNKQuests.reward.OnAdvanceRewards.CONFIG_KEY);
+    private static final Set<String> KNOWN_KEYS = knownKeys();
+
+    private static Set<String> knownKeys() {
+        Set<String> keys = new java.util.HashSet<>(Set.of(
+            "objective_type", "npc_key", "click", "item_type", "item_name", "custom_name", "lore_item_id",
+            "amount", "wrong_item_message", "required_state", "advance_state", "requires_path", "sets_path",
+            "description", "waypoint", org.fourz.RVNKQuests.reward.OnAdvanceRewards.CONFIG_KEY));
+        // advance_message and friends (#2475): DELIVER sends them like every other objective.
+        keys.addAll(org.fourz.RVNKQuests.util.AdvanceFeedback.configKeys());
+        return Set.copyOf(keys);
+    }
 
     /**
      * Clicks that already started a delivery. Shared by every DELIVER component: two quests on one
@@ -82,6 +92,8 @@ public class GenericDeliverObjective implements Listener, NpcQuestComponent {
     private final DeliverItemMatch item;
     private final int amount;
     private final String wrongItemMessage;
+    /** The advance_message line and cue, sent only once the advance commits (#2475). */
+    private final org.fourz.RVNKQuests.util.AdvanceFeedback advanceFeedback;
     private final QuestState requiredState;
     private final QuestState advanceState;
     private final String requiresPath;
@@ -135,6 +147,7 @@ public class GenericDeliverObjective implements Listener, NpcQuestComponent {
 
         String wrong = QuestComponentFactory.getStringConfig(config, "wrong_item_message", null);
         this.wrongItemMessage = wrong == null || wrong.isBlank() ? null : wrong;
+        this.advanceFeedback = org.fourz.RVNKQuests.util.AdvanceFeedback.from(config);
 
         this.requiredState = parseState(
             QuestComponentFactory.getStringConfig(config, "required_state", "QUEST_ACTIVE"), QuestState.QUEST_ACTIVE);
@@ -205,6 +218,8 @@ public class GenericDeliverObjective implements Listener, NpcQuestComponent {
         if (advance == null) {
             advance = CompletableFuture.completedFuture(false);
         }
+        // The configured line, only after the advance commits (#2475; same rule as COLLECT, #2249).
+        advanceFeedback.notifyIfCommitted(player, advance, mainThread);
 
         NpcInteractionCoordinator coordinator = plugin.getNpcCoordinator();
         if (coordinator != null) {

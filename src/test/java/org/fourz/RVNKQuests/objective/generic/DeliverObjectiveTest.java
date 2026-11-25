@@ -343,6 +343,31 @@ class DeliverObjectiveTest {
         verify(inventory, never()).setItemInMainHand(any());
     }
 
+    // ==================== advance_message (#2475) ====================
+
+    @Test
+    @DisplayName("advance_message: sent once after a committed hand-in")
+    void advanceMessageOnCommit() {
+        hold(Material.PAPER, 1, "QA Ledger", null, null);
+        deliver("item_type", "PAPER", "custom_name", "QA Ledger", "advance_state", "COMPLETED",
+                "advance_message", "&a[QA 2390] The clerk took the ledger.", "advance_sound", "none")
+            .onNpcInteract(rightClick(player, "guide_outpost"));
+
+        assertAdvancedTo(QuestState.COMPLETED);
+        verify(player, times(1)).sendMessage("§a[QA 2390] The clerk took the ledger.");
+    }
+
+    @Test
+    @DisplayName("advance_message: silent when the advance does not commit")
+    void advanceMessageNotOnRefusal() {
+        DataDrivenQuest refusing = NpcTestSupport.quest("outpost_ledger", state, false);
+        hold(Material.PAPER, 1, null, null, null);
+        deliver(refusing, "item_type", "PAPER", "advance_message", "&aTaken.", "advance_sound", "none")
+            .onNpcInteract(rightClick(player, "guide_outpost"));
+
+        verify(player, never()).sendMessage(contains("Taken."));
+    }
+
     // ==================== Dialogue through the coordinator ====================
 
     @Nested
